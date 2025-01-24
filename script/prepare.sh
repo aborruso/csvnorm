@@ -5,10 +5,19 @@ set -e
 set -u
 set -o pipefail
 
+# Check if input file is provided
+if [ $# -eq 0 ]; then
+    echo "Usage: $0 <input_csv_file>"
+    exit 1
+fi
+
+input_file="$1"
+base_name=$(basename "$input_file" .csv)
 folder="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 mkdir -p "${folder}"/tmp
 
-duckdb -c "copy (from read_csv('../test/Trasporto Pubblico Locale Settore Pubblico Allargato - Indicatore 2000-2020 Trasferimenti Correnti su Entrate Correnti.csv',store_rejects = true,sample_size=-1)) TO '/dev/null';copy (FROM reject_errors) to '${folder}/tmp/reject_errors.csv'"
+# Process the input file
+duckdb -c "copy (from read_csv('$input_file',store_rejects = true,sample_size=-1)) TO '/dev/null';copy (FROM reject_errors) to '${folder}/tmp/reject_errors.csv'"
 
-duckdb --csv -c "select * from read_csv('../test/Trasporto Pubblico Locale Settore Pubblico Allargato - Indicatore 2000-2020 Trasferimenti Correnti su Entrate Correnti.csv',sample_size=-1)" >"${folder}/tmp/Trasporto Pubblico Locale Settore Pubblico Allargato - Indicatore 2000-2020 Trasferimenti Correnti su Entrate Correnti.csv"
+duckdb --csv -c "select * from read_csv('$input_file',sample_size=-1)" >"${folder}/tmp/${base_name}_normalized.csv"
