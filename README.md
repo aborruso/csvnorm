@@ -45,8 +45,6 @@ Output:
 - chardet (install with: pip install chardet)
 - iconv (usually pre-installed on Linux systems)
 - DuckDB (install with: pip install duckdb)
-- Bash 4.0+ (for script execution)
-- Coreutils (standard on Linux systems)
 
 ## Installation
 
