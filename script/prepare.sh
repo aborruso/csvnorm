@@ -22,7 +22,9 @@ duckdb -c "copy (from read_csv('$input_file',store_rejects = true,sample_size=-1
 
 # Check if there are any errors
 if [ $(wc -l < "${folder}/tmp/reject_errors.csv") -gt 1 ]; then
-    echo "Error: Invalid rows found in CSV file. Check ${folder}/tmp/reject_errors.csv for details."
+    echo "Error: DuckDB encountered invalid rows while processing the CSV file."
+    echo "Details of the errors can be found in: ${folder}/tmp/reject_errors.csv"
+    echo "Please fix the issues and try again."
     exit 1
 fi
 
