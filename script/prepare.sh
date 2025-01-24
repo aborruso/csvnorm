@@ -19,7 +19,8 @@ force_overwrite=false
 if [ $# -gt 1 ] && { [ "$2" == "-f" ] || [ "$2" == "--force" ]; }; then
     force_overwrite=true
 fi
-base_name=$(basename "$input_file" .csv)
+# Convert filename to snake_case
+base_name=$(basename "$input_file" .csv | sed -E 's/([A-Z])/_\1/g' | tr '-' '_' | tr '[:upper:]' '[:lower:]' | sed -E 's/^_//')
 folder="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 mkdir -p "${folder}"/tmp
