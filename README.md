@@ -24,6 +24,8 @@ Options:
                      input file.
   -d, --delimiter     Set custom field delimiter (default: comma)
                      Example: -d ';' for semicolon-delimited files
+  -o, --output-dir    Set custom output directory (default: ./tmp)
+                     Example: -o ./output to save files in ./output directory
 ```
 
 ## Requirements

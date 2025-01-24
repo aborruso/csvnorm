@@ -29,6 +29,7 @@ force_overwrite=false
 force_overwrite=false
 normalize_names=true
 delimiter=","
+output_dir="${folder}/tmp"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -48,6 +49,14 @@ while [[ $# -gt 0 ]]; do
             delimiter="$2"
             shift 2
             ;;
+        -o|--output-dir)
+            if [[ -z "$2" ]]; then
+                echo "Error: --output-dir requires a value"
+                exit 1
+            fi
+            output_dir="$2"
+            shift 2
+            ;;
         *)
             # First non-option argument is the input file
             if [[ -z "$input_file" ]]; then
@@ -65,10 +74,10 @@ base_name=$(basename "$input_file" .csv | \
     sed -E 's/^_|_$//g')
 folder="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-mkdir -p "${folder}"/tmp
+mkdir -p "$output_dir"
 
 # Check if final output file exists
-output_file="${folder}/tmp/${base_name}.csv"
+output_file="${output_dir}/${base_name}.csv"
 
 if [ -f "$output_file" ]; then
     if [ "$force_overwrite" = false ]; then
@@ -83,13 +92,13 @@ if [ -f "$output_file" ]; then
 fi
 
 # Always overwrite temporary error file
-rm -f "${folder}/tmp/reject_errors.csv"
+rm -f "${output_dir}/reject_errors.csv"
 
 # Check and convert encoding to UTF-8 if needed
 encoding=$(head -n 10000 "$input_file" | chardetect --minimal)
 if [ "$encoding" != "utf-8" ] && [ "$encoding" != "ascii" ]; then
     echo "Converting file from $encoding to UTF-8..."
-    temp_file="${folder}/tmp/${base_name}_utf8.csv"
+    temp_file="${output_dir}/${base_name}_utf8.csv"
     iconv -f "$encoding" -t UTF-8 "$input_file" > "$temp_file"
     input_file="$temp_file"
 fi
@@ -120,11 +129,11 @@ fi
 
 # Clean up temporary files
 # Only remove error file if it's empty or has just the header
-if [ $(wc -l < "${folder}/tmp/reject_errors.csv" 2>/dev/null || echo 0) -le 1 ]; then
-    rm -f "${folder}/tmp/reject_errors.csv"
+if [ $(wc -l < "${output_dir}/reject_errors.csv" 2>/dev/null || echo 0) -le 1 ]; then
+    rm -f "${output_dir}/reject_errors.csv"
 fi
 
 # Clean up UTF-8 conversion file if it exists
-if [ -f "${folder}/tmp/${base_name}_utf8.csv" ]; then
-    rm -f "${folder}/tmp/${base_name}_utf8.csv"
+if [ -f "${output_dir}/${base_name}_utf8.csv" ]; then
+    rm -f "${output_dir}/${base_name}_utf8.csv"
 fi
