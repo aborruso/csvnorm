@@ -94,7 +94,12 @@ else
 fi
 
 # Clean up temporary files
-rm -f "${folder}/tmp/reject_errors.csv"
+# Only remove error file if it's empty or has just the header
+if [ $(wc -l < "${folder}/tmp/reject_errors.csv" 2>/dev/null || echo 0) -le 1 ]; then
+    rm -f "${folder}/tmp/reject_errors.csv"
+fi
+
+# Clean up UTF-8 conversion file if it exists
 if [ -f "${folder}/tmp/${base_name}_utf8.csv" ]; then
     rm -f "${folder}/tmp/${base_name}_utf8.csv"
 fi
