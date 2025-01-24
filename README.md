@@ -22,6 +22,8 @@ Options:
                      (e.g., "Column Name" becomes "column_name"). Use this option
                      to preserve the original column names as they appear in the
                      input file.
+  -d, --delimiter     Set custom field delimiter (default: comma)
+                     Example: -d ';' for semicolon-delimited files
 ```
 
 ## Requirements

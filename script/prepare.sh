@@ -24,6 +24,7 @@ force_overwrite=false
 # Parse options
 force_overwrite=false
 normalize_names=true
+delimiter=","
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -34,6 +35,14 @@ while [[ $# -gt 0 ]]; do
         -n|--no-normalize)
             normalize_names=false
             shift
+            ;;
+        -d|--delimiter)
+            if [[ -z "$2" ]]; then
+                echo "Error: --delimiter requires a value"
+                exit 1
+            fi
+            delimiter="$2"
+            shift 2
             ;;
         *)
             # First non-option argument is the input file
@@ -93,10 +102,16 @@ if [ $(wc -l < "${folder}/tmp/reject_errors.csv") -gt 1 ]; then
 fi
 
 # Create final output file
+copy_options="(header true, format csv"
+if [ "$delimiter" != "," ]; then
+    copy_options+=", delimiter '$delimiter'"
+fi
+copy_options+=")"
+
 if [ "$normalize_names" = true ]; then
-    duckdb -c "copy (select * from read_csv('$input_file',sample_size=-1,normalize_names=true)) to '$output_file' (header true, format csv)"
+    duckdb -c "copy (select * from read_csv('$input_file',sample_size=-1,normalize_names=true)) to '$output_file' $copy_options"
 else
-    duckdb -c "copy (select * from read_csv('$input_file',sample_size=-1)) to '$output_file' (header true, format csv)"
+    duckdb -c "copy (select * from read_csv('$input_file',sample_size=-1)) to '$output_file' $copy_options"
 fi
 
 # Clean up temporary files
