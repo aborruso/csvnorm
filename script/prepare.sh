@@ -68,7 +68,7 @@ rm -f "${folder}/tmp/reject_errors.csv"
 
 # Check and convert encoding to UTF-8 if needed
 encoding=$(head -n 10000 "$input_file" | chardetect --minimal)
-if [ "$encoding" != "utf-8" ]; then
+if [ "$encoding" != "utf-8" ] && [ "$encoding" != "ascii" ]; then
     echo "Converting file from $encoding to UTF-8..."
     temp_file="${folder}/tmp/${base_name}_utf8.csv"
     iconv -f "$encoding" -t UTF-8 "$input_file" > "$temp_file"
