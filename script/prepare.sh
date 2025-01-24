@@ -25,15 +25,13 @@ folder="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 mkdir -p "${folder}"/tmp
 
-# Check if output files exist
-output_file="${folder}/tmp/${base_name}_normalized.csv"
-errors_file="${folder}/tmp/reject_errors.csv"
+# Check if output file exists
+output_file="${folder}/tmp/${base_name}.csv"
 
-if [ -f "$output_file" ] || [ -f "$errors_file" ]; then
+if [ -f "$output_file" ]; then
     if [ "$force_overwrite" = false ]; then
-        echo "Warning: Output files already exist:"
-        [ -f "$output_file" ] && echo "  - $output_file"
-        [ -f "$errors_file" ] && echo "  - $errors_file"
+        echo "Warning: Output file already exists:"
+        echo "  - $output_file"
         read -p "Do you want to overwrite them? [y/N] " -r
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             echo "Aborted by user."
@@ -62,4 +60,11 @@ if [ $(wc -l < "${folder}/tmp/reject_errors.csv") -gt 1 ]; then
     exit 1
 fi
 
-duckdb --csv -c "select * from read_csv('$input_file',sample_size=-1,normalize_names=true)" >"${folder}/tmp/${base_name}_normalized.csv"
+# Create final output file
+duckdb --csv -c "select * from read_csv('$input_file',sample_size=-1,normalize_names=true)" >"$output_file"
+
+# Clean up temporary files
+rm -f "${folder}/tmp/reject_errors.csv"
+if [ -f "${folder}/tmp/${base_name}_utf8.csv" ]; then
+    rm -f "${folder}/tmp/${base_name}_utf8.csv"
+fi
