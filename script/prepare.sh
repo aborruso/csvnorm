@@ -38,8 +38,12 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
-# Convert filename to snake_case
-base_name=$(basename "$input_file" .csv | sed -E 's/([A-Z])/_\1/g' | tr '-' '_' | tr '[:upper:]' '[:lower:]' | sed -E 's/^_//')
+# Convert filename to clean snake_case
+base_name=$(basename "$input_file" .csv | \
+    tr '[:upper:]' '[:lower:]' | \
+    sed -E 's/[^a-z0-9]+/_/g' | \
+    sed -E 's/_+/_/g' | \
+    sed -E 's/^_|_$//g')
 folder="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 mkdir -p "${folder}"/tmp
