@@ -13,7 +13,7 @@ A command-line utility to validate and normalize CSV files.
 ## Usage
 
 ```bash
-csv_normalizer input.csv output.csv [options]
+csv_normalizer input.csv [options]
 
 Options:
   -f, --force         Force overwrite of existing output files
@@ -24,8 +24,19 @@ Options:
                      input file.
   -d, --delimiter     Set custom field delimiter (default: comma)
                      Example: -d ';' for semicolon-delimited files
+                     Example: -d $'\t' for tab-delimited files
+                     Example: -d '|' for pipe-delimited files
   -o, --output-dir    Set custom output directory (default: ./tmp)
                      Example: -o ./output to save files in ./output directory
+  -v, --verbose       Enable verbose output for debugging
+  -h, --help          Show this help message and exit
+
+Output:
+  Creates a normalized CSV file in the specified output directory with:
+  - UTF-8 encoding
+  - Consistent field delimiters
+  - Normalized column names (unless --no-normalize is specified)
+  - Error report if any invalid rows are found
 ```
 
 ## Requirements
@@ -33,6 +44,9 @@ Options:
 - Python 3.8+
 - chardet (install with: pip install chardet)
 - iconv (usually pre-installed on Linux systems)
+- DuckDB (install with: pip install duckdb)
+- Bash 4.0+ (for script execution)
+- Coreutils (standard on Linux systems)
 
 ## Installation
 
