@@ -62,4 +62,4 @@ if [ $(wc -l < "${folder}/tmp/reject_errors.csv") -gt 1 ]; then
     exit 1
 fi
 
-duckdb --csv -c "select * from read_csv('$input_file',sample_size=-1)" >"${folder}/tmp/${base_name}_normalized.csv"
+duckdb --csv -c "select * from read_csv('$input_file',sample_size=-1,normalize_names=true)" >"${folder}/tmp/${base_name}_normalized.csv"
