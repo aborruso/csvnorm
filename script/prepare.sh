@@ -7,8 +7,14 @@ set -o pipefail
 
 # Check if input file is provided
 if [ $# -eq 0 ]; then
-    echo "Usage: $0 <input_csv_file> [-f|--force]"
-    echo "  -f, --force   Force overwrite of existing output files"
+    echo "Usage: $0 <input_csv_file> [options]"
+    echo "Options:"
+    echo "  -f, --force         Force overwrite of existing output files"
+    echo "  -n, --no-normalize  Keep original column names (disable snake_case normalization)"
+    echo "                      By default, column names are converted to snake_case format"
+    echo "                      (e.g., 'Column Name' becomes 'column_name'). Use this option"
+    echo "                      to preserve the original column names as they appear in the"
+    echo "                      input file."
     exit 1
 fi
 
