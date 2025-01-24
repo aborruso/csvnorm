@@ -22,6 +22,7 @@ if [ $# -eq 0 ]; then
     exit 1
 fi
 
+folder="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 input_file="$1"
 force_overwrite=false
 
