@@ -15,10 +15,29 @@ fi
 input_file="$1"
 force_overwrite=false
 
-# Check for force flag
-if [ $# -gt 1 ] && { [ "$2" == "-f" ] || [ "$2" == "--force" ]; }; then
-    force_overwrite=true
-fi
+# Parse options
+force_overwrite=false
+normalize_names=true
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -f|--force)
+            force_overwrite=true
+            shift
+            ;;
+        -n|--no-normalize)
+            normalize_names=false
+            shift
+            ;;
+        *)
+            # First non-option argument is the input file
+            if [[ -z "$input_file" ]]; then
+                input_file="$1"
+            fi
+            shift
+            ;;
+    esac
+done
 # Convert filename to snake_case
 base_name=$(basename "$input_file" .csv | sed -E 's/([A-Z])/_\1/g' | tr '-' '_' | tr '[:upper:]' '[:lower:]' | sed -E 's/^_//')
 folder="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -64,7 +83,11 @@ if [ $(wc -l < "${folder}/tmp/reject_errors.csv") -gt 1 ]; then
 fi
 
 # Create final output file
-duckdb --csv -c "select * from read_csv('$input_file',sample_size=-1,normalize_names=true)" >"$output_file"
+if [ "$normalize_names" = true ]; then
+    duckdb --csv -c "select * from read_csv('$input_file',sample_size=-1,normalize_names=true)" >"$output_file"
+else
+    duckdb --csv -c "select * from read_csv('$input_file',sample_size=-1)" >"$output_file"
+fi
 
 # Clean up temporary files
 rm -f "${folder}/tmp/reject_errors.csv"

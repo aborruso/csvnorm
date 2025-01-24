@@ -13,7 +13,11 @@ A command-line utility to validate and normalize CSV files.
 ## Usage
 
 ```bash
-csv_normalizer input.csv output.csv
+csv_normalizer input.csv output.csv [options]
+
+Options:
+  -f, --force         Force overwrite of existing output files
+  -n, --no-normalize  Keep original column names (disable snake_case normalization)
 ```
 
 ## Requirements
