@@ -15,6 +15,10 @@ if [ $# -eq 0 ]; then
     echo "                      (e.g., 'Column Name' becomes 'column_name'). Use this option"
     echo "                      to preserve the original column names as they appear in the"
     echo "                      input file."
+    echo "  -d, --delimiter     Set custom field delimiter (default: comma)"
+    echo "                      Example: -d ';' for semicolon-delimited files"
+    echo "                      Example: -d $'\t' for tab-delimited files"
+    echo "                      Example: -d '|' for pipe-delimited files"
     exit 1
 fi
 
