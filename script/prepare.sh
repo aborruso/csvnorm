@@ -94,9 +94,9 @@ fi
 
 # Create final output file
 if [ "$normalize_names" = true ]; then
-    duckdb --csv -c "select * from read_csv('$input_file',sample_size=-1,normalize_names=true)" >"$output_file"
+    duckdb -c "copy (select * from read_csv('$input_file',sample_size=-1,normalize_names=true)) to '$output_file' (header true, format csv)"
 else
-    duckdb --csv -c "select * from read_csv('$input_file',sample_size=-1)" >"$output_file"
+    duckdb -c "copy (select * from read_csv('$input_file',sample_size=-1)) to '$output_file' (header true, format csv)"
 fi
 
 # Clean up temporary files
