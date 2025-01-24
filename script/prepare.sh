@@ -25,20 +25,23 @@ folder="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 mkdir -p "${folder}"/tmp
 
-# Check if output file exists
+# Check if final output file exists
 output_file="${folder}/tmp/${base_name}.csv"
 
 if [ -f "$output_file" ]; then
     if [ "$force_overwrite" = false ]; then
         echo "Warning: Output file already exists:"
         echo "  - $output_file"
-        read -p "Do you want to overwrite them? [y/N] " -r
+        read -p "Do you want to overwrite it? [y/N] " -r
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             echo "Aborted by user."
             exit 0
         fi
     fi
 fi
+
+# Always overwrite temporary error file
+rm -f "${folder}/tmp/reject_errors.csv"
 
 # Check and convert encoding to UTF-8 if needed
 encoding=$(head -n 10000 "$input_file" | chardetect --minimal)
