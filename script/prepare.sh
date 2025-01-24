@@ -7,15 +7,39 @@ set -o pipefail
 
 # Check if input file is provided
 if [ $# -eq 0 ]; then
-    echo "Usage: $0 <input_csv_file>"
+    echo "Usage: $0 <input_csv_file> [-f|--force]"
+    echo "  -f, --force   Force overwrite of existing output files"
     exit 1
 fi
 
 input_file="$1"
+force_overwrite=false
+
+# Check for force flag
+if [ $# -gt 1 ] && { [ "$2" == "-f" ] || [ "$2" == "--force" ]; }; then
+    force_overwrite=true
+fi
 base_name=$(basename "$input_file" .csv)
 folder="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 mkdir -p "${folder}"/tmp
+
+# Check if output files exist
+output_file="${folder}/tmp/${base_name}_normalized.csv"
+errors_file="${folder}/tmp/reject_errors.csv"
+
+if [ -f "$output_file" ] || [ -f "$errors_file" ]; then
+    if [ "$force_overwrite" = false ]; then
+        echo "Warning: Output files already exist:"
+        [ -f "$output_file" ] && echo "  - $output_file"
+        [ -f "$errors_file" ] && echo "  - $errors_file"
+        read -p "Do you want to overwrite them? [y/N] " -r
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo "Aborted by user."
+            exit 0
+        fi
+    fi
+fi
 
 # Process the input file
 duckdb -c "copy (from read_csv('$input_file',store_rejects = true,sample_size=-1)) TO '/dev/null';copy (FROM reject_errors) to '${folder}/tmp/reject_errors.csv'"
