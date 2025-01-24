@@ -105,12 +105,12 @@ if [ "$encoding" != "utf-8" ] && [ "$encoding" != "ascii" ]; then
 fi
 
 # Process the input file
-duckdb -c "copy (from read_csv('$input_file',store_rejects = true,sample_size=-1)) TO '/dev/null';copy (FROM reject_errors) to '${folder}/tmp/reject_errors.csv'"
+duckdb -c "copy (from read_csv('$input_file',store_rejects = true,sample_size=-1)) TO '/dev/null';copy (FROM reject_errors) to '${output_dir}/reject_errors.csv'"
 
 # Check if there are any errors
-if [ $(wc -l < "${folder}/tmp/reject_errors.csv") -gt 1 ]; then
+if [ $(wc -l < "${output_dir}/reject_errors.csv") -gt 1 ]; then
     echo "Error: DuckDB encountered invalid rows while processing the CSV file."
-    echo "Details of the errors can be found in: ${folder}/tmp/reject_errors.csv"
+    echo "Details of the errors can be found in: ${output_dir}/reject_errors.csv"
     echo "Please fix the issues and try again."
     exit 1
 fi
@@ -130,7 +130,7 @@ fi
 
 # Clean up temporary files
 # Only remove error file if it's empty or has just the header
-if [ $(wc -l < "${output_dir}/reject_errors.csv" 2>/dev/null || echo 0) -le 1 ]; then
+if [ -f "${output_dir}/reject_errors.csv" ] && [ $(wc -l < "${output_dir}/reject_errors.csv" 2>/dev/null || echo 0) -le 1 ]; then
     rm -f "${output_dir}/reject_errors.csv"
 fi
 
