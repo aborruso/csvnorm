@@ -18,6 +18,10 @@ csv_normalizer input.csv output.csv [options]
 Options:
   -f, --force         Force overwrite of existing output files
   -n, --no-normalize  Keep original column names (disable snake_case normalization)
+                     By default, column names are converted to snake_case format
+                     (e.g., "Column Name" becomes "column_name"). Use this option
+                     to preserve the original column names as they appear in the
+                     input file.
 ```
 
 ## Requirements
