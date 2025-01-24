@@ -19,7 +19,8 @@ csv_normalizer input.csv output.csv
 ## Requirements
 
 - Python 3.8+
-- Standard Python libraries (no external dependencies)
+- chardet (install with: pip install chardet)
+- iconv (usually pre-installed on Linux systems)
 
 ## Installation
 
