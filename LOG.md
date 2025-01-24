@@ -18,7 +18,6 @@
 - DuckDB
 - chardet
 - iconv
-- Bash 4.0+
 
 ### Known Issues
 - Large files (>1GB) may require additional memory
