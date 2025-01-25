@@ -106,10 +106,16 @@ set +e
 encoding=$(head -n 10000 "$input_file" | chardetect --minimal 2>/dev/null)
 exit_code=$?
 set -e
+
+# Ignore SIGPIPE (141) as it's expected behavior with head
+if [ $exit_code -eq 141 ]; then
+    exit_code=0
+fi
+
 echo "chardetect exit code: $exit_code"
 echo "Detected encoding: $encoding"
 
-# If chardetect failed, try alternative method
+# If chardetect failed (excluding SIGPIPE), try alternative method
 if [ $exit_code -ne 0 ] || [ -z "$encoding" ]; then
     echo "chardetect failed, trying alternative method..."
     encoding=$(file -b --mime-encoding "$input_file")
