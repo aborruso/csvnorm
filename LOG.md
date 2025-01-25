@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.0] - 2025-01-25
+
+### Added
+- Comprehensive logging system
+  - Timestamped log entries
+  - File-based logging (prepare.log)
+  - Console output preservation
+  - Detailed operation tracking
+- Improved error handling
+  - SIGPIPE (141) handling for chardetect
+  - Fallback encoding detection using file command
+  - Case-insensitive encoding validation
+  - Better error reporting and debugging
+
 ## [1.0.0] - 2025-01-24
 
 ### Added
@@ -18,7 +32,9 @@
 - DuckDB
 - chardet
 - iconv
+- file (fallback encoding detection)
 
 ### Known Issues
 - Large files (>1GB) may require additional memory
 - Complex CSV structures may need manual verification
+- Temporary files cleanup might fail on Windows systems
