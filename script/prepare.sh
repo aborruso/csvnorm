@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#set -x
+set -x
 set -e
 set -u
 set -o pipefail
@@ -103,7 +103,7 @@ rm -f "${output_dir}/reject_errors.csv"
 
 # Check and convert encoding to UTF-8 if needed
 encoding=$(head -n 10000 "$input_file" | chardetect --minimal)
-if [ "$encoding" != "utf-8" ] && [ "$encoding" != "ascii" ]; then
+if [ "$encoding" != "utf-8" ] && [ "$encoding" != "ascii" ] && [ "$encoding" != "utf-8-sig" ]; then
     echo "Converting file from $encoding to UTF-8..."
     temp_file="${output_dir}/${base_name}_utf8.csv"
     iconv -f "$encoding" -t UTF-8 "$input_file" > "$temp_file"
