@@ -17,8 +17,10 @@ if [ $# -eq 0 ]; then
     echo "                      input file."
     echo "  -d, --delimiter     Set custom field delimiter (default: comma)"
     echo "                      Example: -d ';' for semicolon-delimited files"
-    echo "                      Example: -d $'\t' for tab-delimited files"
+    echo "                      Example: -d \$'\t' for tab-delimited files"
     echo "                      Example: -d '|' for pipe-delimited files"
+    echo "  -o, --output-dir    Set custom output directory (default: 'tmp')"
+    echo "                      Example: -o my_output_directory"
     exit 1
 fi
 
