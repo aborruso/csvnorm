@@ -102,10 +102,20 @@ fi
 rm -f "${output_dir}/reject_errors.csv"
 
 # Check and convert encoding to UTF-8 if needed
-encoding=$(head -n 10000 "$input_file" | chardetect --minimal)
+set +e
+encoding=$(head -n 10000 "$input_file" | chardetect --minimal 2>/dev/null)
 exit_code=$?
+set -e
 echo "chardetect exit code: $exit_code"
 echo "Detected encoding: $encoding"
+
+# If chardetect failed, try alternative method
+if [ $exit_code -ne 0 ] || [ -z "$encoding" ]; then
+    echo "chardetect failed, trying alternative method..."
+    encoding=$(file -b --mime-encoding "$input_file")
+    echo "Alternative encoding detection: $encoding"
+fi
+
 # Convert encoding to lowercase for case-insensitive comparison
 encoding_lower=$(echo "$encoding" | tr '[:upper:]' '[:lower:]')
 if [ "$encoding_lower" != "utf-8" ] && [ "$encoding_lower" != "ascii" ] && [ "$encoding_lower" != "utf-8-sig" ]; then
