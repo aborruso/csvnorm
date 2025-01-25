@@ -3,11 +3,6 @@
 ## [1.1.0] - 2025-01-25
 
 ### Added
-- Comprehensive logging system
-  - Timestamped log entries
-  - File-based logging (prepare.log)
-  - Console output preservation
-  - Detailed operation tracking
 - Improved error handling
   - SIGPIPE (141) handling for chardetect
   - Fallback encoding detection using file command
