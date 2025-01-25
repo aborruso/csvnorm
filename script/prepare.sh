@@ -21,6 +21,10 @@ if [ $# -eq 0 ]; then
     echo "                      Example: -d '|' for pipe-delimited files"
     echo "  -o, --output-dir    Set custom output directory (default: 'tmp')"
     echo "                      Example: -o my_output_directory"
+    echo "Examples:"
+    echo "  $0 data.csv -d ';' -o output_folder --force"
+    echo "  $0 data.csv --no-normalize --delimiter \$'\t'"
+    echo ""
     exit 1
 fi
 
