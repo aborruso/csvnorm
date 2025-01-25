@@ -103,6 +103,9 @@ rm -f "${output_dir}/reject_errors.csv"
 
 # Check and convert encoding to UTF-8 if needed
 encoding=$(head -n 10000 "$input_file" | chardetect --minimal)
+exit_code=$?
+echo "chardetect exit code: $exit_code"
+echo "Detected encoding: $encoding"
 # Convert encoding to lowercase for case-insensitive comparison
 encoding_lower=$(echo "$encoding" | tr '[:upper:]' '[:lower:]')
 if [ "$encoding_lower" != "utf-8" ] && [ "$encoding_lower" != "ascii" ] && [ "$encoding_lower" != "utf-8-sig" ]; then
