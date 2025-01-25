@@ -7,7 +7,7 @@ set -o pipefail
 
 # Check if input file is provided
 if [ $# -eq 0 ]; then
-    echo "Usage: $0 <input_csv_file> [options]"
+    echo "Usage: $(basename "$0") <input_csv_file> [options]"
     echo "Options:"
     echo "  -f, --force         Force overwrite of existing output files"
     echo "  -n, --no-normalize  Keep original column names (disable snake_case normalization)"
@@ -22,8 +22,8 @@ if [ $# -eq 0 ]; then
     echo "  -o, --output-dir    Set custom output directory (default: 'tmp')"
     echo "                      Example: -o my_output_directory"
     echo "Examples:"
-    echo "  $0 data.csv -d ';' -o output_folder --force"
-    echo "  $0 data.csv --no-normalize --delimiter \$'\t'"
+    echo "  $(basename "$0") data.csv -d ';' -o output_folder --force"
+    echo "  $(basename "$0") data.csv --no-normalize --delimiter \$'\t'"
     echo ""
     exit 1
 fi
