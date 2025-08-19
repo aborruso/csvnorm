@@ -214,7 +214,7 @@ jobs:
           script: |-
             const runUrl = process.env.RUN_URL;
             const issueBody = `There is a problem with the Gemini CLI scheduled issue triaging. Please check the [action logs](${runUrl}) for details.`;
-            
+
             // Create an issue for failed scheduled triage
             await github.rest.issues.create({
               owner: context.repo.owner,
