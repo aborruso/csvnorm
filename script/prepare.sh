@@ -43,11 +43,11 @@ while [[ $# -gt 0 ]]; do
         -f|--force)
             force_overwrite=true
             shift
-            ;;;
+            ;;
         -n|--no-normalize)
             normalize_names=false
             shift
-            ;;;
+            ;;
         -d|--delimiter)
             if [[ -z "$2" ]]; then
                 echo "Error: --delimiter requires a value"
@@ -55,7 +55,7 @@ while [[ $# -gt 0 ]]; do
             fi
             delimiter="$2"
             shift 2
-            ;;;
+            ;;
         -o|--output-dir)
             if [[ -z "$2" ]]; then
                 echo "Error: --output-dir requires a value"
@@ -63,14 +63,14 @@ while [[ $# -gt 0 ]]; do
             fi
             output_dir="$2"
             shift 2
-            ;;;
+            ;;
         *)
             # First non-option argument is the input file
             if [[ -z "$input_file" ]]; then
                 input_file="$1"
             fi
             shift
-            ;;;
+            ;;
     esac
 done
 # Convert filename to clean snake_case
@@ -116,10 +116,11 @@ echo "chardetect exit code: $exit_code"
 echo "Detected encoding: $encoding"
 
 # If chardetect returns "MACROMAN", treat it as "MACINTOSH"
-if [ "$encoding" = "MACROMAN" ]; then
+if [[ "${encoding^^}" == "MACROMAN" ]]; then
     echo "Adjusting encoding from MACROMAN to MACINTOSH"
     encoding="MACINTOSH"
 fi
+
 
 # If chardetect failed (excluding SIGPIPE), try alternative method
 if [ $exit_code -ne 0 ] || [ -z "$encoding" ]; then
