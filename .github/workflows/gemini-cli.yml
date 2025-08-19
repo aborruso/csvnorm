@@ -212,7 +212,7 @@ jobs:
           use_gemini_code_assist: '${{ vars.GOOGLE_GENAI_USE_GCA }}'
           settings: |-
             {
-              "debug": ${{ fromJSON(env.DEBUG || env.ACTIONS_STEP_DEBUG || false) }},
+              "debug": false,
               "maxSessionTurns": 50,
               "telemetry": {
                 "enabled": false,

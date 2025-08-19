@@ -88,8 +88,8 @@ jobs:
           use_vertex_ai: '${{ vars.GOOGLE_GENAI_USE_VERTEXAI }}'
           use_gemini_code_assist: '${{ vars.GOOGLE_GENAI_USE_GCA }}'
           settings: |-
-            {{
-              "debug": ${{ fromJSON(env.DEBUG || env.ACTIONS_STEP_DEBUG || false) }},
+            {
+              "debug": false,
               "maxSessionTurns": 25,
               "coreTools": [
                 "run_shell_command(echo)"
@@ -98,7 +98,7 @@ jobs:
                 "enabled": false,
                 "target": "gcp"
               }
-            }}
+            }
           prompt: |-
             ## Role
 
