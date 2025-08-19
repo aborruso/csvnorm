@@ -103,7 +103,7 @@ rm -f "${output_dir}/reject_errors.csv"
 
 # Check and convert encoding to UTF-8 if needed
 set +e
-encoding=$(head -n 10000 "$input_file" | chardetect --minimal 2>/dev/null)
+encoding=$(shuf -n 10000 "$input_file" | chardetect --minimal 2>/dev/null)
 exit_code=$?
 set -e
 
