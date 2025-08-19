@@ -47,7 +47,7 @@ jobs:
 
       - name: 'Generate GitHub App Token'
         id: 'generate_token'
-        if: |-
+        if: |- 
           ${{ vars.APP_ID }}
         uses: 'actions/create-github-app-token@df432ceedc7162793a195dd1713ff69aefc7379e' # ratchet:actions/create-github-app-token@v2
         with:
@@ -59,7 +59,7 @@ jobs:
         uses: 'actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea'
         with:
           github-token: '${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}'
-          script: |-
+          script: |- 
             const { data: labels } = await github.rest.issues.listLabelsForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -89,7 +89,7 @@ jobs:
           use_vertex_ai: '${{ vars.GOOGLE_GENAI_USE_VERTEXAI }}'
           use_gemini_code_assist: '${{ vars.GOOGLE_GENAI_USE_GCA }}'
           settings: |-
-            {
+            {{
               "debug": ${{ fromJSON(env.DEBUG || env.ACTIONS_STEP_DEBUG || false) }},
               "maxSessionTurns": 25,
               "coreTools": [
@@ -99,7 +99,7 @@ jobs:
                 "enabled": false,
                 "target": "gcp"
               }
-            }
+            }}
           prompt: |-
             ## Role
 
@@ -132,7 +132,7 @@ jobs:
             - Do not include any explanation or additional text, just the JSON
 
       - name: 'Apply Labels to Issue'
-        if: |-
+        if: |- 
           ${{ steps.gemini_issue_analysis.outputs.summary != '' }}
         env:
           REPOSITORY: '${{ github.repository }}'
@@ -141,13 +141,13 @@ jobs:
         uses: 'actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea'
         with:
           github-token: '${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}'
-          script: |-
+          script: |- 
             const rawOutput = process.env.LABELS_OUTPUT;
             core.info(`Raw Gemini output: ${rawOutput}`);
 
             let parsedLabels = {};
             // Updated regex to account for any text before the JSON block
-            const jsonMatch = rawOutput.match(/[​]*?```json\s*([\s\S]*?)\s*```/);
+            const jsonMatch = rawOutput.match(/```json\s*([\s\S]*?)\s*```/);
 
             if (jsonMatch && jsonMatch[1]) {
               try {
@@ -183,7 +183,7 @@ jobs:
             }
 
       - name: 'Post Issue Analysis Failure Comment'
-        if: |-
+        if: |- 
           ${{ failure() && steps.gemini_issue_analysis.outcome == 'failure' }}
         env:
           ISSUE_NUMBER: '${{ github.event.issue.number }}'
@@ -191,7 +191,7 @@ jobs:
         uses: 'actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea'
         with:
           github-token: '${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}'
-          script: |-
+          script: |- 
             github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
