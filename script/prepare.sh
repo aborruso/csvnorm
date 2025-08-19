@@ -17,13 +17,13 @@ if [ $# -eq 0 ]; then
     echo "                      input file."
     echo "  -d, --delimiter     Set custom field delimiter (default: comma)"
     echo "                      Example: -d ';' for semicolon-delimited files"
-    echo "                      Example: -d \$'\t' for tab-delimited files"
+    echo "                      Example: -d $\'\t\' for tab-delimited files"
     echo "                      Example: -d '|' for pipe-delimited files"
     echo "  -o, --output-dir    Set custom output directory (default: 'tmp')"
     echo "                      Example: -o my_output_directory"
     echo "Examples:"
     echo "  $(basename "$0") data.csv -d ';' -o output_folder --force"
-    echo "  $(basename "$0") data.csv --no-normalize --delimiter \$'\t'"
+    echo "  $(basename "$0") data.csv --no-normalize --delimiter $\'\t\'"
     echo ""
     exit 1
 fi
@@ -43,11 +43,11 @@ while [[ $# -gt 0 ]]; do
         -f|--force)
             force_overwrite=true
             shift
-            ;;
+            ;;;
         -n|--no-normalize)
             normalize_names=false
             shift
-            ;;
+            ;;;
         -d|--delimiter)
             if [[ -z "$2" ]]; then
                 echo "Error: --delimiter requires a value"
@@ -55,7 +55,7 @@ while [[ $# -gt 0 ]]; do
             fi
             delimiter="$2"
             shift 2
-            ;;
+            ;;;
         -o|--output-dir)
             if [[ -z "$2" ]]; then
                 echo "Error: --output-dir requires a value"
@@ -63,21 +63,21 @@ while [[ $# -gt 0 ]]; do
             fi
             output_dir="$2"
             shift 2
-            ;;
+            ;;;
         *)
             # First non-option argument is the input file
             if [[ -z "$input_file" ]]; then
                 input_file="$1"
             fi
             shift
-            ;;
+            ;;;
     esac
 done
 # Convert filename to clean snake_case
-base_name=$(basename "$input_file" .csv | \
-    tr '[:upper:]' '[:lower:]' | \
-    sed -E 's/[^a-z0-9]+/_/g' | \
-    sed -E 's/_+/_/g' | \
+base_name=$(basename "$input_file" .csv |
+    tr '[:upper:]' '[:lower:]' |
+    sed -E 's/[^a-z0-9]+/_/g' |
+    sed -E 's/_+/_/g' |
     sed -E 's/^_|_$//g')
 folder="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -115,6 +115,12 @@ fi
 echo "chardetect exit code: $exit_code"
 echo "Detected encoding: $encoding"
 
+# If chardetect returns "MACROMAN", treat it as "MACINTOSH"
+if [ "$encoding" = "MACROMAN" ]; then
+    echo "Adjusting encoding from MACROMAN to MACINTOSH"
+    encoding="MACINTOSH"
+fi
+
 # If chardetect failed (excluding SIGPIPE), try alternative method
 if [ $exit_code -ne 0 ] || [ -z "$encoding" ]; then
     echo "chardetect failed, trying alternative method..."
@@ -145,7 +151,7 @@ fi
 # Create final output file
 copy_options="(header true, format csv"
 if [ "$delimiter" != "," ]; then
-    copy_options+=", delimiter '$delimiter'"
+    copy_options+= ", delimiter '$delimiter'"
 fi
 copy_options+=")"
 
