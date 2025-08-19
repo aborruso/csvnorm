@@ -42,11 +42,73 @@ Output:
 ## Requirements
 
 - Python 3.8+
-- chardet (install with: pip install chardet)
+- chardet (automatically installed via make)
 - iconv (usually pre-installed on Linux systems)
-- DuckDB (install with: pip install duckdb)
+- DuckDB (automatically installed via make)
+- curl and unzip (for downloading DuckDB CLI)
+
+## Development
+
+### Available Make Targets
+
+- `make install` - Install the utility and dependencies
+- `make uninstall` - Remove the installed utility
+- `make test` - Run tests to verify functionality
+- `make check` - Verify all dependencies are installed
+- `make clean` - Remove temporary files
+- `make help` - Show available targets
+
+### Testing
+
+Run the test suite:
+```bash
+make test
+```
+
+### Cleaning
+
+Remove temporary files:
+```bash
+make clean
+```
 
 ## Installation
+
+### Option 1: Using Makefile (Recommended)
+
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd prepare_data
+```
+
+2. Install using make:
+```bash
+make install
+```
+
+This will:
+- Install required Python dependencies (chardet, duckdb)
+- Download and install the DuckDB CLI tool
+- Install the `csv_normalizer` command globally
+
+For custom installation directory:
+```bash
+make install PREFIX=~/.local  # Install to ~/.local/bin
+```
+
+3. Verify installation:
+```bash
+make check
+csv_normalizer --help
+```
+
+4. To uninstall:
+```bash
+make uninstall
+```
+
+### Option 2: Manual Installation
 
 1. Clone the repository
 2. Install the package:
