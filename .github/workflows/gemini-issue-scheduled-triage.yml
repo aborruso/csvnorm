@@ -203,3 +203,23 @@ jobs:
                 core.info(`No labels to set for #${issueNumber}, leaving as is`);
               }
             }
+
+      - name: 'Post Issue Analysis Failure Comment'
+        if: ${{ failure() && steps.gemini_issue_analysis.outcome == 'failure' }}
+        env:
+          RUN_URL: '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+        uses: 'actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea'
+        with:
+          github-token: '${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}'
+          script: |-
+            const runUrl = process.env.RUN_URL;
+            const issueBody = `There is a problem with the Gemini CLI scheduled issue triaging. Please check the [action logs](${runUrl}) for details.`;
+            
+            // Create an issue for failed scheduled triage
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Gemini Scheduled Issue Triage Failed',
+              body: issueBody,
+              labels: ['status/needs-triage', 'kind/bug']
+            });
