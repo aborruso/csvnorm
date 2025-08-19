@@ -158,10 +158,17 @@ jobs:
                 return;
               }
             } else {
-              core.warning('No JSON block found in Gemini output. No labels will be applied.');
-              // If no JSON block is found, parsedLabels remains an empty object,
-              // which will cause the 'if' condition below to be false,
-              // effectively skipping label application.
+              // Fallback: try to parse the entire output as JSON (strip basic markdown if present)
+              try {
+                const trimmedLabels = rawOutput.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '').trim();
+                parsedLabels = JSON.parse(trimmedLabels);
+                core.info(`Parsed labels JSON from fallback: ${JSON.stringify(parsedLabels)}`);
+              } catch (err) {
+                core.warning('No JSON block found in Gemini output and fallback parsing failed. No labels will be applied.');
+                // If no JSON block is found and fallback fails, parsedLabels remains an empty object,
+                // which will cause the 'if' condition below to be false,
+                // effectively skipping label application.
+              }
             }
 
             const issueNumber = parseInt(process.env.ISSUE_NUMBER);
