@@ -1,5 +1,5 @@
 # Makefile for CSV Normalizer Utility
-# 
+#
 # This Makefile provides installation and management targets for the CSV normalizer utility
 
 # Installation directories
@@ -16,7 +16,7 @@ PYTHON_DEPS = chardet duckdb
 DUCKDB_VERSION = v1.1.3
 DUCKDB_URL = https://github.com/duckdb/duckdb/releases/download/$(DUCKDB_VERSION)/duckdb_cli-linux-amd64.zip
 
-.PHONY: all install uninstall test clean check help
+.PHONY: all install install_light uninstall test clean check help
 
 # Default target
 all: help
@@ -32,6 +32,38 @@ install: check-python install-duckdb
 	@chmod +x $(BINDIR)/$(TARGET_NAME)
 	@echo "Installation complete!"
 	@echo "You can now use 'csv_normalizer' command globally"
+
+# Lightweight install: copy the script only, do not install Python deps or DuckDB
+install_light:
+	@echo "Performing lightweight install (script only)..."
+	@echo "Target install dir: $(BINDIR)"
+	@target="$(BINDIR)"; \
+	echo "Ensuring $$target exists (may fail without privileges)..."; \
+	mkdir -p "$$target" 2>/dev/null || true; \
+	# expand leading tilde if present (make may pass ~ literally)
+	case "$$target" in \~*) $$target="$$HOME$${$$target#~}" ;; esac; \
+	if cp "$(SCRIPTDIR)/$(SCRIPT_NAME)" "$$target/$(TARGET_NAME)" 2>/dev/null; then \
+		chmod +x "$$target/$(TARGET_NAME)"; \
+		echo "Installed to $$target/$(TARGET_NAME)"; \
+	else \
+		echo "Warning: unable to write to $$target; falling back to $$HOME/.local/bin"; \
+		target="$$HOME/.local/bin"; \
+		mkdir -p "$$target"; \
+		cp "$(SCRIPTDIR)/$(SCRIPT_NAME)" "$$target/$(TARGET_NAME)"; \
+		chmod +x "$$target/$(TARGET_NAME)"; \
+		echo "Installed to $$target/$(TARGET_NAME)"; \
+	fi; \
+	echo "Lightweight installation complete! Note: dependencies (Python packages, DuckDB) are NOT installed."; \
+	# Check if ~/.local/bin is in PATH and suggest addition if not
+	if echo "$$PATH" | grep -q "$$HOME/.local/bin" || echo "$$PATH" | grep -q "$${HOME}/.local/bin"; then \
+		echo "Note: $$HOME/.local/bin is already in your PATH."; \
+	else \
+		echo ""; \
+		echo "WARNING: $$HOME/.local/bin is not in your PATH."; \
+		echo "To use 'csv_normalizer' globally, add this line to your ~/.zshrc:"; \
+		echo "  export PATH=\"\$$HOME/.local/bin:\$$PATH\""; \
+		echo "Then restart your shell or run: source ~/.zshrc"; \
+	fi
 
 # Install DuckDB CLI tool
 install-duckdb:
@@ -131,6 +163,8 @@ help:
 	@echo "Installation options:"
 	@echo "  PREFIX      Installation prefix (default: /usr/local)"
 	@echo "              Example: make install PREFIX=/opt/local"
+	@echo "  install_light Install only the script without installing Python deps or DuckDB"
+	@echo "                Useful when you prefer to manage dependencies separately (e.g., in a virtualenv)."
 	@echo ""
 	@echo "Examples:"
 	@echo "  make install                    # Install to /usr/local/bin"
