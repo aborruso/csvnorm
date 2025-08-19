@@ -71,8 +71,7 @@ jobs:
     steps:
       - name: 'Generate GitHub App Token'
         id: 'generate_token'
-        if: |-
-          ${{ vars.APP_ID }}
+        if: ${{ vars.APP_ID }}
         uses: 'actions/create-github-app-token@df432ceedc7162793a195dd1713ff69aefc7379e' # ratchet:actions/create-github-app-token@v2
         with:
           app-id: '${{ vars.APP_ID }}'
@@ -124,8 +123,7 @@ jobs:
           git config --global user.email 'gemini-cli[bot]@users.noreply.github.com'
 
       - name: 'Checkout PR branch'
-        if: |-
-          ${{  steps.get_context.outputs.is_pr == 'true' }}
+        if: ${{ steps.get_context.outputs.is_pr == 'true' }}
         uses: 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683' # ratchet:actions/checkout@v4
         with:
           token: '${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}'
@@ -134,8 +132,7 @@ jobs:
           fetch-depth: 0
 
       - name: 'Checkout main branch'
-        if: |-
-          ${{  steps.get_context.outputs.is_pr == 'false' }}
+        if: ${{ steps.get_context.outputs.is_pr == 'false' }}
         uses: 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683' # ratchet:actions/checkout@v4
         with:
           token: '${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}'

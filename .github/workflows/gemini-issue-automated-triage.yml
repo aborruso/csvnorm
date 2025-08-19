@@ -47,8 +47,7 @@ jobs:
 
       - name: 'Generate GitHub App Token'
         id: 'generate_token'
-        if: |- 
-          ${{ vars.APP_ID }}
+        if: ${{ vars.APP_ID }}
         uses: 'actions/create-github-app-token@df432ceedc7162793a195dd1713ff69aefc7379e' # ratchet:actions/create-github-app-token@v2
         with:
           app-id: '${{ vars.APP_ID }}'
@@ -59,7 +58,7 @@ jobs:
         uses: 'actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea'
         with:
           github-token: '${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}'
-          script: |- 
+          script: |-
             const { data: labels } = await github.rest.issues.listLabelsForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -132,8 +131,7 @@ jobs:
             - Do not include any explanation or additional text, just the JSON
 
       - name: 'Apply Labels to Issue'
-        if: |- 
-          ${{ steps.gemini_issue_analysis.outputs.summary != '' }}
+        if: ${{ steps.gemini_issue_analysis.outputs.summary != '' }}
         env:
           REPOSITORY: '${{ github.repository }}'
           ISSUE_NUMBER: '${{ github.event.issue.number }}'
@@ -141,7 +139,7 @@ jobs:
         uses: 'actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea'
         with:
           github-token: '${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}'
-          script: |- 
+          script: |-
             const rawOutput = process.env.LABELS_OUTPUT;
             core.info(`Raw Gemini output: ${rawOutput}`);
 
@@ -190,15 +188,14 @@ jobs:
             }
 
       - name: 'Post Issue Analysis Failure Comment'
-        if: |- 
-          ${{ failure() && steps.gemini_issue_analysis.outcome == 'failure' }}
+        if: ${{ failure() && steps.gemini_issue_analysis.outcome == 'failure' }}
         env:
           ISSUE_NUMBER: '${{ github.event.issue.number }}'
           RUN_URL: '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
         uses: 'actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea'
         with:
           github-token: '${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}'
-          script: |- 
+          script: |-
             github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
