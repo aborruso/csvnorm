@@ -57,6 +57,7 @@ Output:
 - `make check` - Verify all dependencies are installed
 - `make clean` - Remove temporary files
 - `make help` - Show available targets
+- `make install_light` - Install only the script (no Python deps, no DuckDB). Use when you manage dependencies separately (e.g., virtualenv).
 
 ### Testing
 
@@ -77,33 +78,47 @@ make clean
 ### Option 1: Using Makefile (Recommended)
 
 1. Clone the repository:
+
 ```bash
 git clone <repository-url>
 cd prepare_data
 ```
 
 2. Install using make:
+
 ```bash
 make install
 ```
 
 This will:
+
 - Install required Python dependencies (chardet, duckdb)
 - Download and install the DuckDB CLI tool
 - Install the `csv_normalizer` command globally
 
+If you only want to install the script and manage dependencies yourself, use:
+
+```bash
+make install_light
+```
+
+This copies the script to the installation `PREFIX` but does not install Python packages or the DuckDB CLI.
+
 For custom installation directory:
+
 ```bash
 make install PREFIX=~/.local  # Install to ~/.local/bin
 ```
 
 3. Verify installation:
+
 ```bash
 make check
 csv_normalizer --help
 ```
 
 4. To uninstall:
+
 ```bash
 make uninstall
 ```
@@ -120,6 +135,7 @@ pip install .
 ## Contributing
 
 Contributions are welcome! Please follow these guidelines:
+
 - Fork the repository
 - Create a feature branch
 - Submit a pull request
