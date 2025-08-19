@@ -40,8 +40,7 @@ install_light:
 	@target="$(BINDIR)"; \
 	echo "Ensuring $$target exists (may fail without privileges)..."; \
 	mkdir -p "$$target" 2>/dev/null || true; \
-	# expand leading tilde if present (make may pass ~ literally)
-	case "$$target" in \~*) $$target="$$HOME$${$$target#~}" ;; esac; \
+	target=$$(eval echo $$target); \
 	if cp "$(SCRIPTDIR)/$(SCRIPT_NAME)" "$$target/$(TARGET_NAME)" 2>/dev/null; then \
 		chmod +x "$$target/$(TARGET_NAME)"; \
 		echo "Installed to $$target/$(TARGET_NAME)"; \
