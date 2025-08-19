@@ -156,17 +156,31 @@ jobs:
         with:
           github-token: '${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}'
           script: |-
-            // Strip code block markers if present
             const rawLabels = process.env.LABELS_OUTPUT;
             core.info(`Raw labels JSON: ${rawLabels}`);
             let parsedLabels;
-            try {
-              const trimmedLabels = rawLabels.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '').trim();
-              parsedLabels = JSON.parse(trimmedLabels);
-              core.info(`Parsed labels JSON: ${JSON.stringify(parsedLabels)}`);
-            } catch (err) {
-              core.setFailed(`Failed to parse labels JSON from Gemini output: ${err.message}\nRaw output: ${rawLabels}`);
-              return;
+            
+            // Try to extract JSON from code block first
+            const jsonMatch = rawLabels.match(/```json\s*([\s\S]*?)\s*```/);
+            
+            if (jsonMatch && jsonMatch[1]) {
+              try {
+                parsedLabels = JSON.parse(jsonMatch[1].trim());
+                core.info(`Parsed labels JSON from code block: ${JSON.stringify(parsedLabels)}`);
+              } catch (err) {
+                core.setFailed(`Failed to parse JSON from code block in Gemini output: ${err.message}\nExtracted JSON: ${jsonMatch[1].trim()}`);
+                return;
+              }
+            } else {
+              // Fallback: try to parse the entire output as JSON (strip basic markdown if present)
+              try {
+                const trimmedLabels = rawLabels.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '').trim();
+                parsedLabels = JSON.parse(trimmedLabels);
+                core.info(`Parsed labels JSON from fallback: ${JSON.stringify(parsedLabels)}`);
+              } catch (err) {
+                core.setFailed(`Failed to parse labels JSON from Gemini output: ${err.message}\nRaw output: ${rawLabels}`);
+                return;
+              }
             }
 
             for (const entry of parsedLabels) {
