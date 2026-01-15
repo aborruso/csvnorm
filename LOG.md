@@ -2,6 +2,32 @@
 
 ## 2026-01-15
 
+### Breaking Changes
+- Complete rewrite from Bash to pure Python
+- Version bumped to 0.2.0
+- Removed Bash script (`script/prepare.sh`)
+- Removed wrapper (`csv_normalizer_wrapper.py`)
+- Removed Makefile (use pip install instead)
+
+### Added
+- Pure Python CLI package structure (`src/csv_normalizer/`)
+- Cross-platform support (no longer Linux-only)
+- Python package modules:
+  - `cli.py` - argparse-based CLI
+  - `core.py` - Main processing pipeline
+  - `encoding.py` - charset_normalizer integration
+  - `validation.py` - DuckDB validation
+  - `utils.py` - Helper functions
+- Test suite in `tests/` with pytest
+- `--version` CLI option
+
+### Changed
+- DuckDB now used as Python library instead of CLI
+- Encoding conversion now uses Python codecs instead of iconv
+- Installation simplified to `pip install csv-normalizer`
+
+## 2026-01-15
+
 ### Changed
 - Renamed error report files from `reject_errors.csv` to `{base_name}_reject_errors.csv`
   - Each input file now generates its own uniquely named error report

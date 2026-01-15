@@ -3,8 +3,8 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "csv-normalizer"
-version = "0.1.0"
+name = "csv-normalize"
+version = "0.2.0"
 description = "A command-line utility to validate and normalize CSV files"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -18,8 +18,13 @@ classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
-    "Operating System :: POSIX :: Linux",
-    "Programming Language :: Other Scripting Engines",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Information Analysis",
     "Topic :: Software Development :: Libraries",
     "Topic :: Utilities",
@@ -27,18 +32,26 @@ classifiers = [
 
 dependencies = [
     "charset-normalizer>=3.0.0",
+    "duckdb>=0.9.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "duckdb>=0.9.0",
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.1.0",
 ]
 
 [project.urls]
+Homepage = "https://github.com/aborruso/prepare_data"
 Issues = "https://github.com/aborruso/prepare_data/issues"
 
 [project.scripts]
-csv_normalizer = "csv_normalizer_wrapper:main"
+csv_normalizer = "csv_normalizer.cli:main"
 
-[tool.setuptools]
-py-modules = ["csv_normalizer_wrapper", "csv_normalizer_script"]
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py38"

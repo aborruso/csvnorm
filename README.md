@@ -1,8 +1,20 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/aborruso/prepare_data)
 
-# CSV Normalizer Utility
+# CSV Normalizer
 
 A command-line utility to validate and normalize CSV files for initial exploration.
+
+## Installation
+
+```bash
+pip install csv-normalize
+```
+
+Or with uv:
+
+```bash
+uv pip install csv-normalize
+```
 
 ## Purpose
 
@@ -10,7 +22,8 @@ This tool prepares CSV files for **basic exploratory data analysis (EDA)**, not 
 
 **What it does:**
 - Validates CSV structure and reports errors
-- Normalizes encoding, delimiters, and field names
+- Normalizes encoding to UTF-8
+- Normalizes delimiters and field names
 - Creates a consistent starting point for data exploration
 
 **What it doesn't do:**
@@ -18,169 +31,105 @@ This tool prepares CSV files for **basic exploratory data analysis (EDA)**, not 
 - Type inference or data validation beyond structure
 - Heavy processing or aggregations
 
-Use this tool to get a **quick, reliable preview** of your CSV data, then decide what complex processing steps are needed based on your initial findings.
-
 ## Features
 
-- **CSV Validation**: Checks for common CSV errors and inconsistencies
+- **CSV Validation**: Checks for common CSV errors and inconsistencies using DuckDB
 - **Delimiter Normalization**: Converts all field separators to standard commas (`,`)
 - **Field Name Normalization**: Converts column headers to snake_case format
-- **Encoding Normalization**: Ensures UTF-8 encoding for proper character handling
-- **Error Reporting**: Provides detailed error messages for invalid CSV files
+- **Encoding Normalization**: Auto-detects encoding and converts to UTF-8
+- **Error Reporting**: Exports detailed error file for invalid rows
 
 ## Usage
 
 ```bash
 csv_normalizer input.csv [options]
-
-Options:
-  -f, --force         Force overwrite of existing output files
-  -n, --keep-names    Keep original column names (disable snake_case normalization)
-                     By default, column names are converted to snake_case format
-                     (e.g., "Column Name" becomes "column_name"). Use this option
-                     to preserve the original column names as they appear in the
-                     input file.
-  -d, --delimiter     Set custom field delimiter (default: comma)
-                     Example: -d ';' for semicolon-delimited files
-                     Example: -d $'\t' for tab-delimited files
-                     Example: -d '|' for pipe-delimited files
-  -o, --output-dir    Set custom output directory (default: current working directory)
-                     Example: -o ./output to save files in ./output directory
-  -v, --verbose       Enable verbose output for debugging
-  -h, --help          Show this help message and exit
-
-Output:
-  Creates a normalized CSV file in the specified output directory with:
-  - UTF-8 encoding
-  - Consistent field delimiters
-  - Normalized column names (unless --keep-names is specified)
-  - Error report if any invalid rows are found (saved as {input_name}_reject_errors.csv)
-
-Notes:
-  - Missing required arguments or unknown options will print the help message.
-  - If the output file already exists, the command stops unless --force is provided.
-  - Error reports are uniquely named per input file (e.g., data_reject_errors.csv for data.csv)
-  - Example: `csv_normalizer data.csv` exits with a warning if `./data.csv` output already exists.
 ```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `-f, --force` | Force overwrite of existing output files |
+| `-n, --keep-names` | Keep original column names (disable snake_case) |
+| `-d, --delimiter CHAR` | Set custom output delimiter (default: `,`) |
+| `-o, --output-dir DIR` | Set output directory (default: current dir) |
+| `-v, --verbose` | Enable verbose output for debugging |
+| `--version` | Show version number |
+| `-h, --help` | Show help message |
+
+### Examples
+
+```bash
+# Basic usage
+csv_normalizer data.csv
+
+# With semicolon delimiter
+csv_normalizer data.csv -d ';'
+
+# Custom output directory
+csv_normalizer data.csv -o ./output
+
+# Keep original headers
+csv_normalizer data.csv --keep-names
+
+# Force overwrite with verbose output
+csv_normalizer data.csv -f -v
+```
+
+### Output
+
+Creates a normalized CSV file in the specified output directory with:
+- UTF-8 encoding
+- Consistent field delimiters
+- Normalized column names (unless `--keep-names` is specified)
+- Error report if any invalid rows are found (saved as `{input_name}_reject_errors.csv`)
+
+### Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | Error (validation failed, file not found, etc.) |
 
 ## Requirements
 
-**Platform**: Linux only (requires bash, iconv, and other Unix utilities)
-
-**Dependencies:**
-- Bash 4.0+
 - Python 3.8+
-- charset_normalizer (automatically installed via make)
-- iconv (usually pre-installed on Linux systems)
-- DuckDB (automatically installed via make)
-- curl and unzip (for downloading DuckDB CLI)
+- Dependencies (automatically installed):
+  - `charset-normalizer>=3.0.0` - Encoding detection
+  - `duckdb>=0.9.0` - CSV validation and normalization
 
 ## Development
 
-### Available Make Targets
+### Setup
 
-- `make install` - Install the utility and dependencies
-- `make uninstall` - Remove the installed utility
-- `make test` - Run tests to verify functionality
-- `make check` - Verify all dependencies are installed
-- `make clean` - Remove temporary files
-- `make help` - Show available targets
-- `make install_light` - Install only the script (no Python deps, no DuckDB). Use when you manage dependencies separately (e.g., virtualenv).
+```bash
+git clone https://github.com/aborruso/prepare_data
+cd prepare_data
+pip install -e ".[dev]"
+```
 
 ### Testing
 
-Run the test suite:
 ```bash
-make test
+pytest tests/ -v
 ```
 
-### Cleaning
+### Project Structure
 
-Remove temporary files:
-```bash
-make clean
 ```
-
-## Installation
-
-> **Note**: This utility is designed for Linux systems and requires bash, iconv, and other Unix utilities.
-
-### Option 1: Using Makefile (Recommended)
-
-1. Clone the repository:
-
-```bash
-git clone <repository-url>
-cd prepare_data
+prepare_data/
+├── src/csv_normalizer/
+│   ├── __init__.py      # Package version
+│   ├── __main__.py      # python -m support
+│   ├── cli.py           # CLI argument parsing
+│   ├── core.py          # Main processing pipeline
+│   ├── encoding.py      # Encoding detection/conversion
+│   ├── validation.py    # DuckDB validation
+│   └── utils.py         # Helper functions
+├── tests/               # Test suite
+├── test/                # CSV fixtures
+└── pyproject.toml       # Package configuration
 ```
-
-2. Install using make:
-
-```bash
-make install
-```
-
-This will:
-
-- Install required Python dependencies (charset_normalizer, duckdb)
-- Download and install the DuckDB CLI tool (linux-amd64)
-- Install the `csv_normalizer` command to `/usr/local/bin` (requires sudo) or `~/.local/bin`
-
-If you only want to install the script and manage dependencies yourself, use:
-
-```bash
-make install_light
-```
-
-This copies the script to the installation `PREFIX` but does not install Python packages or the DuckDB CLI.
-
-For custom installation directory:
-
-```bash
-make install PREFIX=~/.local  # Install to ~/.local/bin
-```
-
-3. Verify installation:
-
-```bash
-make check
-csv_normalizer --help
-```
-
-4. To uninstall:
-
-```bash
-make uninstall
-```
-
-### Option 2: Python Editable Install (Development)
-
-For development work where you want changes to the script to be immediately reflected:
-
-1. Clone the repository
-2. Ensure you have the required system dependencies:
-   - bash 4.0+
-   - iconv (usually pre-installed)
-   - duckdb CLI (download from [DuckDB releases](https://github.com/duckdb/duckdb/releases))
-   - charset_normalizer Python package
-3. Install in editable mode:
-
-```bash
-pip install -e .
-# Or with uv:
-uv pip install -e .
-```
-
-Note: This method only works in editable mode (-e flag) as the tool is primarily bash-based.
-For regular installation, use `make install` instead.
-
-## Contributing
-
-Contributions are welcome! Please follow these guidelines:
-
-- Fork the repository
-- Create a feature branch
-- Submit a pull request
 
 ## License
 

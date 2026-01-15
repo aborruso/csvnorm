@@ -23,124 +23,123 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-CSV Normalizer Utility - A Bash-based tool for validating and normalizing CSV files. The runtime entrypoint is `script/prepare.sh`, which wraps encoding detection, DuckDB validation, and CSV normalization into a single command.
+CSV Normalizer - A Python CLI tool for validating and normalizing CSV files. Installable via PyPI (`pip install csv-normalizer`).
 
 ## Common Commands
 
 ### Installation
 ```bash
-make install              # Full install: script + Python deps + DuckDB CLI
-make install_light        # Script only (manage deps separately)
-make install PREFIX=~/.local  # Custom install location
-make uninstall            # Remove installed utility
+pip install csv-normalizer          # From PyPI
+pip install -e .                    # Editable install for development
+pip install -e ".[dev]"             # With dev dependencies
 ```
 
 ### Testing
 ```bash
-make test                 # Run all tests
-make check                # Verify dependencies
-shellcheck script/prepare.sh  # Lint shell script (required before commits)
+pytest tests/ -v                    # Run all tests
+pytest tests/test_utils.py -v       # Run specific test file
 ```
 
 ### Development
 ```bash
-script/prepare.sh test/<example.csv>  # Run locally (outputs to script/tmp/)
-script/prepare.sh input.csv -f       # Force overwrite
-script/prepare.sh input.csv -n       # Keep original column names
-script/prepare.sh input.csv -d ';'   # Custom delimiter
-script/prepare.sh input.csv -o ./output  # Custom output directory
-```
-
-### Cleanup
-```bash
-make clean               # Remove temporary files
+csv_normalizer test/utf8_basic.csv              # Basic test
+csv_normalizer test/latin1_semicolon.csv -d ';' # Non-UTF8 + delimiter
+csv_normalizer input.csv -f -v                  # Force + verbose
+csv_normalizer input.csv -n                     # Keep original names
+csv_normalizer input.csv -o ./output            # Custom output dir
 ```
 
 ## Architecture
 
-### Flow
-1. **Encoding detection**: `normalizer --minimal` with SIGPIPE handling → fallback to `file -b --mime-encoding`
-2. **Encoding conversion**: `iconv -f <detected> -t UTF-8` (only if encoding ≠ utf-8/ascii/utf-8-sig)
-3. **Validation**: DuckDB `read_csv(store_rejects=true, sample_size=-1)` → rejects to `reject_errors.csv`
-4. **Normalization**: DuckDB `copy` with `normalize_names=true` (unless `--keep-names`)
+### Package Structure
+```
+src/csv_normalizer/
+├── __init__.py      # Version and exports
+├── __main__.py      # python -m support
+├── cli.py           # argparse CLI
+├── core.py          # Main processing pipeline
+├── encoding.py      # charset_normalizer integration
+├── validation.py    # DuckDB validation/normalization
+└── utils.py         # snake_case, logging helpers
+```
+
+### Processing Flow
+1. **Encoding detection**: `charset_normalizer.from_path()` library call
+2. **Encoding conversion**: Python codecs (only if encoding ≠ utf-8/ascii/utf-8-sig)
+3. **Validation**: DuckDB `read_csv(store_rejects=true, sample_size=-1, all_varchar=true)`
+4. **Normalization**: DuckDB `COPY` with `normalize_names=true` (unless `--keep-names`)
 5. **Output**: UTF-8 CSV to `<output_dir>/<snake_cased_name>.csv`
 
-### Key Implementation Details
+### Key Modules
 
-**Encoding detection** (script/prepare.sh:105-130):
-- Uses `shuf -n 10000` + `normalizer --minimal` with SIGPIPE (exit 141) handling
-- Fallback to `file` command if normalizer fails
-- Special case: MACROMAN → MACINTOSH mapping
-- Only runs `iconv` when encoding is NOT utf-8/ascii/utf-8-sig
+**encoding.py**:
+- `detect_encoding(path)` - Uses charset_normalizer library
+- `convert_to_utf8(input, output, encoding)` - Python codec conversion
+- `needs_conversion(encoding)` - Check if UTF-8 conversion needed
 
-**Header normalization** (script/prepare.sh:76-81, 159-163):
-- Output filename: `tr`/`sed` to snake_case
-- DuckDB: `normalize_names=true` flag (unless `--keep-names`)
+**validation.py**:
+- `validate_csv(path, reject_file)` - DuckDB validation with store_rejects
+- `normalize_csv(input, output, delimiter, normalize_names)` - DuckDB normalization
 
-**Temp file cleanup** (script/prepare.sh:165-174):
-- Removes `reject_errors.csv` if empty (≤1 line)
-- Removes `${base_name}_utf8.csv` temp file after processing
+**core.py**:
+- `process_csv()` - Main pipeline orchestrating all steps
 
-**Shell policy** (script/prepare.sh:3-6):
-- Uses `set -euo pipefail` (maintain this in any new shell code)
+**utils.py**:
+- `to_snake_case(name)` - Filename normalization
+- `setup_logger(verbose)` - Logging configuration
 
 ## Dependencies
 
-**Required at runtime**:
-- `charset_normalizer` (Python CLI: `normalizer`)
-- `iconv` (encoding conversion)
-- `file` (fallback encoding detection)
-- DuckDB CLI (CSV validation/normalization)
+**Runtime** (in pyproject.toml):
+- `charset-normalizer>=3.0.0` - Encoding detection
+- `duckdb>=0.9.0` - CSV validation and normalization
 
-**Installation**:
-- Makefile automates DuckDB download and Python package installation
-- System deps: `curl`, `unzip` (for DuckDB CLI download)
+**Development**:
+- `pytest>=7.0.0` - Testing
+- `ruff>=0.1.0` - Linting
 
 ## Testing
 
-Smoke test pattern:
+Run tests:
 ```bash
-script/prepare.sh test/<example.csv>
-# Verify: script/tmp/<snake_name>.csv exists
-# Verify: reject_errors.csv is absent (or has errors if expected)
+pytest tests/ -v
 ```
 
-After shell edits:
-```bash
-shellcheck script/prepare.sh
-make test
-```
+Test fixtures in `test/`:
+- `utf8_basic.csv` - Basic UTF-8 file
+- `latin1_semicolon.csv` - Non-UTF8 encoding
+- `pipe_mixed_headers.csv` - Header normalization test
+- `malformed_rows.csv` - Error reporting test
 
 ## Critical Constraints
 
-1. **No Python packaging files yet**: `pyproject.toml`/`setup.py` do not exist. README mentions `pip install .` but this is not yet supported. Update README + Makefile if adding Python packaging.
+1. **Cross-platform**: Pure Python, no shell dependencies
 
-2. **ShellCheck compliance**: PRD requires passing `shellcheck`. Always run after script edits.
+2. **Exit codes**:
+   - 0: Success
+   - 1: Error (validation failed, file not found, etc.)
 
-3. **Error modes to handle carefully**:
-   - Non-UTF-8 encodings (MACROMAN, WINDOWS-1252, etc.)
+3. **Error handling**:
+   - Non-UTF-8 encodings
    - DuckDB rejects (malformed rows)
    - Pre-existing outputs (respect `--force` flag)
 
-4. **Simplicity**: Avoid over-engineering. Maintain minimal complexity matching current implementation.
+4. **Simplicity**: Maintain minimal complexity
 
 ## File Contract
 
-**Input**: Arbitrary CSV (any encoding, any delimiter, potentially large)
+**Input**: Arbitrary CSV (any encoding, any delimiter)
+
 **Output**:
 - `<output_dir>/<clean_name>.csv` (UTF-8, comma-delimited by default)
-- `reject_errors.csv` (if DuckDB finds invalid rows)
-
-**Exit codes**:
-- 0: Success
-- 1: Validation errors (rejects found) or other failures
+- `<output_dir>/<clean_name>_reject_errors.csv` (if DuckDB finds invalid rows)
 
 ## Key Files
 
-- `script/prepare.sh` - Runtime entrypoint (all logic)
+- `src/csv_normalizer/` - Python package
+- `tests/` - Test suite
+- `test/` - CSV fixtures
+- `pyproject.toml` - Package configuration
 - `PRD.md` - Product requirements
-- `README.md` - User documentation, Make targets
-- `LOG.md` - Changelog with behavioral fixes
-- `.github/copilot-instructions.md` - Detailed implementation notes
-- `Makefile` - Installation, testing, dependency management
-- `test/` - Example CSVs for smoke tests
+- `README.md` - User documentation
+- `LOG.md` - Changelog
