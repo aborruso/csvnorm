@@ -217,7 +217,7 @@ if [ "$encoding_lower" != "utf-8" ] && [ "$encoding_lower" != "ascii" ] && [ "$e
 fi
 
 # Process the input file
-duckdb -c "copy (from read_csv('$input_file',store_rejects = true,sample_size=-1)) TO '/dev/null';copy (FROM reject_errors) to '${output_dir}/reject_errors.csv'"
+duckdb -c "copy (from read_csv('$input_file',store_rejects = true,sample_size=-1,all_varchar=true)) TO '/dev/null';copy (FROM reject_errors) to '${output_dir}/reject_errors.csv'"
 
 # Check if there are any errors
 if [ "$(wc -l < "${output_dir}/reject_errors.csv")" -gt 1 ]; then
@@ -235,9 +235,9 @@ fi
 copy_options+=")"
 
 if [ "$normalize_names" = true ]; then
-    duckdb -c "copy (select * from read_csv('$input_file',sample_size=-1,normalize_names=true)) to '$output_file' $copy_options"
+    duckdb -c "copy (select * from read_csv('$input_file',sample_size=-1,normalize_names=true,all_varchar=true)) to '$output_file' $copy_options"
 else
-    duckdb -c "copy (select * from read_csv('$input_file',sample_size=-1)) to '$output_file' $copy_options"
+    duckdb -c "copy (select * from read_csv('$input_file',sample_size=-1,all_varchar=true)) to '$output_file' $copy_options"
 fi
 
 # Clean up temporary files

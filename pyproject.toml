@@ -8,9 +8,9 @@ version = "0.1.0"
 description = "A command-line utility to validate and normalize CSV files"
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "MIT"}
+license = {file = "LICENSE"}
 authors = [
-    {name = "CSV Normalizer Contributors"}
+    {name = "aborruso", email = "aborruso@gmail.com"}
 ]
 keywords = ["csv", "data", "normalization", "validation", "etl"]
 classifiers = [
@@ -35,8 +35,7 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/csv-normalizer"
-Issues = "https://github.com/yourusername/csv-normalizer/issues"
+Issues = "https://github.com/aborruso/prepare_data/issues"
 
 [project.scripts]
 csv_normalizer = "csv_normalizer_wrapper:main"

@@ -15,6 +15,7 @@
 - Implemented `-v/--verbose` to emit debug logs on demand
 - Added basic input validation and dependency checks before processing
 - Updated README installation instructions to clarify editable install requirement
+- Defaulted DuckDB CSV reads to `all_varchar=true` to avoid type inference failures
 
 ### Documentation
 - Filled out `openspec/project.md` with comprehensive project context

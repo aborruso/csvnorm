@@ -150,4 +150,4 @@ Contributions are welcome! Please follow these guidelines:
 
 ## License
 
-MIT License - See LICENSE file for details
+MIT License (c) 2026 aborruso@gmail.com - See LICENSE file for details
