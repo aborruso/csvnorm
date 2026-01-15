@@ -33,7 +33,7 @@ Many open data portals and legacy systems publish CSV files with inconsistent en
 
 ## 6. User Stories
 1. *As a Data Engineer* I want to run `csv_normalizer large.csv --force` so that existing outputs are overwritten without a prompt.  
-2. *As a Data Analyst* I want to keep original column names by adding `--no-normalize` so that my downstream scripts referencing camelCase headers keep working.  
+2. *As a Data Analyst* I want to keep original column names by adding `--keep-names` so that my downstream scripts referencing camelCase headers keep working.  
 3. *As an Open-Data Maintainer* I want the tool to fail fast and generate `reject_errors.csv` so that I can fix invalid rows.
 
 ## 7. Functional Requirements
@@ -44,7 +44,7 @@ FR-4 The tool SHALL validate the CSV with DuckDB’s `read_csv` and store reject
 FR-5 If rejects are present (>1 data line), the tool SHALL exit with code 1.  
 FR-6 The tool SHALL support `--delimiter <char>` to override delimiter detection.  
 FR-7 The tool SHALL output the cleaned file to `<output_dir>/<clean_name>.csv`.  
-FR-8 The tool SHALL normalise headers to snake_case unless `--no-normalize` is set.  
+FR-8 The tool SHALL normalise headers to snake_case unless `--keep-names` is set.  
 FR-9 The tool SHALL support `--force` to overwrite existing output without a prompt.  
 FR-10 The tool SHALL support `--verbose` to print debug information.
 

@@ -62,7 +62,7 @@ make clean               # Remove temporary files
 1. **Encoding detection**: `normalizer --minimal` with SIGPIPE handling → fallback to `file -b --mime-encoding`
 2. **Encoding conversion**: `iconv -f <detected> -t UTF-8` (only if encoding ≠ utf-8/ascii/utf-8-sig)
 3. **Validation**: DuckDB `read_csv(store_rejects=true, sample_size=-1)` → rejects to `reject_errors.csv`
-4. **Normalization**: DuckDB `copy` with `normalize_names=true` (unless `--no-normalize`)
+4. **Normalization**: DuckDB `copy` with `normalize_names=true` (unless `--keep-names`)
 5. **Output**: UTF-8 CSV to `<output_dir>/<snake_cased_name>.csv`
 
 ### Key Implementation Details
@@ -75,7 +75,7 @@ make clean               # Remove temporary files
 
 **Header normalization** (script/prepare.sh:76-81, 159-163):
 - Output filename: `tr`/`sed` to snake_case
-- DuckDB: `normalize_names=true` flag (unless `--no-normalize`)
+- DuckDB: `normalize_names=true` flag (unless `--keep-names`)
 
 **Temp file cleanup** (script/prepare.sh:165-174):
 - Removes `reject_errors.csv` if empty (≤1 line)

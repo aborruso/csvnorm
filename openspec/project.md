@@ -70,7 +70,7 @@ CSV Normalizer Utility - A command-line tool that validates, cleans, and normali
    - `read_csv(store_rejects=true, sample_size=-1)` → rejects to `reject_errors.csv`
 
 4. **Normalization** (DuckDB):
-   - `copy` with `normalize_names=true` (unless `--no-normalize` flag)
+   - `copy` with `normalize_names=true` (unless `--keep-names` flag)
 
 5. **Cleanup** (lines 165-174):
    - Remove `reject_errors.csv` if empty (≤1 line)

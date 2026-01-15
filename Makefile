@@ -113,6 +113,15 @@ test:
 				$(SCRIPTDIR)/$(SCRIPT_NAME) "$$test_file" --output-dir /tmp/csv_test_output; \
 			fi; \
 		done; \
+		echo "Testing --keep-names header preservation..."; \
+		rm -rf /tmp/csv_test_output_keep_names; \
+		$(SCRIPTDIR)/$(SCRIPT_NAME) test/pipe_mixed_headers.csv --keep-names --output-dir /tmp/csv_test_output_keep_names --force; \
+		header=$$(head -n 1 /tmp/csv_test_output_keep_names/pipe_mixed_headers.csv); \
+		if [ "$$header" != "User ID,UserName,Signup Date" ]; then \
+			echo "Error: --keep-names did not preserve headers"; \
+			exit 1; \
+		fi; \
+		rm -rf /tmp/csv_test_output_keep_names; \
 		rm -rf /tmp/csv_test_output; \
 	else \
 		echo "No test files found in test directory"; \

@@ -131,7 +131,7 @@ Evidence:
 **Configuration** (lines 220, 238, 240):
 - `store_rejects=true` - captures invalid rows
 - `sample_size=-1` - full file scan (no sampling)
-- `normalize_names=true` - optional snake_case headers
+- `normalize_names=true` - optional snake_case headers (disabled with `--keep-names`)
 
 **Validation approach**: Two-pass DuckDB execution
 1. Validation pass: `read_csv` → `/dev/null` → `reject_errors.csv`
@@ -327,7 +327,7 @@ iconv -f UNKNOWN-ENCODING -t UTF-8 input.csv > temp.csv
 | FR-5 | Exit code 1 if rejects present | ✅ | Lines 223-228 |
 | FR-6 | Support `--delimiter` | ✅ | Lines 58-66, 232-235 |
 | FR-7 | Output to `<output_dir>/<clean_name>.csv` | ✅ | Lines 114-119, 155 |
-| FR-8 | Normalize headers unless `--no-normalize` | ✅ | Lines 54-57, 237-241 |
+| FR-8 | Normalize headers unless `--keep-names` | ✅ | Lines 54-57, 237-241 |
 | FR-9 | Support `--force` for overwrite | ✅ | Lines 50-53, 157-167 |
 | FR-10 | Support `--verbose` for debug | ✅ | Lines 67-70, 124-128 |
 

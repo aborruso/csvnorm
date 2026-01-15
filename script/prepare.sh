@@ -9,7 +9,7 @@ print_help() {
     echo "Usage: $(basename "$0") <input_csv_file> [options]"
     echo "Options:"
     echo "  -f, --force         Force overwrite of existing output files"
-    echo "  -n, --no-normalize  Keep original column names (disable snake_case normalization)"
+    echo "  -n, --keep-names    Keep original column names (disable snake_case normalization)"
     echo "                      By default, column names are converted to snake_case format"
     echo "                      (e.g., 'Column Name' becomes 'column_name'). Use this option"
     echo "                      to preserve the original column names as they appear in the"
@@ -24,7 +24,7 @@ print_help() {
     echo "  -h, --help          Show this help message and exit"
     echo "Examples:"
     echo "  $(basename "$0") data.csv -d ';' -o output_folder --force"
-    printf "%s\n" "  $(basename "$0") data.csv --no-normalize --delimiter $\'\t\'"
+    printf "%s\n" "  $(basename "$0") data.csv --keep-names --delimiter $\'\t\'"
     echo ""
 }
 
@@ -51,7 +51,7 @@ while [[ $# -gt 0 ]]; do
             force_overwrite=true
             shift
             ;;
-        -n|--no-normalize)
+        -n|--keep-names)
             normalize_names=false
             shift
             ;;

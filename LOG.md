@@ -16,6 +16,7 @@
 - Added basic input validation and dependency checks before processing
 - Updated README installation instructions to clarify editable install requirement
 - Defaulted DuckDB CSV reads to `all_varchar=true` to avoid type inference failures
+- Renamed `--no-normalize` to `--keep-names` for header-only behavior
 
 ### Documentation
 - Filled out `openspec/project.md` with comprehensive project context

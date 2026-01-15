@@ -19,7 +19,7 @@ csv_normalizer input.csv [options]
 
 Options:
   -f, --force         Force overwrite of existing output files
-  -n, --no-normalize  Keep original column names (disable snake_case normalization)
+  -n, --keep-names    Keep original column names (disable snake_case normalization)
                      By default, column names are converted to snake_case format
                      (e.g., "Column Name" becomes "column_name"). Use this option
                      to preserve the original column names as they appear in the
@@ -37,7 +37,7 @@ Output:
   Creates a normalized CSV file in the specified output directory with:
   - UTF-8 encoding
   - Consistent field delimiters
-  - Normalized column names (unless --no-normalize is specified)
+  - Normalized column names (unless --keep-names is specified)
   - Error report if any invalid rows are found
 
 Notes:
