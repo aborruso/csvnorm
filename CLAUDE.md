@@ -23,13 +23,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-CSV Normalizer - A Python CLI tool for validating and normalizing CSV files. Installable via PyPI (`pip install csv-normalizer`).
+CSV Normalizer - A Python CLI tool for validating and normalizing CSV files. Installable via PyPI (`pip install csv-normalize`).
 
 ## Common Commands
 
 ### Installation
 ```bash
-pip install csv-normalizer          # From PyPI
+pip install csv-normalize           # From PyPI
 pip install -e .                    # Editable install for development
 pip install -e ".[dev]"             # With dev dependencies
 ```
@@ -42,11 +42,11 @@ pytest tests/test_utils.py -v       # Run specific test file
 
 ### Development
 ```bash
-csv_normalizer test/utf8_basic.csv              # Basic test
-csv_normalizer test/latin1_semicolon.csv -d ';' # Non-UTF8 + delimiter
-csv_normalizer input.csv -f -v                  # Force + verbose
-csv_normalizer input.csv -n                     # Keep original names
-csv_normalizer input.csv -o ./output            # Custom output dir
+csv_normalize test/utf8_basic.csv              # Basic test
+csv_normalize test/latin1_semicolon.csv -d ';' # Non-UTF8 + delimiter
+csv_normalize input.csv -f -v                  # Force + verbose
+csv_normalize input.csv -n                     # Keep original names
+csv_normalize input.csv -o ./output            # Custom output dir
 ```
 
 ## Architecture

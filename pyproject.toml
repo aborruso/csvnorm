@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "csv-normalize"
-version = "0.2.0"
+version = "0.2.1"
 description = "A command-line utility to validate and normalize CSV files"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -47,7 +47,7 @@ Homepage = "https://github.com/aborruso/prepare_data"
 Issues = "https://github.com/aborruso/prepare_data/issues"
 
 [project.scripts]
-csv_normalizer = "csv_normalizer.cli:main"
+csv_normalize = "csv_normalizer.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

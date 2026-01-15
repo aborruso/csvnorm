@@ -12,14 +12,14 @@ from csv_normalizer.utils import setup_logger
 def create_parser() -> argparse.ArgumentParser:
     """Create and return the argument parser."""
     parser = argparse.ArgumentParser(
-        prog="csv_normalizer",
+        prog="csv_normalize",
         description="Validate and normalize CSV files",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 Examples:
-  csv_normalizer data.csv -d ';' -o output_folder --force
-  csv_normalizer data.csv --keep-names --delimiter '\\t'
-  csv_normalizer data.csv -v
+  csv_normalize data.csv -d ';' -o output_folder --force
+  csv_normalize data.csv --keep-names --delimiter '\\t'
+  csv_normalize data.csv -v
 """,
     )
 

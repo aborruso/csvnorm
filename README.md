@@ -42,7 +42,7 @@ This tool prepares CSV files for **basic exploratory data analysis (EDA)**, not 
 ## Usage
 
 ```bash
-csv_normalizer input.csv [options]
+csv_normalize input.csv [options]
 ```
 
 ### Options
@@ -61,19 +61,19 @@ csv_normalizer input.csv [options]
 
 ```bash
 # Basic usage
-csv_normalizer data.csv
+csv_normalize data.csv
 
 # With semicolon delimiter
-csv_normalizer data.csv -d ';'
+csv_normalize data.csv -d ';'
 
 # Custom output directory
-csv_normalizer data.csv -o ./output
+csv_normalize data.csv -o ./output
 
 # Keep original headers
-csv_normalizer data.csv --keep-names
+csv_normalize data.csv --keep-names
 
 # Force overwrite with verbose output
-csv_normalizer data.csv -f -v
+csv_normalize data.csv -f -v
 ```
 
 ### Output
@@ -118,7 +118,7 @@ pytest tests/ -v
 
 ```
 prepare_data/
-├── src/csv_normalizer/
+├── src/csv_normalize/
 │   ├── __init__.py      # Package version
 │   ├── __main__.py      # python -m support
 │   ├── cli.py           # CLI argument parsing
