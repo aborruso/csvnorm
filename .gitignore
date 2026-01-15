@@ -6,3 +6,4 @@ build/
 *.egg-info/
 .pytest_cache/
 .mypy_cache/
+*_rows_reject_errors.csv
