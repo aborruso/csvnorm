@@ -10,7 +10,7 @@ SCRIPT_NAME = prepare.sh
 TARGET_NAME = csv_normalizer
 
 # Python requirements
-PYTHON_DEPS = chardet duckdb
+PYTHON_DEPS = charset_normalizer duckdb
 
 # DuckDB CLI download URL (latest version)
 DUCKDB_VERSION = v1.1.3
