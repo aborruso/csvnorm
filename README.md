@@ -1,3 +1,5 @@
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/aborruso/prepare_data)
+
 # CSV Normalizer Utility
 
 A command-line utility to validate and normalize CSV files.
