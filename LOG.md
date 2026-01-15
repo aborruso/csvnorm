@@ -8,6 +8,12 @@
   - Prevents overwriting error reports when processing multiple CSV files
   - Example: `data.csv` errors saved as `data_reject_errors.csv`
 
+### Documentation
+- Clarified README to emphasize tool purpose: preparing CSV for basic EDA, not complex transformations
+- Added explicit Linux-only requirement in installation section
+- Improved installation guide with clearer dependency information
+- Added link to DuckDB releases for manual installation
+
 ## 2026-01-15
 
 ### Added

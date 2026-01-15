@@ -65,6 +65,10 @@ Notes:
 
 ## Requirements
 
+**Platform**: Linux only (requires bash, iconv, and other Unix utilities)
+
+**Dependencies:**
+- Bash 4.0+
 - Python 3.8+
 - charset_normalizer (automatically installed via make)
 - iconv (usually pre-installed on Linux systems)
@@ -99,6 +103,8 @@ make clean
 
 ## Installation
 
+> **Note**: This utility is designed for Linux systems and requires bash, iconv, and other Unix utilities.
+
 ### Option 1: Using Makefile (Recommended)
 
 1. Clone the repository:
@@ -117,8 +123,8 @@ make install
 This will:
 
 - Install required Python dependencies (charset_normalizer, duckdb)
-- Download and install the DuckDB CLI tool
-- Install the `csv_normalizer` command globally
+- Download and install the DuckDB CLI tool (linux-amd64)
+- Install the `csv_normalizer` command to `/usr/local/bin` (requires sudo) or `~/.local/bin`
 
 If you only want to install the script and manage dependencies yourself, use:
 
@@ -149,8 +155,15 @@ make uninstall
 
 ### Option 2: Python Editable Install (Development)
 
+For development work where you want changes to the script to be immediately reflected:
+
 1. Clone the repository
-2. Install in editable mode:
+2. Ensure you have the required system dependencies:
+   - bash 4.0+
+   - iconv (usually pre-installed)
+   - duckdb CLI (download from [DuckDB releases](https://github.com/duckdb/duckdb/releases))
+   - charset_normalizer Python package
+3. Install in editable mode:
 
 ```bash
 pip install -e .
