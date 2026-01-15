@@ -5,8 +5,7 @@ set -e
 set -u
 set -o pipefail
 
-# Check if input file is provided
-if [ $# -eq 0 ]; then
+print_help() {
     echo "Usage: $(basename "$0") <input_csv_file> [options]"
     echo "Options:"
     echo "  -f, --force         Force overwrite of existing output files"
@@ -17,19 +16,26 @@ if [ $# -eq 0 ]; then
     echo "                      input file."
     echo "  -d, --delimiter     Set custom field delimiter (default: comma)"
     echo "                      Example: -d ';' for semicolon-delimited files"
-    echo "                      Example: -d $\'\t\' for tab-delimited files"
+    printf "%s\n" "                      Example: -d $\'\t\' for tab-delimited files"
     echo "                      Example: -d '|' for pipe-delimited files"
     echo "  -o, --output-dir    Set custom output directory (default: 'tmp')"
     echo "                      Example: -o my_output_directory"
+    echo "  -v, --verbose       Enable verbose output for debugging"
+    echo "  -h, --help          Show this help message and exit"
     echo "Examples:"
     echo "  $(basename "$0") data.csv -d ';' -o output_folder --force"
-    echo "  $(basename "$0") data.csv --no-normalize --delimiter $\'\t\'"
+    printf "%s\n" "  $(basename "$0") data.csv --no-normalize --delimiter $\'\t\'"
     echo ""
+}
+
+# Check if input file is provided
+if [ $# -eq 0 ]; then
+    print_help
     exit 1
 fi
 
 folder="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-input_file="$1"
+input_file=""
 force_overwrite=false
 
 # Parse options
@@ -37,6 +43,7 @@ force_overwrite=false
 normalize_names=true
 delimiter=","
 output_dir="${folder}/tmp"
+verbose=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -51,28 +58,59 @@ while [[ $# -gt 0 ]]; do
         -d|--delimiter)
             if [[ -z "$2" ]]; then
                 echo "Error: --delimiter requires a value"
+                print_help
                 exit 1
             fi
             delimiter="$2"
             shift 2
             ;;
+        -v|--verbose)
+            verbose=true
+            shift
+            ;;
+        -h|--help)
+            print_help
+            exit 0
+            ;;
         -o|--output-dir)
             if [[ -z "$2" ]]; then
                 echo "Error: --output-dir requires a value"
+                print_help
                 exit 1
             fi
             output_dir="$2"
             shift 2
             ;;
+        --)
+            shift
+            if [ -z "$input_file" ] && [ $# -gt 0 ]; then
+                input_file="$1"
+                shift
+            fi
+            ;;
+        -*)
+            echo "Error: Unknown option: $1"
+            print_help
+            exit 1
+            ;;
         *)
-            # First non-option argument is the input file
             if [[ -z "$input_file" ]]; then
                 input_file="$1"
+            else
+                echo "Error: Unexpected argument: $1"
+                print_help
+                exit 1
             fi
             shift
             ;;
     esac
 done
+
+if [ -z "$input_file" ]; then
+    echo "Error: input CSV file is required."
+    print_help
+    exit 1
+fi
 # Convert filename to clean snake_case
 base_name=$(basename "$input_file" .csv |
     tr '[:upper:]' '[:lower:]' |
@@ -82,6 +120,36 @@ base_name=$(basename "$input_file" .csv |
 folder="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 mkdir -p "$output_dir"
+
+vlog() {
+    if [ "$verbose" = true ]; then
+        echo "$@"
+    fi
+}
+
+require_cmd() {
+    if ! command -v "$1" >/dev/null 2>&1; then
+        echo "Error: required command not found: $1"
+        exit 1
+    fi
+}
+
+# Basic input validation
+if [ ! -f "$input_file" ] || [ ! -r "$input_file" ]; then
+    echo "Error: input file not found or not readable: $input_file"
+    exit 1
+fi
+
+if [ "${#delimiter}" -ne 1 ]; then
+    echo "Error: --delimiter must be a single character"
+    print_help
+    exit 1
+fi
+
+require_cmd normalizer
+require_cmd iconv
+require_cmd file
+require_cmd duckdb
 
 # Check if final output file exists
 output_file="${output_dir}/${base_name}.csv"
@@ -103,7 +171,7 @@ rm -f "${output_dir}/reject_errors.csv"
 
 # Check and convert encoding to UTF-8 if needed
 set +e
-encoding=$(shuf -n 10000 "$input_file" | chardetect --minimal 2>/dev/null)
+encoding=$(normalizer --minimal "$input_file" 2>/dev/null)
 exit_code=$?
 set -e
 
@@ -112,21 +180,31 @@ if [ $exit_code -eq 141 ]; then
     exit_code=0
 fi
 
-echo "chardetect exit code: $exit_code"
-echo "Detected encoding: $encoding"
+vlog "normalizer exit code: $exit_code"
+vlog "Detected encoding: $encoding"
 
-# If chardetect returns "MACROMAN", treat it as "MACINTOSH"
-if [[ "${encoding^^}" == "MACROMAN" ]]; then
-    echo "Adjusting encoding from MACROMAN to MACINTOSH"
-    encoding="MACINTOSH"
-fi
+# Normalize known encoding aliases for iconv compatibility
+case "${encoding^^}" in
+    MACROMAN)
+        vlog "Adjusting encoding from MACROMAN to MACINTOSH"
+        encoding="MACINTOSH"
+        ;;
+    UTF_8)
+        vlog "Adjusting encoding from UTF_8 to UTF-8"
+        encoding="UTF-8"
+        ;;
+    UTF_8_SIG)
+        vlog "Adjusting encoding from UTF_8_SIG to UTF-8-SIG"
+        encoding="UTF-8-SIG"
+        ;;
+esac
 
 
-# If chardetect failed (excluding SIGPIPE), try alternative method
+# If normalizer failed (excluding SIGPIPE), try alternative method
 if [ $exit_code -ne 0 ] || [ -z "$encoding" ]; then
-    echo "chardetect failed, trying alternative method..."
+    vlog "normalizer failed, trying alternative method..."
     encoding=$(file -b --mime-encoding "$input_file")
-    echo "Alternative encoding detection: $encoding"
+    vlog "Alternative encoding detection: $encoding"
 fi
 
 # Convert encoding to lowercase for case-insensitive comparison
@@ -142,7 +220,7 @@ fi
 duckdb -c "copy (from read_csv('$input_file',store_rejects = true,sample_size=-1)) TO '/dev/null';copy (FROM reject_errors) to '${output_dir}/reject_errors.csv'"
 
 # Check if there are any errors
-if [ $(wc -l < "${output_dir}/reject_errors.csv") -gt 1 ]; then
+if [ "$(wc -l < "${output_dir}/reject_errors.csv")" -gt 1 ]; then
     echo "Error: DuckDB encountered invalid rows while processing the CSV file."
     echo "Details of the errors can be found in: ${output_dir}/reject_errors.csv"
     echo "Please fix the issues and try again."
@@ -152,7 +230,7 @@ fi
 # Create final output file
 copy_options="(header true, format csv"
 if [ "$delimiter" != "," ]; then
-    copy_options+= ", delimiter '$delimiter'"
+    copy_options+=", delimiter '$delimiter'"
 fi
 copy_options+=")"
 
@@ -164,7 +242,8 @@ fi
 
 # Clean up temporary files
 # Only remove error file if it's empty or has just the header
-if [ -f "${output_dir}/reject_errors.csv" ] && [ $(wc -l < "${output_dir}/reject_errors.csv" 2>/dev/null || echo 0) -le 1 ]; then
+reject_rows=$(wc -l < "${output_dir}/reject_errors.csv" 2>/dev/null || echo 0)
+if [ -f "${output_dir}/reject_errors.csv" ] && [ "$reject_rows" -le 1 ]; then
     rm -f "${output_dir}/reject_errors.csv"
 fi
 
