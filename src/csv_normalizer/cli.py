@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 from rich.console import Console
+from rich_argparse import RichHelpFormatter
 
 from csv_normalizer import __version__
 from csv_normalizer.core import process_csv
@@ -28,8 +29,8 @@ def create_parser() -> argparse.ArgumentParser:
     """Create and return the argument parser."""
     parser = argparse.ArgumentParser(
         prog="csv_normalize",
-        description="Validate and normalize CSV files",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="Validate and normalize CSV files for exploratory data analysis",
+        formatter_class=RichHelpFormatter,
         epilog="""\
 Examples:
   csv_normalize data.csv -d ';' -o output_folder --force
@@ -103,6 +104,15 @@ def main(argv: list[str] | None = None) -> int:
         Exit code: 0 for success, 1 for error.
     """
     parser = create_parser()
+
+    # Handle missing arguments gracefully
+    if argv is None:
+        argv = sys.argv[1:]
+
+    if not argv or (len(argv) == 1 and argv[0] in ['-h', '--help']):
+        parser.print_help()
+        return 0 if argv else 2
+
     args = parser.parse_args(argv)
 
     # Show banner in verbose mode

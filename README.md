@@ -115,6 +115,7 @@ The tool provides modern terminal output with:
   - `charset-normalizer>=3.0.0` - Encoding detection
   - `duckdb>=0.9.0` - CSV validation and normalization
   - `rich>=13.0.0` - Modern terminal output formatting
+  - `rich-argparse>=1.0.0` - Enhanced CLI help formatting
 
 Optional:
 - `pyfiglet>=1.0.0` - ASCII art banner in verbose mode (install with `pip install csv-normalize[banner]`)

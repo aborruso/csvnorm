@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-01-16 (v0.2.3)
+
+### Changed
+- Enhanced CLI help formatting with `rich-argparse`
+- Show full help when command run without arguments (instead of error)
+- Dependencies: added `rich-argparse>=1.0.0`
+
 ## 2026-01-16 (v0.2.2)
 
 ### Added
