@@ -1,4 +1,5 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/aborruso/prepare_data)
+[![PyPI version](https://badge.fury.io/py/csv-normalize.svg)](https://pypi.org/project/csv-normalize/)
 
 # CSV Normalizer
 
