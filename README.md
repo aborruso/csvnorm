@@ -37,12 +37,15 @@ Output:
   - Consistent field delimiters
   - Normalized column names (unless --no-normalize is specified)
   - Error report if any invalid rows are found
+
+Notes:
+  - Missing required arguments or unknown options will print the help message.
 ```
 
 ## Requirements
 
 - Python 3.8+
-- chardet (automatically installed via make)
+- charset_normalizer (automatically installed via make)
 - iconv (usually pre-installed on Linux systems)
 - DuckDB (automatically installed via make)
 - curl and unzip (for downloading DuckDB CLI)
@@ -92,7 +95,7 @@ make install
 
 This will:
 
-- Install required Python dependencies (chardet, duckdb)
+- Install required Python dependencies (charset_normalizer, duckdb)
 - Download and install the DuckDB CLI tool
 - Install the `csv_normalizer` command globally
 
@@ -123,14 +126,19 @@ csv_normalizer --help
 make uninstall
 ```
 
-### Option 2: Manual Installation
+### Option 2: Python Editable Install (Development)
 
 1. Clone the repository
-2. Install the package:
+2. Install in editable mode:
 
 ```bash
-pip install .
+pip install -e .
+# Or with uv:
+uv pip install -e .
 ```
+
+Note: This method only works in editable mode (-e flag) as the tool is primarily bash-based.
+For regular installation, use `make install` instead.
 
 ## Contributing
 

@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-01-15
+
+### Added
+- Python packaging support via `pyproject.toml`
+  - Enables `pip install -e .` for development installations
+  - Added `csv_normalizer_wrapper.py` to execute bash script from Python entry point
+  - Declared dependencies: charset-normalizer (required), duckdb (optional dev)
+  - Package name: `csv-normalizer`, version 0.1.0
+- Created `MANIFEST.in` to include script files in distribution
+
+### Changed
+- Replaced chardet-based encoding detection with charset_normalizer via `normalizer --minimal`
+- Implemented `-v/--verbose` to emit debug logs on demand
+- Added basic input validation and dependency checks before processing
+- Updated README installation instructions to clarify editable install requirement
+
+### Documentation
+- Filled out `openspec/project.md` with comprehensive project context
+  - Tech stack, architecture patterns, dependencies
+  - Code style conventions, testing strategy
+  - Domain context for CSV/ETL workflows
+  - Constraints and performance targets
+- Updated README Option 2 to reflect editable install requirement and uv support
+
 ## [1.1.0] - 2025-01-25
 
 ### Added

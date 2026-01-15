@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "csv-normalizer"
+version = "0.1.0"
+description = "A command-line utility to validate and normalize CSV files"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "CSV Normalizer Contributors"}
+]
+keywords = ["csv", "data", "normalization", "validation", "etl"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Other Scripting Engines",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Utilities",
+]
+
+dependencies = [
+    "charset-normalizer>=3.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "duckdb>=0.9.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/csv-normalizer"
+Issues = "https://github.com/yourusername/csv-normalizer/issues"
+
+[project.scripts]
+csv_normalizer = "csv_normalizer_wrapper:main"
+
+[tool.setuptools]
+py-modules = ["csv_normalizer_wrapper", "csv_normalizer_script"]
