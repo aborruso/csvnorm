@@ -4,9 +4,24 @@ import argparse
 import sys
 from pathlib import Path
 
+from rich.console import Console
+
 from csv_normalizer import __version__
 from csv_normalizer.core import process_csv
 from csv_normalizer.utils import setup_logger
+
+console = Console()
+
+
+def show_banner() -> None:
+    """Show ASCII art banner if pyfiglet is available."""
+    try:
+        from pyfiglet import figlet_format
+        banner = figlet_format("CSV Normalize", font="slant")
+        console.print(banner, style="bold cyan")
+    except ImportError:
+        # pyfiglet not installed, skip banner
+        pass
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -89,6 +104,10 @@ def main(argv: list[str] | None = None) -> int:
     """
     parser = create_parser()
     args = parser.parse_args(argv)
+
+    # Show banner in verbose mode
+    if args.verbose:
+        show_banner()
 
     # Setup logging
     setup_logger(args.verbose)

@@ -6,6 +6,8 @@ A command-line utility to validate and normalize CSV files for initial explorati
 
 ## Installation
 
+Recommended (uv):
+
 ```bash
 uv tool install csv-normalize
 ```
@@ -14,6 +16,14 @@ Or with pip:
 
 ```bash
 pip install csv-normalize
+```
+
+For ASCII banner in verbose mode:
+
+```bash
+uv tool install csv-normalize[banner]
+# or
+pip install csv-normalize[banner]
 ```
 
 ## Purpose
@@ -84,6 +94,12 @@ Creates a normalized CSV file in the specified output directory with:
 - Normalized column names (unless `--keep-names` is specified)
 - Error report if any invalid rows are found (saved as `{input_name}_reject_errors.csv`)
 
+The tool provides modern terminal output with:
+- Progress indicators for multi-step processing
+- Color-coded error messages with panels
+- Success summary table showing encoding, paths, and settings
+- Optional ASCII art banner in verbose mode (requires `pyfiglet`)
+
 ### Exit Codes
 
 | Code | Meaning |
@@ -97,6 +113,10 @@ Creates a normalized CSV file in the specified output directory with:
 - Dependencies (automatically installed):
   - `charset-normalizer>=3.0.0` - Encoding detection
   - `duckdb>=0.9.0` - CSV validation and normalization
+  - `rich>=13.0.0` - Modern terminal output formatting
+
+Optional:
+- `pyfiglet>=1.0.0` - ASCII art banner in verbose mode (install with `pip install csv-normalize[banner]`)
 
 ## Development
 

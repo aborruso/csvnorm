@@ -1,6 +1,6 @@
 """CSV Normalizer - Validate and normalize CSV files."""
 
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 __all__ = ["normalize_csv", "detect_encoding", "process_csv"]
 
 from csv_normalizer.core import process_csv

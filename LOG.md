@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-01-16 (v0.2.2)
+
+### Added
+- Modern CLI UX with `rich` library
+  - Progress spinner for 4-step pipeline (encoding detection, conversion, validation, normalization)
+  - Color-coded error panels (red border)
+  - Warning panels (yellow border)
+  - Success summary table showing input/output paths, encoding, delimiter, header settings
+  - Rich logging with RichHandler (color-coded levels, rich tracebacks)
+- Optional ASCII art banner in verbose mode
+  - Requires `pyfiglet` (install with `pip install csv-normalize[banner]`)
+  - Gracefully degrades if not installed
+
+### Changed
+- Replaced all `print()` calls with `rich.Console`
+- Enhanced logging output with colors and formatting
+- Dependencies: added `rich>=13.0.0` as required
+- Dependencies: added `pyfiglet>=1.0.0` as optional `[banner]` extra
+
+### Documentation
+- Updated README with modern UX features
+- Added DEPLOYMENT.md with release checklist (build, test, tag, twine)
+- Updated installation examples to show `uv tool install` and `[banner]` extra
+
 ## 2026-01-15
 
 ### Breaking Changes

@@ -4,6 +4,8 @@ import logging
 import re
 from pathlib import Path
 
+from rich.logging import RichHandler
+
 
 def to_snake_case(name: str) -> str:
     """Convert filename to clean snake_case.
@@ -34,7 +36,7 @@ def to_snake_case(name: str) -> str:
 
 
 def setup_logger(verbose: bool = False) -> logging.Logger:
-    """Setup and return a logger instance.
+    """Setup and return a logger instance with rich formatting.
 
     Args:
         verbose: If True, set log level to DEBUG, else INFO.
@@ -42,9 +44,12 @@ def setup_logger(verbose: bool = False) -> logging.Logger:
     logger = logging.getLogger("csv_normalizer")
 
     if not logger.handlers:
-        handler = logging.StreamHandler()
-        formatter = logging.Formatter("%(message)s")
-        handler.setFormatter(formatter)
+        handler = RichHandler(
+            show_time=False,
+            show_path=verbose,
+            markup=True,
+            rich_tracebacks=True
+        )
         logger.addHandler(handler)
 
     logger.setLevel(logging.DEBUG if verbose else logging.INFO)

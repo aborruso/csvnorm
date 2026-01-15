@@ -1,14 +1,19 @@
 """Core processing logic for CSV normalizer."""
 
 import logging
-import sys
 from pathlib import Path
+
+from rich.console import Console
+from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.table import Table
 
 from csv_normalizer.encoding import convert_to_utf8, detect_encoding, needs_conversion
 from csv_normalizer.utils import ensure_output_dir, to_snake_case, validate_delimiter
 from csv_normalizer.validation import normalize_csv, validate_csv
 
 logger = logging.getLogger("csv_normalizer")
+console = Console()
 
 
 def process_csv(
@@ -34,17 +39,26 @@ def process_csv(
     """
     # Validate inputs
     if not input_file.exists():
-        print(f"Error: input file not found: {input_file}", file=sys.stderr)
+        console.print(Panel(
+            f"[bold red]Error:[/bold red] Input file not found\n{input_file}",
+            border_style="red"
+        ))
         return 1
 
     if not input_file.is_file():
-        print(f"Error: not a file: {input_file}", file=sys.stderr)
+        console.print(Panel(
+            f"[bold red]Error:[/bold red] Not a file\n{input_file}",
+            border_style="red"
+        ))
         return 1
 
     try:
         validate_delimiter(delimiter)
     except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
+        console.print(Panel(
+            f"[bold red]Error:[/bold red] {e}",
+            border_style="red"
+        ))
         return 1
 
     # Setup paths
@@ -57,9 +71,12 @@ def process_csv(
 
     # Check if output exists
     if output_file.exists() and not force:
-        print("Warning: Output file already exists:", file=sys.stderr)
-        print(f"  - {output_file}", file=sys.stderr)
-        print("Use --force to overwrite.", file=sys.stderr)
+        console.print(Panel(
+            f"[bold yellow]Warning:[/bold yellow] Output file already exists\n\n"
+            f"{output_file}\n\n"
+            f"Use [bold]--force[/bold] to overwrite.",
+            border_style="yellow"
+        ))
         return 1
 
     # Clean up previous reject file
@@ -70,47 +87,89 @@ def process_csv(
     temp_files: list[Path] = []
 
     try:
-        # Step 1: Detect encoding
-        try:
-            encoding = detect_encoding(input_file)
-        except ValueError as e:
-            print(f"Error: {e}", file=sys.stderr)
-            return 1
-
-        logger.debug(f"Detected encoding: {encoding}")
-
-        # Step 2: Convert to UTF-8 if needed
-        working_file = input_file
-        if needs_conversion(encoding):
-            print(f"Converting file from {encoding} to UTF-8...")
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+            transient=True
+        ) as progress:
+            # Step 1: Detect encoding
+            task = progress.add_task("[cyan]Detecting encoding...", total=None)
             try:
-                convert_to_utf8(input_file, temp_utf8_file, encoding)
-                working_file = temp_utf8_file
-                temp_files.append(temp_utf8_file)
-            except (UnicodeDecodeError, LookupError) as e:
-                print(f"Error converting encoding: {e}", file=sys.stderr)
+                encoding = detect_encoding(input_file)
+            except ValueError as e:
+                progress.stop()
+                console.print(Panel(
+                    f"[bold red]Error:[/bold red] {e}",
+                    border_style="red"
+                ))
                 return 1
 
-        # Step 3: Validate CSV
-        logger.debug("Validating CSV with DuckDB...")
-        is_valid = validate_csv(working_file, reject_file)
+            logger.debug(f"Detected encoding: {encoding}")
+            progress.update(task, description=f"[green]✓[/green] Detected encoding: {encoding}")
 
-        if not is_valid:
-            print("Error: DuckDB encountered invalid rows while processing the CSV file.")
-            print(f"Details of the errors can be found in: {reject_file}")
-            print("Please fix the issues and try again.")
-            return 1
+            # Step 2: Convert to UTF-8 if needed
+            working_file = input_file
+            if needs_conversion(encoding):
+                progress.update(task, description=f"[cyan]Converting from {encoding} to UTF-8...")
+                try:
+                    convert_to_utf8(input_file, temp_utf8_file, encoding)
+                    working_file = temp_utf8_file
+                    temp_files.append(temp_utf8_file)
+                    progress.update(task, description=f"[green]✓[/green] Converted to UTF-8")
+                except (UnicodeDecodeError, LookupError) as e:
+                    progress.stop()
+                    console.print(Panel(
+                        f"[bold red]Error:[/bold red] Encoding conversion failed\n{e}",
+                        border_style="red"
+                    ))
+                    return 1
+            else:
+                progress.update(task, description=f"[green]✓[/green] Encoding: {encoding} (no conversion needed)")
 
-        # Step 4: Normalize and write output
-        logger.debug("Normalizing CSV...")
-        normalize_csv(
-            input_path=working_file,
-            output_path=output_file,
-            delimiter=delimiter,
-            normalize_names=not keep_names,
-        )
+            # Step 3: Validate CSV
+            progress.update(task, description="[cyan]Validating CSV...")
+            logger.debug("Validating CSV with DuckDB...")
+            is_valid = validate_csv(working_file, reject_file)
 
-        logger.debug(f"Output written to: {output_file}")
+            if not is_valid:
+                progress.stop()
+                console.print(Panel(
+                    "[bold red]Error:[/bold red] DuckDB encountered invalid rows\n\n"
+                    f"Details: [cyan]{reject_file}[/cyan]\n\n"
+                    "Please fix the issues and try again.",
+                    border_style="red"
+                ))
+                return 1
+
+            progress.update(task, description="[green]✓[/green] CSV validated")
+
+            # Step 4: Normalize and write output
+            progress.update(task, description="[cyan]Normalizing and writing output...")
+            logger.debug("Normalizing CSV...")
+            normalize_csv(
+                input_path=working_file,
+                output_path=output_file,
+                delimiter=delimiter,
+                normalize_names=not keep_names,
+            )
+
+            logger.debug(f"Output written to: {output_file}")
+            progress.update(task, description="[green]✓[/green] Complete")
+
+        # Success summary table
+        table = Table(show_header=False, box=None, padding=(0, 1))
+        table.add_row("[green]✓[/green] Success", "")
+        table.add_row("Input:", f"[cyan]{input_file}[/cyan]")
+        table.add_row("Output:", f"[cyan]{output_file}[/cyan]")
+        table.add_row("Encoding:", encoding)
+        if delimiter != ",":
+            table.add_row("Delimiter:", repr(delimiter))
+        if not keep_names:
+            table.add_row("Headers:", "normalized to snake_case")
+
+        console.print()
+        console.print(table)
 
     finally:
         # Cleanup temp files
