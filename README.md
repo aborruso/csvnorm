@@ -2,7 +2,23 @@
 
 # CSV Normalizer Utility
 
-A command-line utility to validate and normalize CSV files.
+A command-line utility to validate and normalize CSV files for initial exploration.
+
+## Purpose
+
+This tool prepares CSV files for **basic exploratory data analysis (EDA)**, not for complex transformations. It focuses on achieving a clean, standardized baseline format that allows you to quickly assess data quality and structure before designing more sophisticated ETL pipelines.
+
+**What it does:**
+- Validates CSV structure and reports errors
+- Normalizes encoding, delimiters, and field names
+- Creates a consistent starting point for data exploration
+
+**What it doesn't do:**
+- Complex data transformations or business logic
+- Type inference or data validation beyond structure
+- Heavy processing or aggregations
+
+Use this tool to get a **quick, reliable preview** of your CSV data, then decide what complex processing steps are needed based on your initial findings.
 
 ## Features
 
@@ -38,11 +54,12 @@ Output:
   - UTF-8 encoding
   - Consistent field delimiters
   - Normalized column names (unless --keep-names is specified)
-  - Error report if any invalid rows are found
+  - Error report if any invalid rows are found (saved as {input_name}_reject_errors.csv)
 
 Notes:
   - Missing required arguments or unknown options will print the help message.
   - If the output file already exists, the command stops unless --force is provided.
+  - Error reports are uniquely named per input file (e.g., data_reject_errors.csv for data.csv)
   - Example: `csv_normalizer data.csv` exits with a warning if `./data.csv` output already exists.
 ```
 

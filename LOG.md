@@ -2,6 +2,14 @@
 
 ## 2026-01-15
 
+### Changed
+- Renamed error report files from `reject_errors.csv` to `{base_name}_reject_errors.csv`
+  - Each input file now generates its own uniquely named error report
+  - Prevents overwriting error reports when processing multiple CSV files
+  - Example: `data.csv` errors saved as `data_reject_errors.csv`
+
+## 2026-01-15
+
 ### Added
 - Python packaging support via `pyproject.toml`
   - Enables `pip install -e .` for development installations
