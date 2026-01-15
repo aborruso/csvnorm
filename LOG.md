@@ -17,6 +17,7 @@
 - Updated README installation instructions to clarify editable install requirement
 - Defaulted DuckDB CSV reads to `all_varchar=true` to avoid type inference failures
 - Renamed `--no-normalize` to `--keep-names` for header-only behavior
+- Default output directory is now the current working directory; existing outputs stop unless `--force` is used
 
 ### Documentation
 - Filled out `openspec/project.md` with comprehensive project context

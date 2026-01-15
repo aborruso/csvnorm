@@ -28,7 +28,7 @@ Options:
                      Example: -d ';' for semicolon-delimited files
                      Example: -d $'\t' for tab-delimited files
                      Example: -d '|' for pipe-delimited files
-  -o, --output-dir    Set custom output directory (default: ./tmp)
+  -o, --output-dir    Set custom output directory (default: current working directory)
                      Example: -o ./output to save files in ./output directory
   -v, --verbose       Enable verbose output for debugging
   -h, --help          Show this help message and exit
@@ -42,6 +42,8 @@ Output:
 
 Notes:
   - Missing required arguments or unknown options will print the help message.
+  - If the output file already exists, the command stops unless --force is provided.
+  - Example: `csv_normalizer data.csv` exits with a warning if `./data.csv` output already exists.
 ```
 
 ## Requirements

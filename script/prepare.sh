@@ -18,7 +18,7 @@ print_help() {
     echo "                      Example: -d ';' for semicolon-delimited files"
     printf "%s\n" "                      Example: -d $\'\t\' for tab-delimited files"
     echo "                      Example: -d '|' for pipe-delimited files"
-    echo "  -o, --output-dir    Set custom output directory (default: 'tmp')"
+    echo "  -o, --output-dir    Set custom output directory (default: current working directory)"
     echo "                      Example: -o my_output_directory"
     echo "  -v, --verbose       Enable verbose output for debugging"
     echo "  -h, --help          Show this help message and exit"
@@ -34,7 +34,7 @@ if [ $# -eq 0 ]; then
     exit 1
 fi
 
-folder="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cwd="$(pwd)"
 input_file=""
 force_overwrite=false
 
@@ -42,7 +42,7 @@ force_overwrite=false
 force_overwrite=false
 normalize_names=true
 delimiter=","
-output_dir="${folder}/tmp"
+output_dir="${cwd}"
 verbose=false
 
 while [[ $# -gt 0 ]]; do
@@ -117,8 +117,6 @@ base_name=$(basename "$input_file" .csv |
     sed -E 's/[^a-z0-9]+/_/g' |
     sed -E 's/_+/_/g' |
     sed -E 's/^_|_$//g')
-folder="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
 mkdir -p "$output_dir"
 
 vlog() {
@@ -154,16 +152,11 @@ require_cmd duckdb
 # Check if final output file exists
 output_file="${output_dir}/${base_name}.csv"
 
-if [ -f "$output_file" ]; then
-    if [ "$force_overwrite" = false ]; then
-        echo "Warning: Output file already exists:"
-        echo "  - $output_file"
-        read -p "Do you want to overwrite it? [y/N] " -r
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            echo "Aborted by user."
-            exit 0
-        fi
-    fi
+if [ -f "$output_file" ] && [ "$force_overwrite" = false ]; then
+    echo "Warning: Output file already exists:"
+    echo "  - $output_file"
+    echo "Use --force to overwrite."
+    exit 1
 fi
 
 # Always overwrite temporary error file

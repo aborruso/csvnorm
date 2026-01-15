@@ -245,6 +245,8 @@ shellcheck script/prepare.sh
 for file in test/*.csv; do
     script/prepare.sh "$file" -o /tmp/test_output
 done
+
+# Note: If outputs already exist in /tmp/test_output, re-run with --force or clean the directory.
 ```
 
 ### Future: PyPI Publishing
@@ -279,8 +281,6 @@ None currently used, but could add:
 # Future: Override default DuckDB path
 export CSV_NORMALIZER_DUCKDB_PATH=/custom/path/to/duckdb
 
-# Future: Default output directory
-export CSV_NORMALIZER_OUTPUT_DIR=/default/output/path
 ```
 
 ## Platform Notes
