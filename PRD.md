@@ -38,7 +38,7 @@ Many open data portals and legacy systems publish CSV files with inconsistent en
 
 ## 7. Functional Requirements
 FR-1 The tool SHALL accept an input CSV path as the first positional argument.  
-FR-2 The tool SHALL detect file encoding using `chardet` and fallback to `file` when necessary.  
+FR-2 The tool SHALL detect file encoding using `charset_normalizer` and fallback to `file` when necessary.  
 FR-3 If encoding ≠ UTF-8/ASCII, the tool SHALL convert the file to UTF-8 using `iconv`.  
 FR-4 The tool SHALL validate the CSV with DuckDB’s `read_csv` and store rejects to `reject_errors.csv`.  
 FR-5 If rejects are present (>1 data line), the tool SHALL exit with code 1.  
@@ -55,7 +55,7 @@ NFR-3 The script SHALL target Bash 4+ and run on Linux and macOS.
 NFR-4 The code SHALL follow the conventions in `CONVENTIONS.md` and pass `shellcheck`.
 
 ## 9. Constraints & Assumptions
-* Relies on DuckDB, chardet, and iconv being installed.
+* Relies on DuckDB, charset_normalizer, and iconv being installed.
 * Users have write permission to the output directory.
 * Large files may require increased system resources.
 
