@@ -1,3 +1,8 @@
 .aider*
 .env
 script/tmp/*
+__pycache__/
+build/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
