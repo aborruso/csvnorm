@@ -1,3 +1,22 @@
+<!-- OPENSPEC:START -->
+# OpenSpec Instructions
+
+These instructions are for AI assistants working in this project.
+
+Always open `@/openspec/AGENTS.md` when the request:
+- Mentions planning or proposals (words like proposal, spec, change, plan)
+- Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
+- Sounds ambiguous and you need the authoritative spec before coding
+
+Use `@/openspec/AGENTS.md` to learn:
+- How to create and apply change proposals
+- Spec format and conventions
+- Project structure and guidelines
+
+Keep this managed block so 'openspec update' can refresh the instructions.
+
+<!-- OPENSPEC:END -->
+
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
@@ -40,7 +59,7 @@ make clean               # Remove temporary files
 ## Architecture
 
 ### Flow
-1. **Encoding detection**: `chardetect --minimal` with SIGPIPE handling → fallback to `file -b --mime-encoding`
+1. **Encoding detection**: `normalizer --minimal` with SIGPIPE handling → fallback to `file -b --mime-encoding`
 2. **Encoding conversion**: `iconv -f <detected> -t UTF-8` (only if encoding ≠ utf-8/ascii/utf-8-sig)
 3. **Validation**: DuckDB `read_csv(store_rejects=true, sample_size=-1)` → rejects to `reject_errors.csv`
 4. **Normalization**: DuckDB `copy` with `normalize_names=true` (unless `--no-normalize`)
@@ -49,8 +68,8 @@ make clean               # Remove temporary files
 ### Key Implementation Details
 
 **Encoding detection** (script/prepare.sh:105-130):
-- Uses `shuf -n 10000` + `chardetect --minimal` with SIGPIPE (exit 141) handling
-- Fallback to `file` command if chardetect fails
+- Uses `shuf -n 10000` + `normalizer --minimal` with SIGPIPE (exit 141) handling
+- Fallback to `file` command if normalizer fails
 - Special case: MACROMAN → MACINTOSH mapping
 - Only runs `iconv` when encoding is NOT utf-8/ascii/utf-8-sig
 
@@ -68,7 +87,7 @@ make clean               # Remove temporary files
 ## Dependencies
 
 **Required at runtime**:
-- `chardet` (Python CLI: `chardetect`)
+- `charset_normalizer` (Python CLI: `normalizer`)
 - `iconv` (encoding conversion)
 - `file` (fallback encoding detection)
 - DuckDB CLI (CSV validation/normalization)
