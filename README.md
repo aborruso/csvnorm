@@ -7,13 +7,13 @@ A command-line utility to validate and normalize CSV files for initial explorati
 ## Installation
 
 ```bash
-pip install csv-normalize
+uv tool install csv-normalize
 ```
 
-Or with uv:
+Or with pip:
 
 ```bash
-uv pip install csv-normalize
+pip install csv-normalize
 ```
 
 ## Purpose
