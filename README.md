@@ -110,28 +110,28 @@ The tool provides modern terminal output with:
 
 **Success Example:**
 ```
- ✓ Success                                  
- Input:        test/utf8_basic.csv          
- Output:       output/utf8_basic.csv        
- Encoding:     ascii (no conversion needed) 
- Rows:         2                            
- Columns:      3                            
- Input size:   42 B                         
- Output size:  43 B                         
- Headers:      normalized to snake_case     
+ ✓ Success
+ Input:        test/utf8_basic.csv
+ Output:       output/utf8_basic.csv
+ Encoding:     ascii (no conversion needed)
+ Rows:         2
+ Columns:      3
+ Input size:   42 B
+ Output size:  43 B
+ Headers:      normalized to snake_case
 ```
 
 **Error Example:**
 ```
- ✓ Success                                  
- Input:        test/malformed_rows.csv      
- Output:       output/malformed_rows.csv    
- Encoding:     ascii (no conversion needed) 
- Rows:         1                            
- Columns:      4                            
- Input size:   24 B                         
- Output size:  40 B                         
- Headers:      normalized to snake_case     
+ ✓ Success
+ Input:        test/malformed_rows.csv
+ Output:       output/malformed_rows.csv
+ Encoding:     ascii (no conversion needed)
+ Rows:         1
+ Columns:      4
+ Input size:   24 B
+ Output size:  40 B
+ Headers:      normalized to snake_case
 
 ╭──────────────────────────── ! Validation Failed ─────────────────────────────╮
 │ Validation Errors:                                                           │
@@ -155,7 +155,7 @@ The tool provides modern terminal output with:
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.9+
 - Dependencies (automatically installed):
   - `charset-normalizer>=3.0.0` - Encoding detection
   - `duckdb>=0.9.0` - CSV validation and normalization
