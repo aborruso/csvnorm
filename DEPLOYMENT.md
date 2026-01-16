@@ -1,82 +1,82 @@
 # Deployment Checklist
 
-Procedura per rilasciare una nuova versione su PyPI.
+Procedure to release a new version to PyPI.
 
-## Pre-requisiti
+## Prerequisites
 
-**IMPORTANTE**: Usare sempre `uv` e il venv del progetto, mai `pip3 --break-system-packages`.
+**IMPORTANT**: Always use `uv` and the project venv, never `pip3 --break-system-packages`.
 
 ```bash
-# Installare uv (se non già presente)
+# Install uv (if not already installed)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Installare build e twine nel venv del progetto
+# Install build and twine in the project venv
 source .venv/bin/activate
 uv pip install build twine
 ```
 
-## Procedura Completa
+## Full Procedure
 
-### 1. Aggiornare versione
+### 1. Update version
 
-Modificare il numero di versione in `pyproject.toml`:
+Update the version number in `pyproject.toml`:
 
 ```toml
 [project]
-version = "0.3.0"  # <- aggiornare qui
+version = "0.3.0"  # <- update here
 ```
 
-Allineare anche la versione in `src/csvnorm/__init__.py`:
+Also align the version in `src/csvnorm/__init__.py`:
 
 ```python
-__version__ = "0.3.0"  # <- aggiornare qui
+__version__ = "0.3.0"  # <- update here
 ```
 
-### 2. Test locali
+### 2. Local tests
 
-**IMPORTANTE**: Usare sempre il venv esistente `.venv` con `uv`.
+**IMPORTANT**: Always use the existing `.venv` with `uv`.
 
 ```bash
-# Attivare venv
+# Activate venv
 source .venv/bin/activate
 
-# Installare in modalità editable con dipendenze dev
+# Install editable with dev dependencies
 uv pip install -e ".[dev]"
 
-# Eseguire test
+# Run tests
 pytest tests/ -v
 
-# Test manuale
+# Manual tests
 csvnorm test/utf8_basic.csv -f
 csvnorm test/latin1_semicolon.csv -d ';' -f -V
 ```
 
-### 3. Pulire build precedenti
+### 3. Clean previous builds
 
 ```bash
 rm -rf dist/ build/ src/*.egg-info/
 ```
 
-### 4. Build del package
+### 4. Build the package
 
 ```bash
 python3 -m build
 ```
 
-Output atteso:
+Expected output:
 ```
 dist/
 ├── csvnorm-0.3.0-py3-none-any.whl
 └── csvnorm-0.3.0.tar.gz
 ```
 
-### 5. Verificare build
+### 5. Verify build
 
 ```bash
-# Controllare contenuto wheel
+# Inspect wheel contents
 unzip -l dist/csvnorm-*.whl
 
-# Test installazione in venv pulito con uv
+# Test install in a clean venv with uv
 uv venv test_venv
 source test_venv/bin/activate
 uv pip install dist/csvnorm-*.whl
@@ -86,94 +86,101 @@ deactivate
 rm -rf test_venv
 ```
 
-### 6. Commit e tag Git
+### 6. Commit and tag Git
 
 ```bash
-# Commit modifiche
-git add pyproject.toml CHANGELOG.md  # e altri file modificati
+# Commit changes
+git add pyproject.toml CHANGELOG.md  # plus any other modified files
 git commit -m "chore: bump version to 0.3.0"
 
-# Creare tag
+# Create tag
 git tag -a v0.3.0 -m "Release v0.3.0"
 
-# Push commit e tag
+# Push commit and tag
 git push origin main
 git push origin v0.3.0
 ```
 
-### 7. Creare GitHub Release
+### 7. Create GitHub Release
 
-**IMPORTANTE**: Creare sempre il GitHub release per ogni versione (anche patch/subrelease).
+**IMPORTANT**: Always create a GitHub release for each version (including patch/subrelease).
 
 ```bash
-# Creare release su GitHub
+# Create release on GitHub
 gh release create v0.3.0 \
   --title "v0.3.0" \
-  --notes "Breve descrizione dei cambiamenti principali"
+  --notes "Short description of the main changes"
 
-# Esempio per patch release
+# Example for patch release
 gh release create v0.3.1 \
   --title "v0.3.1" \
   --notes "CLI flags improvements: -k for --keep-names, -V for --verbose, -v for --version"
 ```
 
-### 8. Upload su PyPI
+### 8. Upload to PyPI
 
-**Test su TestPyPI (raccomandato):**
+**TestPyPI (recommended):**
 
 ```bash
-# Upload su TestPyPI
+# Upload to TestPyPI
 python3 -m twine upload --repository testpypi dist/*
 
 # Username: __token__
 # Password: <TestPyPI token>
 
-# Verificare su https://test.pypi.org/project/csvnorm/
+# Verify at https://test.pypi.org/project/csvnorm/
 
-# Test installazione da TestPyPI
+# Test install from TestPyPI
 pip install --index-url https://test.pypi.org/simple/ csvnorm
 ```
 
-**Upload su PyPI:**
+**Upload to PyPI:**
 
 ```bash
-# Upload su PyPI
+# Upload to PyPI
 python3 -m twine upload dist/*
 
 # Username: __token__
 # Password: <PyPI token>
 
-# Verificare su https://pypi.org/project/csvnorm/
+# Verify at https://pypi.org/project/csvnorm/
 ```
+
+**Note for Codex CLI:**
+- Do not test or experiment with filesystem operations (e.g., `os.rename()`); just run the standard commands.
+- Credentials are already configured in `~/.pypirc` or the keyring: do not pass `TWINE_USERNAME/TWINE_PASSWORD`.
+- Do not use `--repository-url` or `--repository testpypi` unless strictly necessary.
 
 ### 9. Post-release
 
 ```bash
-# Aggiornare LOG.md
+# Update LOG.md
 echo "## $(date +%Y-%m-%d)\n\n- Released v0.3.0\n" | cat - LOG.md > temp && mv temp LOG.md
 
-# Verificare installazione pubblica
+# Verify public install
 pip install --upgrade csvnorm
 csvnorm --version
 ```
 
+**Note:** for v0.3.6 the PyPI upload was completed manually.
+
 ## Troubleshooting
 
-**Errore "File already exists":**
-- Incrementare versione in `pyproject.toml`
-- PyPI non permette re-upload della stessa versione
+**Error "File already exists":**
+- Increment version in `pyproject.toml`
+- PyPI does not allow re-upload of the same version
 
-**Import errors dopo install:**
-- Verificare struttura package in `src/`
-- Controllare `[tool.setuptools.packages.find]` in `pyproject.toml`
+**Import errors after install:**
+- Verify package structure in `src/`
+- Check `[tool.setuptools.packages.find]` in `pyproject.toml`
 
-**Dipendenze mancanti:**
-- Verificare `dependencies` in `pyproject.toml`
-- Testare in venv pulito prima di upload
+**Missing dependencies:**
+- Verify `dependencies` in `pyproject.toml`
+- Test in a clean venv before upload
 
-## Note
+## Notes
 
-- Non committare mai i file in `dist/` al repo
-- Mantenere `.gitignore` aggiornato
-- Usare sempre `python3 -m build` (non `setup.py`)
-- Token PyPI salvati in `~/.pypirc` (opzionale)
+- Never commit files in `dist/` to the repo
+- Keep `.gitignore` up to date
+- Always use `python3 -m build` (not `setup.py`)
+- PyPI tokens stored in `~/.pypirc` (optional)
