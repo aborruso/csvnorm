@@ -24,9 +24,9 @@ pip install csvnorm
 For ASCII art banner (shown with `--version` and `-V`):
 
 ```bash
-uv tool install csvnorm[banner]
+uv tool install 'csvnorm[banner]'
 # or
-pip install csvnorm[banner]
+pip install 'csvnorm[banner]'
 ```
 
 Example with banner:
