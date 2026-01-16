@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-01-16
+
+- Released v0.3.1 to PyPI
+- Updated DEPLOYMENT.md: specify uv usage instead of pip3 --break-system-packages
+- Added deployment section to CLAUDE.md
+
 ## 2026-01-16 (v0.3.1)
 
 ### Changed
