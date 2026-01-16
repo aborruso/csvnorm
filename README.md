@@ -43,6 +43,7 @@ This tool prepares CSV files for **basic exploratory data analysis (EDA)**, not 
 - **Field Name Normalization**: Converts column headers to snake_case format
 - **Encoding Normalization**: Auto-detects encoding and converts to UTF-8
 - **Error Reporting**: Exports detailed error file for invalid rows
+- **Remote URL Support**: Process CSV files directly from HTTP/HTTPS URLs without downloading
 
 ## Usage
 
@@ -68,6 +69,9 @@ csvnorm input.csv [options]
 # Basic usage
 csvnorm data.csv
 
+# Process remote CSV from URL
+csvnorm "https://raw.githubusercontent.com/aborruso/csvnorm/refs/heads/main/test/Trasporto%20Pubblico%20Locale%20Settore%20Pubblico%20Allargato%20-%20Indicatore%202000-2020%20Trasferimenti%20Correnti%20su%20Entrate%20Correnti.csv"
+
 # With semicolon delimiter
 csvnorm data.csv -d ';'
 
@@ -88,6 +92,12 @@ Creates a normalized CSV file in the specified output directory with:
 - Consistent field delimiters
 - Normalized column names (unless `--keep-names` is specified)
 - Error report if any invalid rows are found (saved as `{input_name}_reject_errors.csv`)
+
+For remote URLs:
+- The output filename is derived from the URL's last path segment
+- Encoding is handled automatically by DuckDB
+- HTTP timeout is set to 30 seconds
+- Only public URLs are supported (no authentication)
 
 The tool provides modern terminal output with:
 - Progress indicators for multi-step processing

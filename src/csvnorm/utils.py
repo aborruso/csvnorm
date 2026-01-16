@@ -3,6 +3,7 @@
 import logging
 import re
 from pathlib import Path
+from urllib.parse import urlparse
 
 from rich.logging import RichHandler
 
@@ -45,10 +46,7 @@ def setup_logger(verbose: bool = False) -> logging.Logger:
 
     if not logger.handlers:
         handler = RichHandler(
-            show_time=False,
-            show_path=verbose,
-            markup=True,
-            rich_tracebacks=True
+            show_time=False, show_path=verbose, markup=True, rich_tracebacks=True
         )
         logger.addHandler(handler)
 
@@ -69,3 +67,60 @@ def validate_delimiter(delimiter: str) -> None:
 def ensure_output_dir(output_dir: Path) -> None:
     """Create output directory if it doesn't exist."""
     output_dir.mkdir(parents=True, exist_ok=True)
+
+
+def is_url(input_str: str) -> bool:
+    """Check if input string is an HTTP/HTTPS URL.
+
+    Args:
+        input_str: String to check.
+
+    Returns:
+        True if input is HTTP/HTTPS URL, False otherwise.
+    """
+    try:
+        result = urlparse(input_str)
+        return result.scheme in ("http", "https") and bool(result.netloc)
+    except Exception:
+        return False
+
+
+def validate_url(url: str) -> None:
+    """Validate URL has HTTP/HTTPS protocol.
+
+    Args:
+        url: URL to validate.
+
+    Raises:
+        ValueError: If URL protocol is not HTTP/HTTPS.
+    """
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"Only HTTP/HTTPS URLs are supported. Got: {parsed.scheme}://")
+
+
+def extract_filename_from_url(url: str) -> str:
+    """Extract and normalize filename from URL.
+
+    Args:
+        url: URL to extract filename from.
+
+    Returns:
+        Normalized snake_case filename without extension.
+    """
+    from urllib.parse import unquote
+
+    parsed = urlparse(url)
+    # Get last path segment, ignore query/fragment
+    path = parsed.path.rstrip("/")
+    filename = path.split("/")[-1] if path else "data"
+
+    # Decode URL encoding (%20 -> space, etc.)
+    filename = unquote(filename)
+
+    # Remove extension if present
+    if filename.lower().endswith(".csv"):
+        filename = filename[:-4]
+
+    # Apply snake_case normalization
+    return to_snake_case(filename) if filename else "data"

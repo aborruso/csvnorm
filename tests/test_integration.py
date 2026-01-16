@@ -8,6 +8,8 @@ import pytest
 from csvnorm.core import process_csv
 
 TEST_DIR = Path(__file__).parent.parent / "test"
+# Real public URL for testing
+TEST_URL = "https://raw.githubusercontent.com/aborruso/csvnorm/refs/heads/main/test/utf8_basic.csv"
 
 
 class TestProcessCSV:
@@ -26,7 +28,7 @@ class TestProcessCSV:
     def test_basic_utf8(self, output_dir):
         """Test processing a basic UTF-8 file."""
         result = process_csv(
-            input_file=TEST_DIR / "utf8_basic.csv",
+            input_file=str(TEST_DIR / "utf8_basic.csv"),
             output_dir=output_dir,
         )
         assert result == 0
@@ -39,7 +41,7 @@ class TestProcessCSV:
     def test_latin1_with_delimiter(self, output_dir):
         """Test processing a Latin-1 file with semicolon delimiter."""
         result = process_csv(
-            input_file=TEST_DIR / "latin1_semicolon.csv",
+            input_file=str(TEST_DIR / "latin1_semicolon.csv"),
             output_dir=output_dir,
             delimiter=";",
         )
@@ -53,7 +55,7 @@ class TestProcessCSV:
     def test_keep_names(self, output_dir):
         """Test that --keep-names preserves original headers."""
         result = process_csv(
-            input_file=TEST_DIR / "pipe_mixed_headers.csv",
+            input_file=str(TEST_DIR / "pipe_mixed_headers.csv"),
             output_dir=output_dir,
             keep_names=True,
         )
@@ -74,7 +76,7 @@ class TestProcessCSV:
     def test_normalize_names(self, output_dir):
         """Test that names are normalized by default."""
         result = process_csv(
-            input_file=TEST_DIR / "pipe_mixed_headers.csv",
+            input_file=str(TEST_DIR / "pipe_mixed_headers.csv"),
             output_dir=output_dir,
             keep_names=False,
         )
@@ -91,7 +93,7 @@ class TestProcessCSV:
     def test_nonexistent_file(self, output_dir):
         """Test handling of nonexistent input file."""
         result = process_csv(
-            input_file=Path("/nonexistent/file.csv"),
+            input_file="/nonexistent/file.csv",
             output_dir=output_dir,
         )
         assert result == 1
@@ -103,13 +105,34 @@ class TestProcessCSV:
             pytest.skip("Test fixtures not available")
 
         # First run
-        result = process_csv(input_file=input_file, output_dir=output_dir)
+        result = process_csv(input_file=str(input_file), output_dir=output_dir)
         assert result == 0
 
         # Second run without force should fail
-        result = process_csv(input_file=input_file, output_dir=output_dir)
+        result = process_csv(input_file=str(input_file), output_dir=output_dir)
         assert result == 1
 
         # Third run with force should succeed
-        result = process_csv(input_file=input_file, output_dir=output_dir, force=True)
+        result = process_csv(
+            input_file=str(input_file), output_dir=output_dir, force=True
+        )
         assert result == 0
+
+    @pytest.mark.network
+    def test_remote_url(self, output_dir):
+        """Test processing CSV from remote URL."""
+        result = process_csv(
+            input_file=TEST_URL,
+            output_dir=output_dir,
+        )
+        assert result == 0
+        assert (output_dir / "utf8_basic.csv").exists()
+
+    @pytest.mark.network
+    def test_remote_url_404(self, output_dir):
+        """Test handling of 404 error for remote URL."""
+        result = process_csv(
+            input_file="https://example.com/nonexistent.csv",
+            output_dir=output_dir,
+        )
+        assert result == 1

@@ -17,6 +17,7 @@ console = Console()
 def show_banner() -> None:
     """Show ASCII art banner."""
     from pyfiglet import figlet_format
+
     banner = figlet_format("csvnorm", font="slant")
     console.print(banner, style="bold cyan")
 
@@ -28,10 +29,15 @@ class VersionAction(argparse.Action):
         show_banner()
         console.print(f"csvnorm {__version__}", style="bold")
         console.print()
-        console.print("Validate and normalize CSV files for exploratory data analysis", style="dim")
+        console.print(
+            "Validate and normalize CSV files for exploratory data analysis",
+            style="dim",
+        )
         console.print()
         console.print("Author: aborruso", style="dim")
-        console.print("Repository: https://github.com/aborruso/csvnorm", style="dim cyan")
+        console.print(
+            "Repository: https://github.com/aborruso/csvnorm", style="dim cyan"
+        )
         console.print("License: MIT", style="dim")
         parser.exit()
 
@@ -46,14 +52,15 @@ def create_parser() -> argparse.ArgumentParser:
 Examples:
   csvnorm data.csv -d ';' -o output_folder --force
   csvnorm data.csv --keep-names --delimiter '\\t'
+  csvnorm https://example.com/data.csv -o output
   csvnorm data.csv -V
 """,
     )
 
     parser.add_argument(
         "input_file",
-        type=Path,
-        help="Input CSV file path",
+        type=str,
+        help="Input CSV file path or HTTP/HTTPS URL",
     )
 
     parser.add_argument(
@@ -122,7 +129,7 @@ def main(argv: list[str] | None = None) -> int:
     if argv is None:
         argv = sys.argv[1:]
 
-    if not argv or (len(argv) == 1 and argv[0] in ['-h', '--help']):
+    if not argv or (len(argv) == 1 and argv[0] in ["-h", "--help"]):
         parser.print_help()
         return 0 if argv else 2
 

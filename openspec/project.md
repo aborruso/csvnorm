@@ -19,71 +19,88 @@ CSV Normalizer Utility - A command-line tool that validates, cleans, and normali
 ## Tech Stack
 
 **Core Runtime**:
-- Bash 4+ (primary implementation language)
-- DuckDB CLI (CSV validation and normalization engine)
+- Python 3.9+ (primary implementation language)
+- DuckDB Python library (CSV validation and normalization engine)
+- charset-normalizer (encoding detection and conversion)
 
-**Utilities**:
-- `charset_normalizer` (Python CLI: encoding detection)
-- `iconv` (encoding conversion to UTF-8)
-- `file` (fallback encoding detection)
+**CLI & UX**:
+- `rich` (modern terminal output: progress spinners, panels, tables)
+- `rich-argparse` (enhanced CLI help formatting)
+- `pyfiglet` (ASCII art banner)
 
 **Build/Test Tools**:
-- GNU Make (installation, dependency management, testing)
-- ShellCheck (shell script linting - required before commits)
-
-**Not Used Yet** (but mentioned in docs):
-- Python packaging (pyproject.toml/setup.py) - future work
+- setuptools (build backend for PyPI packaging)
+- pytest (test framework)
+- pytest-cov (code coverage)
+- ruff (Python linter/formatter)
 
 ## Project Conventions
 
 ### Code Style
 
-**Shell Script Standards**:
-- Use `set -euo pipefail` at script start (already enforced in script/prepare.sh:3-6)
-- MUST pass `shellcheck` before any commit (NFR-4 in PRD)
-- Prioritize simplicity over cleverness - minimal complexity matching current implementation
+**Python Standards**:
+- Target Python 3.9+ (specified in pyproject.toml)
+- Use `ruff` for linting/formatting (line-length: 88)
+- Follow PEP 8 conventions
+- Type hints recommended but not enforced
+- Prioritize simplicity over cleverness - minimal complexity
 - Impact as little code as possible for any change
 - No temporary fixes - find root causes
 
 **Naming**:
-- Output files: snake_case (via `tr`/`sed` transformations)
-- DuckDB columns: snake_case (via `normalize_names=true` flag)
-- Variables: lowercase with underscores (Bash convention)
+- Output files: snake_case (via `to_snake_case()` utility)
+- DuckDB columns: snake_case (via `normalize_names=True` parameter)
+- Variables/functions: snake_case (Python convention)
+- Classes: PascalCase (Python convention)
 
 **Comments**:
-- Add comments only where logic isn't self-evident
+- Use docstrings for all public functions/classes (Google style)
+- Add inline comments only where logic isn't self-evident
 - Don't over-document obvious operations
 
 ### Architecture Patterns
 
-**Pipeline Architecture** (sequential stages in script/prepare.sh):
+**Pipeline Architecture** (sequential stages in `src/csvnorm/core.py::process_csv()`):
 
-1. **Encoding Detection** (lines 105-130):
-   - `shuf -n 10000` + `normalizer --minimal` with SIGPIPE handling
-   - Fallback to `file -b --mime-encoding` if normalizer fails
-   - Special case: MACROMAN → MACINTOSH mapping
+1. **Input Validation** (`core.py:40-62`):
+   - Check file exists and is a file
+   - Validate delimiter format
+   - Setup output paths with snake_case names
 
-2. **Encoding Conversion** (conditional):
-   - Only runs `iconv -f <detected> -t UTF-8` when encoding ≠ utf-8/ascii/utf-8-sig
+2. **Encoding Detection** (`encoding.py::detect_encoding()`):
+   - Use `charset_normalizer.from_path()` for detection
+   - Sample first 10,000 lines for efficiency
+   - Returns detected encoding (e.g., "utf-8", "windows-1252")
 
-3. **Validation** (DuckDB):
-   - `read_csv(store_rejects=true, sample_size=-1)` → rejects to `reject_errors.csv`
+3. **Encoding Conversion** (`encoding.py::convert_to_utf8()`):
+   - Only runs when `needs_conversion()` returns True (encoding ≠ utf-8/ascii)
+   - Uses charset_normalizer for conversion (not iconv)
+   - Writes to temporary `{base_name}_utf8.csv` file
 
-4. **Normalization** (DuckDB):
-   - `copy` with `normalize_names=true` (unless `--keep-names` flag)
+4. **Validation** (`validation.py::validate_csv()`):
+   - DuckDB `read_csv(store_rejects=True, sample_size=-1)`
+   - Writes rejects to `{base_name}_reject_errors.csv`
+   - Returns reject count
 
-5. **Cleanup** (lines 165-174):
-   - Remove `reject_errors.csv` if empty (≤1 line)
-   - Remove temp `${base_name}_utf8.csv` files
+5. **Normalization** (`validation.py::normalize_csv()`):
+   - DuckDB `COPY ... TO ... WITH (HEADER, DELIMITER, FORMAT CSV)`
+   - Uses `normalize_names=True` (unless `--keep-names` flag)
+   - Respects custom delimiter from `--delimiter` flag
+
+6. **Cleanup** (`core.py:165-174`):
+   - Remove `reject_errors.csv` if empty (file size ≤ header only)
+   - Remove temp `{base_name}_utf8.csv` files
+   - Display success summary table
 
 **Error Handling**:
 - Exit code 0: success
-- Exit code 1: validation errors or failures
-- Exit code 141: SIGPIPE (handled gracefully in encoding detection)
+- Exit code 1: validation errors, file not found, or other failures
+- Rich panels with color-coded borders (red=error, yellow=warning, green=success)
+- Detailed error messages with file paths
 
 **File Contract**:
 - Input: Arbitrary CSV (any encoding, delimiter, size)
-- Output: UTF-8 comma-delimited CSV + optional `reject_errors.csv`
+- Output: UTF-8 comma-delimited CSV (or custom delimiter) + optional `{name}_reject_errors.csv`
 
 ### Testing Strategy
 

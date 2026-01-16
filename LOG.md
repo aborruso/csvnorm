@@ -2,6 +2,18 @@
 
 ## 2026-01-16
 
+- Added remote URL support for HTTP/HTTPS CSV files
+- csvnorm now accepts URLs as input (e.g., `csvnorm https://example.com/data.csv`)
+- DuckDB reads URLs directly via httpfs extension (30s timeout)
+- URL encoding (%20, etc.) is decoded for output filenames
+- Error handling for HTTP 404, 401/403, timeout
+- Only public URLs supported (no authentication)
+- Added URL validation utilities: `is_url()`, `validate_url()`, `extract_filename_from_url()`
+- Added 20 new tests for URL functionality
+- Updated README with remote URL examples
+
+## 2026-01-16
+
 - Released v0.3.3 to PyPI and GitHub
 - Restored ASCII banner as core feature by adding pyfiglet to main dependencies
 - ASCII banner now always displays with `--version` flag

@@ -2,18 +2,22 @@
 
 import logging
 from pathlib import Path
+from typing import Union
 
 import duckdb
 
 logger = logging.getLogger("csvnorm")
 
 
-def validate_csv(file_path: Path, reject_file: Path) -> bool:
+def validate_csv(
+    file_path: Union[Path, str], reject_file: Path, is_remote: bool = False
+) -> bool:
     """Validate CSV file using DuckDB and export rejected rows.
 
     Args:
-        file_path: Path to CSV file to validate.
+        file_path: Path to CSV file to validate or URL string.
         reject_file: Path to write rejected rows.
+        is_remote: True if file_path is a remote URL.
 
     Returns:
         True if validation passes (no rejected rows), False otherwise.
@@ -23,6 +27,10 @@ def validate_csv(file_path: Path, reject_file: Path) -> bool:
     conn = duckdb.connect()
 
     try:
+        # Set HTTP timeout for remote URLs (30 seconds)
+        if is_remote:
+            conn.execute("SET http_timeout=30000")
+
         # Read CSV with store_rejects to capture malformed rows
         # Use all_varchar=true to avoid type inference failures
         conn.execute(f"""
@@ -50,24 +58,30 @@ def validate_csv(file_path: Path, reject_file: Path) -> bool:
 
 
 def normalize_csv(
-    input_path: Path,
+    input_path: Union[Path, str],
     output_path: Path,
     delimiter: str = ",",
     normalize_names: bool = True,
+    is_remote: bool = False,
 ) -> None:
     """Normalize CSV file using DuckDB.
 
     Args:
-        input_path: Path to input CSV file.
+        input_path: Path to input CSV file or URL string.
         output_path: Path for normalized output file.
         delimiter: Output field delimiter.
         normalize_names: If True, convert column names to snake_case.
+        is_remote: True if input_path is a remote URL.
     """
     logger.debug(f"Normalizing CSV: {input_path} -> {output_path}")
 
     conn = duckdb.connect()
 
     try:
+        # Set HTTP timeout for remote URLs (30 seconds)
+        if is_remote:
+            conn.execute("SET http_timeout=30000")
+
         # Build read options
         read_opts = "sample_size=-1, all_varchar=true"
         if normalize_names:
