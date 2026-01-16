@@ -31,6 +31,11 @@ For deployment procedures (building, tagging, publishing to PyPI), see `DEPLOYME
 
 **IMPORTANT**: Always use `uv` and the project's `.venv`, never `pip3 --break-system-packages`.
 
+**PRE-RELEASE CHECKLIST**:
+- NEVER release if `csvnorm -v` fails (basic smoke test)
+- Verify all runtime dependencies are in `pyproject.toml` (e.g., setuptools for pyfiglet)
+- Test installation: `uv tool install --reinstall --force .` then `csvnorm -v`
+
 ## Common Commands
 
 ### Installation

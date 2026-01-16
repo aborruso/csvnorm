@@ -15,11 +15,10 @@ console = Console()
 
 
 def show_banner() -> None:
-    """Show ASCII art banner."""
-    from pyfiglet import figlet_format
-
-    banner = figlet_format("csvnorm", font="slant")
-    console.print(banner, style="bold cyan")
+    """Show simple styled banner."""
+    console.print()
+    console.print("  csvnorm  ", style="bold cyan on black", justify="center")
+    console.print()
 
 
 class VersionAction(argparse.Action):
