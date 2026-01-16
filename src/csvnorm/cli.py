@@ -25,6 +25,15 @@ def show_banner() -> None:
         pass
 
 
+class VersionAction(argparse.Action):
+    """Custom action to show banner with version."""
+
+    def __call__(self, parser, _namespace, _values, _option_string=None):
+        show_banner()
+        console.print(f"csvnorm {__version__}", style="bold")
+        parser.exit()
+
+
 def create_parser() -> argparse.ArgumentParser:
     """Create and return the argument parser."""
     parser = argparse.ArgumentParser(
@@ -88,8 +97,9 @@ Examples:
     parser.add_argument(
         "-v",
         "--version",
-        action="version",
-        version=f"%(prog)s {__version__}",
+        action=VersionAction,
+        nargs=0,
+        help="Show version number with banner",
     )
 
     return parser

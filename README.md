@@ -21,12 +21,24 @@ Or with pip:
 pip install csvnorm
 ```
 
-For ASCII banner in verbose mode:
+For ASCII art banner (shown with `--version` and `-V`):
 
 ```bash
 uv tool install csvnorm[banner]
 # or
 pip install csvnorm[banner]
+```
+
+Example with banner:
+```bash
+csvnorm --version
+# Output:
+#   ___________   ______  ____  _________ ___
+#  / ___/ ___/ | / / __ \/ __ \/ ___/ __ `__ \
+# / /__(__  )| |/ / / / / /_/ / /  / / / / / /
+# \___/____/ |___/_/ /_/\____/_/  /_/ /_/ /_/
+#
+# csvnorm 0.3.1
 ```
 
 ## Purpose
@@ -101,7 +113,7 @@ The tool provides modern terminal output with:
 - Progress indicators for multi-step processing
 - Color-coded error messages with panels
 - Success summary table showing encoding, paths, and settings
-- Optional ASCII art banner in verbose mode (requires `pyfiglet`)
+- Optional ASCII art banner with `--version` and `-V` verbose mode (requires `pyfiglet`)
 
 ### Exit Codes
 
@@ -120,7 +132,7 @@ The tool provides modern terminal output with:
   - `rich-argparse>=1.0.0` - Enhanced CLI help formatting
 
 Optional extras:
-- `[banner]` - ASCII art banner in verbose mode (`pyfiglet>=1.0.0`)
+- `[banner]` - ASCII art banner for `--version` and `-V` verbose mode (`pyfiglet>=1.0.0`)
 - `[dev]` - Development dependencies (`pytest>=7.0.0`, `pytest-cov>=4.0.0`, `ruff>=0.1.0`)
 
 ## Development
