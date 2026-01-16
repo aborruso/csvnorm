@@ -20,7 +20,7 @@ The system SHALL display whether encoding conversion occurred during processing.
 #### Scenario: Remote URL processing
 
 - **WHEN** processing a remote URL
-- **THEN** success summary shows "Encoding: remote (handled by DuckDB)"
+- **THEN** success summary does not show encoding info (not available for remote files)
 
 ### Requirement: Display processing statistics
 
@@ -32,7 +32,7 @@ The system SHALL display statistics about the processed file in the success summ
 - **THEN** success summary shows:
   - Number of rows processed
   - Number of columns
-  - Input file size (formatted as KB/MB/GB)
+  - Input file size (formatted as KB/MB/GB) - only for local files
   - Output file size (formatted as KB/MB/GB)
 
 ### Requirement: Display error summary when validation fails
