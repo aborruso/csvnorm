@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-01-16 (v0.3.2)
+
+### Added
+- ASCII art banner now displays with `--version` flag (requires `pyfiglet`)
+
 ## 2026-01-16
 
 - Released v0.3.1 to PyPI and GitHub
