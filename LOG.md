@@ -1,5 +1,46 @@
 # Changelog
 
+## 2026-01-16 (v0.3.10)
+
+- Enhanced test coverage with edge cases and error paths
+- Added 18 new tests (71 → 89 tests, +25%)
+- Coverage improved from 80% → 87% (+7%)
+- New test file: tests/test_validation.py
+- Test fixtures: empty_file.csv, binary_file.bin
+- Module coverage: encoding.py 100%, validation.py 93%
+
+## 2026-01-16
+
+- Enhanced test coverage with edge cases and error paths
+  - Added 18 new tests (71 → 89 tests, +25%)
+  - Coverage improved from 80% → 87% (+7%)
+  - Created test fixtures: empty_file.csv, binary_file.bin
+  - New test file: tests/test_validation.py (9 tests)
+  - Encoding edge cases: empty files, binary files, unsupported encodings
+  - Validation error paths: _count_lines, _get_error_types edge cases
+  - Remote URL errors: HTTP 401/403/500, timeout, invalid schemes
+  - Module coverage: encoding.py 100%, validation.py 93%
+  - Used unittest.mock (no new dependencies)
+
+## 2026-01-16
+
+- Refactored core.py for better separation of concerns
+  - Created ui.py module with 4 formatting functions
+    - show_error_panel() - consolidated 5+ error panels
+    - show_warning_panel() - yellow border warnings
+    - show_success_table() - processing summary table
+    - show_validation_error_panel() - validation error summary
+  - Moved helpers from core.py to utils.py
+    - get_row_count() (renamed from _get_row_count)
+    - get_column_count() (renamed from _get_column_count)
+  - core.py reduced from 386 → 276 lines (-110 lines, -28%)
+  - process_csv reduced from 336 → 243 lines (-93 lines, -28%)
+  - Coverage maintained at 80% (all 71 tests passing)
+  - Module breakdown:
+    - core.py: 121 statements, 79% coverage
+    - ui.py: 45 statements, 71% coverage (new)
+    - utils.py: 71 statements, 86% coverage (expanded)
+
 ## 2026-01-16 (v0.3.9)
 
 - Released v0.3.9 to PyPI
