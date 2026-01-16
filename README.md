@@ -192,7 +192,7 @@ pytest tests/ -v
 ### Project Structure
 
 ```
-prepare_data/
+csvnorm/
 ├── src/csvnorm/
 │   ├── __init__.py      # Package version
 │   ├── __main__.py      # python -m support
