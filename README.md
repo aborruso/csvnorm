@@ -42,7 +42,8 @@ This tool prepares CSV files for **basic exploratory data analysis (EDA)**, not 
 - **Delimiter Normalization**: Converts all field separators to standard commas (`,`)
 - **Field Name Normalization**: Converts column headers to snake_case format
 - **Encoding Normalization**: Auto-detects encoding and converts to UTF-8
-- **Error Reporting**: Exports detailed error file for invalid rows
+- **Processing Summary**: Displays comprehensive statistics (rows, columns, file sizes) and error details
+- **Error Reporting**: Exports detailed error file for invalid rows with summary panel
 - **Remote URL Support**: Process CSV files directly from HTTP/HTTPS URLs without downloading
 
 ## Usage
@@ -87,14 +88,14 @@ csvnorm data.csv -f -V
 
 ### Output
 
-Creates a normalized CSV file in the specified output directory with:
+Creates a normalized CSV file in specified output directory with:
 - UTF-8 encoding
 - Consistent field delimiters
 - Normalized column names (unless `--keep-names` is specified)
 - Error report if any invalid rows are found (saved as `{input_name}_reject_errors.csv`)
 
 For remote URLs:
-- The output filename is derived from the URL's last path segment
+- The output filename is derived from URL's last path segment
 - Encoding is handled automatically by DuckDB
 - HTTP timeout is set to 30 seconds
 - Only public URLs are supported (no authentication)
@@ -102,8 +103,48 @@ For remote URLs:
 The tool provides modern terminal output with:
 - Progress indicators for multi-step processing
 - Color-coded error messages with panels
-- Success summary table showing encoding, paths, and settings
+- Success summary table with statistics (rows, columns, file sizes)
+- Encoding conversion status (converted/no conversion/remote)
+- Error summary panel with reject count and error types when validation fails
 - ASCII art banner with `--version` and `-V` verbose mode
+
+**Success Example:**
+```
+ ✓ Success                                  
+ Input:        test/utf8_basic.csv          
+ Output:       output/utf8_basic.csv        
+ Encoding:     ascii (no conversion needed) 
+ Rows:         2                            
+ Columns:      3                            
+ Input size:   42 B                         
+ Output size:  43 B                         
+ Headers:      normalized to snake_case     
+```
+
+**Error Example:**
+```
+ ✓ Success                                  
+ Input:        test/malformed_rows.csv      
+ Output:       output/malformed_rows.csv    
+ Encoding:     ascii (no conversion needed) 
+ Rows:         1                            
+ Columns:      4                            
+ Input size:   24 B                         
+ Output size:  40 B                         
+ Headers:      normalized to snake_case     
+
+╭──────────────────────────── ! Validation Failed ─────────────────────────────╮
+│ Validation Errors:                                                           │
+│                                                                              │
+│ Rejected rows: 2                                                             │
+│                                                                              │
+│ Error types:                                                                 │
+│   • Expected Number of Columns: 3 Found: 2                                   │
+│   • Expected Number of Columns: 3 Found: 4                                   │
+│                                                                              │
+│ Details: output/malformed_rows_reject_errors.csv                             │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
 
 ### Exit Codes
 

@@ -2,6 +2,17 @@
 
 ## 2026-01-16
 
+- Added comprehensive processing summary after CSV completion
+- Enhanced success table with statistics: rows, columns, input/output file sizes
+- Display encoding conversion status (converted/no conversion/remote)
+- Added error summary panel with reject count and sample error types when validation fails
+- Both success table and error panel displayed when validation errors exist
+- File sizes formatted in human-readable format (KB/MB/GB)
+- Utility function `format_file_size()` added to utils.py
+- Validation now returns reject count and error types instead of boolean
+
+## 2026-01-16
+
 - Added remote URL support for HTTP/HTTPS CSV files
 - csvnorm now accepts URLs as input (e.g., `csvnorm https://example.com/data.csv`)
 - DuckDB reads URLs directly via httpfs extension (30s timeout)

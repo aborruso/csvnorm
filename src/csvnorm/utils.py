@@ -124,3 +124,19 @@ def extract_filename_from_url(url: str) -> str:
 
     # Apply snake_case normalization
     return to_snake_case(filename) if filename else "data"
+
+
+def format_file_size(size_bytes: int) -> str:
+    """Format file size in human-readable format.
+
+    Args:
+        size_bytes: File size in bytes.
+
+    Returns:
+        Formatted size string (e.g., "1.5 MB", "256 KB").
+    """
+    for unit in ["B", "KB", "MB", "GB"]:
+        if size_bytes < 1024.0:
+            return f"{size_bytes:.1f} {unit}" if unit != "B" else f"{size_bytes} B"
+        size_bytes /= 1024.0
+    return f"{size_bytes:.1f} TB"

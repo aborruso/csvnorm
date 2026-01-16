@@ -13,6 +13,7 @@ from csvnorm.encoding import convert_to_utf8, detect_encoding, needs_conversion
 from csvnorm.utils import (
     ensure_output_dir,
     extract_filename_from_url,
+    format_file_size,
     is_url,
     to_snake_case,
     validate_delimiter,
@@ -164,7 +165,7 @@ def process_csv(
                         working_file = temp_utf8_file
                         temp_files.append(temp_utf8_file)
                         progress.update(
-                            task, description=f"[green]✓[/green] Converted to UTF-8"
+                            task, description="[green]✓[/green] Converted to UTF-8"
                         )
                     except (UnicodeDecodeError, LookupError) as e:
                         progress.stop()
@@ -186,7 +187,9 @@ def process_csv(
             logger.debug("Validating CSV with DuckDB...")
 
             try:
-                is_valid = validate_csv(working_file, reject_file, is_remote=is_remote)
+                reject_count, error_types = validate_csv(
+                    working_file, reject_file, is_remote=is_remote
+                )
             except Exception as e:
                 progress.stop()
                 error_msg = str(e)
@@ -238,17 +241,9 @@ def process_csv(
                     raise
                 return 1
 
-            if not is_valid:
+            has_validation_errors = reject_count > 1
+            if has_validation_errors:
                 progress.stop()
-                console.print(
-                    Panel(
-                        "[bold red]Error:[/bold red] DuckDB encountered invalid rows\n\n"
-                        f"Details: [cyan]{reject_file}[/cyan]\n\n"
-                        "Please fix the issues and try again.",
-                        border_style="red",
-                    )
-                )
-                return 1
 
             progress.update(task, description="[green]✓[/green] CSV validated")
 
@@ -266,13 +261,32 @@ def process_csv(
             logger.debug(f"Output written to: {output_file}")
             progress.update(task, description="[green]✓[/green] Complete")
 
+        # Collect statistics
+        input_size = (
+            working_file.stat().st_size if isinstance(working_file, Path) else 0
+        )
+        output_size = output_file.stat().st_size
+        row_count = _get_row_count(output_file)
+        column_count = _get_column_count(output_file)
+
         # Success summary table
         table = Table(show_header=False, box=None, padding=(0, 1))
         table.add_row("[green]✓[/green] Success", "")
         table.add_row("Input:", f"[cyan]{input_file}[/cyan]")
         table.add_row("Output:", f"[cyan]{output_file}[/cyan]")
         if not is_remote:
-            table.add_row("Encoding:", encoding)
+            if needs_conversion(encoding):
+                table.add_row("Encoding:", f"{encoding} → UTF-8 [dim](converted)[/dim]")
+            else:
+                table.add_row(
+                    "Encoding:", f"{encoding} [dim](no conversion needed)[/dim]"
+                )
+        else:
+            table.add_row("Encoding:", "remote [dim](handled by DuckDB)[/dim]")
+        table.add_row("Rows:", f"{row_count:,}")
+        table.add_row("Columns:", f"{column_count}")
+        table.add_row("Input size:", format_file_size(input_size))
+        table.add_row("Output size:", format_file_size(output_size))
         if delimiter != ",":
             table.add_row("Delimiter:", repr(delimiter))
         if not keep_names:
@@ -280,6 +294,29 @@ def process_csv(
 
         console.print()
         console.print(table)
+
+        # Error summary panel if validation failed
+        if has_validation_errors:
+            console.print()
+            error_lines = []
+            error_lines.append("[bold red]Validation Errors:[/bold red]")
+            error_lines.append("")
+            error_lines.append(f"Rejected rows: [yellow]{reject_count - 1}[/yellow]")
+            if error_types:
+                error_lines.append("")
+                error_lines.append("[dim]Error types:[/dim]")
+                for error_type in error_types:
+                    error_lines.append(f"  • {error_type}")
+            error_lines.append("")
+            error_lines.append(f"Details: [cyan]{reject_file}[/cyan]")
+            console.print(
+                Panel(
+                    "\n".join(error_lines),
+                    border_style="yellow",
+                    title="[yellow]![/yellow] Validation Failed",
+                )
+            )
+            return 1
 
     finally:
         # Cleanup temp files
@@ -297,3 +334,48 @@ def process_csv(
                 reject_file.unlink()
 
     return 0
+
+
+def _get_row_count(file_path: Union[Path, str]) -> int:
+    """Count number of rows in a CSV file.
+
+    Args:
+        file_path: Path to CSV file.
+
+    Returns:
+        Number of data rows (excluding header), or 0 if file doesn't exist.
+    """
+    if not isinstance(file_path, Path) or not file_path.exists():
+        return 0
+
+    try:
+        with open(file_path, "r") as f:
+            # Skip header
+            next(f, None)
+            return sum(1 for _ in f)
+    except Exception:
+        return 0
+
+
+def _get_column_count(file_path: Union[Path, str]) -> int:
+    """Count number of columns in a CSV file.
+
+    Args:
+        file_path: Path to CSV file.
+
+    Returns:
+        Number of columns in the header, or 0 if file doesn't exist.
+    """
+    if not isinstance(file_path, Path) or not file_path.exists():
+        return 0
+
+    try:
+        with open(file_path, "r") as f:
+            # Read header line
+            header = f.readline().strip()
+            if not header:
+                return 0
+            # Count columns based on comma delimiter
+            return len(header.split(","))
+    except Exception:
+        return 0

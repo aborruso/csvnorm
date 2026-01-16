@@ -11,7 +11,7 @@ logger = logging.getLogger("csvnorm")
 
 def validate_csv(
     file_path: Union[Path, str], reject_file: Path, is_remote: bool = False
-) -> bool:
+) -> tuple[int, list[str]]:
     """Validate CSV file using DuckDB and export rejected rows.
 
     Args:
@@ -20,7 +20,8 @@ def validate_csv(
         is_remote: True if file_path is a remote URL.
 
     Returns:
-        True if validation passes (no rejected rows), False otherwise.
+        Tuple of (reject_count, error_types) where error_types is list of
+        up to 3 unique error reasons from reject file.
     """
     logger.debug(f"Validating CSV: {file_path}")
 
@@ -54,7 +55,12 @@ def validate_csv(
     reject_count = _count_lines(reject_file)
     logger.debug(f"Reject file lines: {reject_count}")
 
-    return reject_count <= 1
+    # Collect sample error types from reject file
+    error_types = []
+    if reject_count > 1:
+        error_types = _get_error_types(reject_file)
+
+    return reject_count, error_types
 
 
 def normalize_csv(
@@ -121,3 +127,36 @@ def _count_lines(file_path: Path) -> int:
 
     with open(file_path, "r") as f:
         return sum(1 for _ in f)
+
+
+def _get_error_types(reject_file: Path) -> list[str]:
+    """Extract sample error types from reject file.
+
+    Args:
+        reject_file: Path to reject_errors.csv file.
+
+    Returns:
+        List of up to 3 unique error reasons.
+    """
+    if not reject_file.exists():
+        return []
+
+    error_types: set[str] = set()
+    try:
+        with open(reject_file, "r") as f:
+            # Skip header
+            next(f, None)
+            for line in f:
+                # Error message is in the last column
+                parts = line.rstrip("\n").split(",")
+                if parts:
+                    error_reason = parts[-1].strip()
+                    if error_reason and error_reason != "error":
+                        error_types.add(error_reason)
+                        if len(error_types) >= 3:
+                            break
+    except Exception as e:
+        logger.warning(f"Failed to extract error types: {e}")
+        return []
+
+    return list(error_types)[:3]
