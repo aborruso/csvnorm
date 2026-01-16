@@ -40,7 +40,7 @@ class TestCreateParser:
         assert "-f" in arg_strings or "--force" in arg_strings
         assert "-k" in arg_strings or "--keep-names" in arg_strings
         assert "-d" in arg_strings or "--delimiter" in arg_strings
-        assert "-o" in arg_strings or "--output-dir" in arg_strings
+        assert "-o" in arg_strings or "--output-file" in arg_strings
         assert "-V" in arg_strings or "--verbose" in arg_strings
         assert "-v" in arg_strings or "--version" in arg_strings
 
@@ -88,32 +88,26 @@ class TestMainFunction:
         test_csv = tmp_path / "test.csv"
         test_csv.write_text("Name,Age\nJohn,30\nJane,25\n")
 
-        output_dir = tmp_path / "output"
-        output_dir.mkdir()
+        output_file = tmp_path / "output.csv"
 
-        exit_code = main([
-            str(test_csv),
-            "-o", str(output_dir),
-            "-f"
-        ])
+        exit_code = main([str(test_csv), "-o", str(output_file), "-f"])
 
         assert exit_code == 0
-        assert (output_dir / "test.csv").exists()
+        assert output_file.exists()
 
     def test_force_flag(self, tmp_path):
         """Test --force flag allows overwriting."""
         test_csv = tmp_path / "test.csv"
         test_csv.write_text("Col1,Col2\nA,B\n")
 
-        output_dir = tmp_path / "output"
-        output_dir.mkdir()
+        output_file = tmp_path / "output.csv"
 
         # First run
-        exit_code1 = main([str(test_csv), "-o", str(output_dir)])
+        exit_code1 = main([str(test_csv), "-o", str(output_file)])
         assert exit_code1 == 0
 
         # Second run with --force
-        exit_code2 = main([str(test_csv), "-o", str(output_dir), "--force"])
+        exit_code2 = main([str(test_csv), "-o", str(output_file), "--force"])
         assert exit_code2 == 0
 
     def test_keep_names_flag(self, tmp_path):
@@ -121,18 +115,11 @@ class TestMainFunction:
         test_csv = tmp_path / "test.csv"
         test_csv.write_text("Column Name,Another Column\nvalue1,value2\n")
 
-        output_dir = tmp_path / "output"
-        output_dir.mkdir()
+        output_file = tmp_path / "output.csv"
 
-        exit_code = main([
-            str(test_csv),
-            "-o", str(output_dir),
-            "--keep-names",
-            "-f"
-        ])
+        exit_code = main([str(test_csv), "-o", str(output_file), "--keep-names", "-f"])
 
         assert exit_code == 0
-        output_file = output_dir / "test.csv"
         content = output_file.read_text()
         # With keep-names, original headers should be preserved
         assert "Column Name" in content or "column_name" in content
@@ -142,18 +129,13 @@ class TestMainFunction:
         test_csv = tmp_path / "test.csv"
         test_csv.write_text("A,B\n1,2\n")
 
-        output_dir = tmp_path / "output"
-        output_dir.mkdir()
+        output_file = tmp_path / "output.csv"
 
-        exit_code = main([
-            str(test_csv),
-            "-o", str(output_dir),
-            "--delimiter", ";",
-            "-f"
-        ])
+        exit_code = main(
+            [str(test_csv), "-o", str(output_file), "--delimiter", ";", "-f"]
+        )
 
         assert exit_code == 0
-        output_file = output_dir / "test.csv"
         content = output_file.read_text()
         # Output should use semicolon delimiter
         assert ";" in content
@@ -163,15 +145,9 @@ class TestMainFunction:
         test_csv = tmp_path / "test.csv"
         test_csv.write_text("A,B\n1,2\n")
 
-        output_dir = tmp_path / "output"
-        output_dir.mkdir()
+        output_file = tmp_path / "output.csv"
 
-        exit_code = main([
-            str(test_csv),
-            "-o", str(output_dir),
-            "--verbose",
-            "-f"
-        ])
+        exit_code = main([str(test_csv), "-o", str(output_file), "--verbose", "-f"])
 
         assert exit_code == 0
         captured = capsys.readouterr()
@@ -193,7 +169,7 @@ class TestCLISubprocess:
             [sys.executable, "-m", "csvnorm", "--version"],
             capture_output=True,
             text=True,
-            timeout=10
+            timeout=10,
         )
         assert result.returncode == 0
         assert __version__ in result.stdout or "csvnorm" in result.stdout
@@ -204,7 +180,7 @@ class TestCLISubprocess:
             [sys.executable, "-m", "csvnorm", "--help"],
             capture_output=True,
             text=True,
-            timeout=10
+            timeout=10,
         )
         assert result.returncode == 0
         assert "usage:" in result.stdout.lower()
@@ -214,20 +190,22 @@ class TestCLISubprocess:
         test_csv = tmp_path / "test.csv"
         test_csv.write_text("Name,Value\nTest,123\n")
 
-        output_dir = tmp_path / "output"
-        output_dir.mkdir()
+        output_file = tmp_path / "output.csv"
 
         result = subprocess.run(
             [
-                sys.executable, "-m", "csvnorm",
+                sys.executable,
+                "-m",
+                "csvnorm",
                 str(test_csv),
-                "-o", str(output_dir),
-                "-f"
+                "-o",
+                str(output_file),
+                "-f",
             ],
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=30,
         )
 
         assert result.returncode == 0
-        assert (output_dir / "test.csv").exists()
+        assert output_file.exists()

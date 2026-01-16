@@ -28,12 +28,13 @@ class TestProcessCSV:
     )
     def test_basic_utf8(self, output_dir):
         """Test processing a basic UTF-8 file."""
+        output_file = output_dir / "utf8_basic.csv"
         result = process_csv(
             input_file=str(TEST_DIR / "utf8_basic.csv"),
-            output_dir=output_dir,
+            output_file=output_file,
         )
         assert result == 0
-        assert (output_dir / "utf8_basic.csv").exists()
+        assert output_file.exists()
 
     @pytest.mark.skipif(
         not (TEST_DIR / "latin1_semicolon.csv").exists(),
@@ -41,13 +42,14 @@ class TestProcessCSV:
     )
     def test_latin1_with_delimiter(self, output_dir):
         """Test processing a Latin-1 file with semicolon delimiter."""
+        output_file = output_dir / "latin1_semicolon.csv"
         result = process_csv(
             input_file=str(TEST_DIR / "latin1_semicolon.csv"),
-            output_dir=output_dir,
+            output_file=output_file,
             delimiter=";",
         )
         assert result == 0
-        assert (output_dir / "latin1_semicolon.csv").exists()
+        assert output_file.exists()
 
     @pytest.mark.skipif(
         not (TEST_DIR / "pipe_mixed_headers.csv").exists(),
@@ -55,14 +57,14 @@ class TestProcessCSV:
     )
     def test_keep_names(self, output_dir):
         """Test that --keep-names preserves original headers."""
+        output_file = output_dir / "pipe_mixed_headers.csv"
         result = process_csv(
             input_file=str(TEST_DIR / "pipe_mixed_headers.csv"),
-            output_dir=output_dir,
+            output_file=output_file,
             keep_names=True,
         )
         assert result == 0
 
-        output_file = output_dir / "pipe_mixed_headers.csv"
         assert output_file.exists()
 
         with open(output_file, "r") as f:
@@ -76,14 +78,14 @@ class TestProcessCSV:
     )
     def test_normalize_names(self, output_dir):
         """Test that names are normalized by default."""
+        output_file = output_dir / "pipe_mixed_headers.csv"
         result = process_csv(
             input_file=str(TEST_DIR / "pipe_mixed_headers.csv"),
-            output_dir=output_dir,
+            output_file=output_file,
             keep_names=False,
         )
         assert result == 0
 
-        output_file = output_dir / "pipe_mixed_headers.csv"
         assert output_file.exists()
 
         with open(output_file, "r") as f:
@@ -93,9 +95,10 @@ class TestProcessCSV:
 
     def test_nonexistent_file(self, output_dir):
         """Test handling of nonexistent input file."""
+        output_file = output_dir / "output.csv"
         result = process_csv(
             input_file="/nonexistent/file.csv",
-            output_dir=output_dir,
+            output_file=output_file,
         )
         assert result == 1
 
@@ -105,36 +108,40 @@ class TestProcessCSV:
         if not input_file.exists():
             pytest.skip("Test fixtures not available")
 
+        output_file = output_dir / "utf8_basic.csv"
+
         # First run
-        result = process_csv(input_file=str(input_file), output_dir=output_dir)
+        result = process_csv(input_file=str(input_file), output_file=output_file)
         assert result == 0
 
         # Second run without force should fail
-        result = process_csv(input_file=str(input_file), output_dir=output_dir)
+        result = process_csv(input_file=str(input_file), output_file=output_file)
         assert result == 1
 
         # Third run with force should succeed
         result = process_csv(
-            input_file=str(input_file), output_dir=output_dir, force=True
+            input_file=str(input_file), output_file=output_file, force=True
         )
         assert result == 0
 
     @pytest.mark.network
     def test_remote_url(self, output_dir):
         """Test processing CSV from remote URL."""
+        output_file = output_dir / "utf8_basic.csv"
         result = process_csv(
             input_file=TEST_URL,
-            output_dir=output_dir,
+            output_file=output_file,
         )
         assert result == 0
-        assert (output_dir / "utf8_basic.csv").exists()
+        assert output_file.exists()
 
     @pytest.mark.network
     def test_remote_url_404(self, output_dir):
         """Test handling of 404 error for remote URL."""
+        output_file = output_dir / "output.csv"
         result = process_csv(
             input_file="https://example.com/nonexistent.csv",
-            output_dir=output_dir,
+            output_file=output_file,
         )
         assert result == 1
 
@@ -150,9 +157,10 @@ class TestRemoteURLErrors:
 
     def test_invalid_url_scheme(self, output_dir):
         """Test handling of invalid URL scheme."""
+        output_file = output_dir / "output.csv"
         result = process_csv(
             input_file="ftp://example.com/data.csv",
-            output_dir=output_dir,
+            output_file=output_file,
         )
         assert result == 1
 
@@ -164,9 +172,10 @@ class TestRemoteURLErrors:
         # Simulate 401 error in DuckDB HTTP request
         mock_conn.execute.side_effect = Exception("HTTP Error 401")
 
+        output_file = output_dir / "output.csv"
         result = process_csv(
             input_file="https://example.com/protected.csv",
-            output_dir=output_dir,
+            output_file=output_file,
         )
         assert result == 1
 
@@ -177,9 +186,10 @@ class TestRemoteURLErrors:
         mock_connect.return_value = mock_conn
         mock_conn.execute.side_effect = Exception("HTTP Error 403")
 
+        output_file = output_dir / "output.csv"
         result = process_csv(
             input_file="https://example.com/forbidden.csv",
-            output_dir=output_dir,
+            output_file=output_file,
         )
         assert result == 1
 
@@ -190,11 +200,15 @@ class TestRemoteURLErrors:
         mock_connect.return_value = mock_conn
         # First: SET http_timeout, Second: COPY...read_csv (fails with timeout)
         # Error message must contain "HTTP Error" or "HTTPException" to be caught
-        mock_conn.execute.side_effect = [None, Exception("HTTPException: Connection timed out")]
+        mock_conn.execute.side_effect = [
+            None,
+            Exception("HTTPException: Connection timed out"),
+        ]
 
+        output_file = output_dir / "output.csv"
         result = process_csv(
             input_file="https://example.com/slow.csv",
-            output_dir=output_dir,
+            output_file=output_file,
         )
         assert result == 1
 
@@ -204,10 +218,14 @@ class TestRemoteURLErrors:
         mock_conn = Mock()
         mock_connect.return_value = mock_conn
         # First: SET http_timeout, Second: COPY...read_csv (fails with HTTP error)
-        mock_conn.execute.side_effect = [None, Exception("HTTP Error 500: Internal Server Error")]
+        mock_conn.execute.side_effect = [
+            None,
+            Exception("HTTP Error 500: Internal Server Error"),
+        ]
 
+        output_file = output_dir / "output.csv"
         result = process_csv(
             input_file="https://example.com/broken.csv",
-            output_dir=output_dir,
+            output_file=output_file,
         )
         assert result == 1

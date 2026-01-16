@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-01-16
+
+### Breaking Changes
+- **Changed `-o/--output-dir` to `-o/--output-file`** - now accepts full file path instead of directory
+  - Old: `csvnorm data.csv -o output_folder/` → `output_folder/data.csv`
+  - New: `csvnorm data.csv -o output_folder/data.csv` → `output_folder/data.csv`
+  - Default behavior: `csvnorm data.csv` → `data.csv` in current directory
+  - Supports both absolute and relative paths
+  - User can specify any filename/extension (no .csv validation)
+- Reject files placed in same directory as output file, always overwritten
+- Temp UTF-8 files moved to system temp directory (`/tmp/csvnorm_xxxxx/`) with auto-cleanup
+
 ## 2026-01-16 (v0.3.10)
 
 - Enhanced test coverage with edge cases and error paths

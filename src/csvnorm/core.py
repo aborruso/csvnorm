@@ -1,6 +1,7 @@
 """Core processing logic for csvnorm."""
 
 import logging
+import tempfile
 from pathlib import Path
 from typing import Union
 
@@ -15,7 +16,6 @@ from csvnorm.ui import (
     show_warning_panel,
 )
 from csvnorm.utils import (
-    ensure_output_dir,
     extract_filename_from_url,
     get_column_count,
     get_row_count,
@@ -32,7 +32,7 @@ console = Console()
 
 def process_csv(
     input_file: str,
-    output_dir: Path,
+    output_file: Path,
     force: bool = False,
     keep_names: bool = False,
     delimiter: str = ",",
@@ -42,7 +42,7 @@ def process_csv(
 
     Args:
         input_file: Path to input CSV file or HTTP/HTTPS URL.
-        output_dir: Directory for output files.
+        output_file: Full path for output file.
         force: If True, overwrite existing output files.
         keep_names: If True, keep original column names.
         delimiter: Output field delimiter.
@@ -85,11 +85,10 @@ def process_csv(
         return 1
 
     # Setup paths
-    ensure_output_dir(output_dir)
-
-    output_file = output_dir / f"{base_name}.csv"
-    reject_file = output_dir / f"{base_name}_reject_errors.csv"
-    temp_utf8_file = output_dir / f"{base_name}_utf8.csv"
+    output_dir = output_file.parent
+    temp_dir = Path(tempfile.mkdtemp(prefix="csvnorm_"))
+    reject_file = output_dir / f"{output_file.stem}_reject_errors.csv"
+    temp_utf8_file = temp_dir / f"{output_file.stem}_utf8.csv"
 
     # Check if output exists
     if output_file.exists() and not force:
@@ -100,12 +99,12 @@ def process_csv(
         )
         return 1
 
-    # Clean up previous reject file
+    # Clean up previous reject file (always overwrite)
     if reject_file.exists():
         reject_file.unlink()
 
     # Track files to clean up
-    temp_files: list[Path] = []
+    temp_files: list[Path] = [temp_dir]
 
     try:
         with Progress(
@@ -259,11 +258,16 @@ def process_csv(
             return 1
 
     finally:
-        # Cleanup temp files
-        for temp_file in temp_files:
-            if temp_file.exists():
-                logger.debug(f"Removing temp file: {temp_file}")
-                temp_file.unlink()
+        # Cleanup temp directory
+        import shutil
+
+        for temp_path in temp_files:
+            if temp_path.exists():
+                logger.debug(f"Removing temp path: {temp_path}")
+                if temp_path.is_dir():
+                    shutil.rmtree(temp_path)
+                else:
+                    temp_path.unlink()
 
         # Remove reject file if empty (only header)
         if reject_file.exists():

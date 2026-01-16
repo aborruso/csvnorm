@@ -50,9 +50,9 @@ def create_parser() -> argparse.ArgumentParser:
         formatter_class=RichHelpFormatter,
         epilog="""\
 Examples:
-  csvnorm data.csv -d ';' -o output_folder --force
+  csvnorm data.csv -d ';' -o output.csv --force
   csvnorm data.csv --keep-names --delimiter '\\t'
-  csvnorm https://example.com/data.csv -o output
+  csvnorm https://example.com/data.csv -o processed/data.csv
   csvnorm data.csv -V
 """,
     )
@@ -90,10 +90,9 @@ Examples:
 
     parser.add_argument(
         "-o",
-        "--output-dir",
+        "--output-file",
         type=Path,
-        default=Path.cwd(),
-        help="Set custom output directory (default: current working directory)",
+        help="Set output file path (absolute or relative)",
     )
 
     parser.add_argument(
@@ -142,10 +141,17 @@ def main(argv: Optional[list[str]] = None) -> int:
     # Setup logging
     setup_logger(args.verbose)
 
+    # Determine output file (default: input filename in current directory)
+    if args.output_file is None:
+        input_name = Path(args.input_file).name
+        output_file = Path.cwd() / input_name
+    else:
+        output_file = args.output_file
+
     # Run processing
     return process_csv(
         input_file=args.input_file,
-        output_dir=args.output_dir,
+        output_file=output_file,
         force=args.force,
         keep_names=args.keep_names,
         delimiter=args.delimiter,
