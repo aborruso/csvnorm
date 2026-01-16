@@ -25,13 +25,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 csvnorm - A Python CLI tool for validating and normalizing CSV files. Installable via PyPI (`pip install csvnorm`).
 
+## Deployment
+
+For deployment procedures (building, tagging, publishing to PyPI), see `DEPLOYMENT.md`.
+
+**IMPORTANT**: Always use `uv` and the project's `.venv`, never `pip3 --break-system-packages`.
+
 ## Common Commands
 
 ### Installation
 ```bash
-pip install csvnorm           # From PyPI
-pip install -e .                    # Editable install for development
-pip install -e ".[dev]"             # With dev dependencies
+pip install csvnorm                  # From PyPI
+
+# Development (use uv and .venv)
+source .venv/bin/activate
+uv pip install -e ".[dev]"          # Editable install with dev dependencies
 ```
 
 ### Testing

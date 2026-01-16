@@ -158,7 +158,7 @@ Evidence:
 | Cyclomatic Complexity | Low | Linear flow, minimal branching |
 | ShellCheck Violations | 0 | **Passes compliance** |
 | Exit Points | 9 | Clear error handling |
-| Option Flags | 6 | `-f`, `-n`, `-d`, `-o`, `-v`, `-h` |
+| Option Flags | 7 | `-f`, `-k`, `-d`, `-o`, `-V`, `-v`, `-h` |
 
 ### Code Style Adherence
 
@@ -227,7 +227,7 @@ Evidence:
 
 **LOG.md analysis** (2026-01-15 entry):
 - ✅ Replaced chardet with charset_normalizer (more accurate)
-- ✅ Implemented verbose logging (`-v` flag)
+- ✅ Implemented verbose logging (`-V` flag)
 - ✅ Added input validation and dependency checks
 - ✅ ShellCheck violations resolved
 

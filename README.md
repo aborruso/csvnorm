@@ -63,11 +63,11 @@ csvnorm input.csv [options]
 | Option | Description |
 |--------|-------------|
 | `-f, --force` | Force overwrite of existing output files |
-| `-n, --keep-names` | Keep original column names (disable snake_case) |
+| `-k, --keep-names` | Keep original column names (disable snake_case) |
 | `-d, --delimiter CHAR` | Set custom output delimiter (default: `,`) |
 | `-o, --output-dir DIR` | Set output directory (default: current dir) |
-| `-v, --verbose` | Enable verbose output for debugging |
-| `--version` | Show version number |
+| `-V, --verbose` | Enable verbose output for debugging |
+| `-v, --version` | Show version number |
 | `-h, --help` | Show help message |
 
 ### Examples
@@ -86,7 +86,7 @@ csvnorm data.csv -o ./output
 csvnorm data.csv --keep-names
 
 # Force overwrite with verbose output
-csvnorm data.csv -f -v
+csvnorm data.csv -f -V
 ```
 
 ### Output

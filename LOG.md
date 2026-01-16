@@ -1,6 +1,10 @@
 # Changelog
 
-## 2026-01-16 (v0.3.0)
+## 2026-01-16 (v0.3.1)
+
+### Changed
+- CLI flags: `-k` for `--keep-names`, `-V` for `--verbose`, `-v` for `--version`
+- Documentation updated to reflect new short flags
 
 ### Breaking Changes
 - **Project renamed**: `csv-normalize` → `csvnorm`

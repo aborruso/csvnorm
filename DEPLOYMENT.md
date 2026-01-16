@@ -4,8 +4,15 @@ Procedura per rilasciare una nuova versione su PyPI.
 
 ## Pre-requisiti
 
+**IMPORTANTE**: Usare sempre `uv` e il venv del progetto, mai `pip3 --break-system-packages`.
+
 ```bash
-pip install build twine --break-system-packages
+# Installare uv (se non già presente)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Installare build e twine nel venv del progetto
+source .venv/bin/activate
+uv pip install build twine
 ```
 
 ## Procedura Completa
@@ -19,22 +26,29 @@ Modificare il numero di versione in `pyproject.toml`:
 version = "0.3.0"  # <- aggiornare qui
 ```
 
+Allineare anche la versione in `src/csvnorm/__init__.py`:
+
+```python
+__version__ = "0.3.0"  # <- aggiornare qui
+```
+
 ### 2. Test locali
 
+**IMPORTANTE**: Usare sempre il venv esistente `.venv` con `uv`.
+
 ```bash
-# Creare/attivare venv
-python3 -m venv .venv
+# Attivare venv
 source .venv/bin/activate
 
 # Installare in modalità editable con dipendenze dev
-pip install -e ".[dev]"
+uv pip install -e ".[dev]"
 
 # Eseguire test
 pytest tests/ -v
 
 # Test manuale
 csvnorm test/utf8_basic.csv -f
-csvnorm test/latin1_semicolon.csv -d ';' -f -v
+csvnorm test/latin1_semicolon.csv -d ';' -f -V
 ```
 
 ### 3. Pulire build precedenti
@@ -62,10 +76,10 @@ dist/
 # Controllare contenuto wheel
 unzip -l dist/csvnorm-*.whl
 
-# Test installazione in venv pulito
-python3 -m venv test_venv
+# Test installazione in venv pulito con uv
+uv venv test_venv
 source test_venv/bin/activate
-pip install dist/csvnorm-*.whl
+uv pip install dist/csvnorm-*.whl
 csvnorm --version
 csvnorm test/utf8_basic.csv -f
 deactivate

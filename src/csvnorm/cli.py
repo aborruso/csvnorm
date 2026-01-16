@@ -35,7 +35,7 @@ def create_parser() -> argparse.ArgumentParser:
 Examples:
   csvnorm data.csv -d ';' -o output_folder --force
   csvnorm data.csv --keep-names --delimiter '\\t'
-  csvnorm data.csv -v
+  csvnorm data.csv -V
 """,
     )
 
@@ -53,7 +53,7 @@ Examples:
     )
 
     parser.add_argument(
-        "-n",
+        "-k",
         "--keep-names",
         action="store_true",
         help=(
@@ -79,13 +79,14 @@ Examples:
     )
 
     parser.add_argument(
-        "-v",
+        "-V",
         "--verbose",
         action="store_true",
         help="Enable verbose output for debugging",
     )
 
     parser.add_argument(
+        "-v",
         "--version",
         action="version",
         version=f"%(prog)s {__version__}",
