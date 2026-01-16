@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-01-16 (v0.3.9)
+
+- Released v0.3.9 to PyPI
+- Fixed 3 critical issues and 1 high-priority issue from evaluation
+- Coverage improved from 66% to 79%
+- Added 16 CLI tests (total: 71 tests)
+
 ## 2026-01-16
 
 - Added comprehensive CLI tests (tests/test_cli.py) - hybrid approach
