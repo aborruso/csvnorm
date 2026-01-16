@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-01-16
+
+- Released v0.3.2 to PyPI and GitHub
+
 ## 2026-01-16 (v0.3.2)
 
 ### Added
