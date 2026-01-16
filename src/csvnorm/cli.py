@@ -31,6 +31,12 @@ class VersionAction(argparse.Action):
     def __call__(self, parser, _namespace, _values, _option_string=None):
         show_banner()
         console.print(f"csvnorm {__version__}", style="bold")
+        console.print()
+        console.print("Validate and normalize CSV files for exploratory data analysis", style="dim")
+        console.print()
+        console.print("Author: aborruso", style="dim")
+        console.print("Repository: https://github.com/aborruso/csvnorm", style="dim cyan")
+        console.print("License: MIT", style="dim")
         parser.exit()
 
 
