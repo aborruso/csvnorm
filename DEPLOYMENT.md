@@ -101,7 +101,23 @@ git push origin main
 git push origin v0.3.0
 ```
 
-### 7. Upload su PyPI
+### 7. Creare GitHub Release
+
+**IMPORTANTE**: Creare sempre il GitHub release per ogni versione (anche patch/subrelease).
+
+```bash
+# Creare release su GitHub
+gh release create v0.3.0 \
+  --title "v0.3.0" \
+  --notes "Breve descrizione dei cambiamenti principali"
+
+# Esempio per patch release
+gh release create v0.3.1 \
+  --title "v0.3.1" \
+  --notes "CLI flags improvements: -k for --keep-names, -V for --verbose, -v for --version"
+```
+
+### 8. Upload su PyPI
 
 **Test su TestPyPI (raccomandato):**
 
@@ -130,7 +146,7 @@ python3 -m twine upload dist/*
 # Verificare su https://pypi.org/project/csvnorm/
 ```
 
-### 8. Post-release
+### 9. Post-release
 
 ```bash
 # Aggiornare LOG.md
