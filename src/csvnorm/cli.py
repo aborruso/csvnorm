@@ -15,14 +15,10 @@ console = Console()
 
 
 def show_banner() -> None:
-    """Show ASCII art banner if pyfiglet is available."""
-    try:
-        from pyfiglet import figlet_format
-        banner = figlet_format("csvnorm", font="slant")
-        console.print(banner, style="bold cyan")
-    except ImportError:
-        # pyfiglet not installed, skip banner
-        pass
+    """Show ASCII art banner."""
+    from pyfiglet import figlet_format
+    banner = figlet_format("csvnorm", font="slant")
+    console.print(banner, style="bold cyan")
 
 
 class VersionAction(argparse.Action):
