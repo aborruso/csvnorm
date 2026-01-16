@@ -93,7 +93,7 @@ The tool provides modern terminal output with:
 - Progress indicators for multi-step processing
 - Color-coded error messages with panels
 - Success summary table showing encoding, paths, and settings
-- Optional ASCII art banner with `--version` and `-V` verbose mode (requires `pyfiglet`)
+- ASCII art banner with `--version` and `-V` verbose mode
 
 ### Exit Codes
 
@@ -110,9 +110,9 @@ The tool provides modern terminal output with:
   - `duckdb>=0.9.0` - CSV validation and normalization
   - `rich>=13.0.0` - Modern terminal output formatting
   - `rich-argparse>=1.0.0` - Enhanced CLI help formatting
+  - `pyfiglet>=1.0.0` - ASCII art banner
 
 Optional extras:
-- `[banner]` - ASCII art banner for `--version` and `-V` verbose mode (`pyfiglet>=1.0.0`)
 - `[dev]` - Development dependencies (`pytest>=7.0.0`, `pytest-cov>=4.0.0`, `ruff>=0.1.0`)
 
 ## Development
