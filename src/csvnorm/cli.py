@@ -3,6 +3,7 @@
 import argparse
 import sys
 from pathlib import Path
+from typing import Optional
 
 from rich.console import Console
 from rich_argparse import RichHelpFormatter
@@ -113,7 +114,7 @@ Examples:
     return parser
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: Optional[list[str]] = None) -> int:
     """Main entry point for the CLI.
 
     Args:
