@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-01-16 (v0.3.6)
+
+- Released v0.3.6
+- Pinned pyfiglet to >=0.8.post1,<1.0.0 to avoid missing 1.0.0 release on PyPI
+- Registered pytest "network" marker to silence warnings
+
 ## 2026-01-16
 
 - Added comprehensive processing summary after CSV completion

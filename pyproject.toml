@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "csvnorm"
-version = "0.3.5"
+version = "0.3.6"
 description = "A command-line utility to validate and normalize CSV files"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -35,7 +35,7 @@ dependencies = [
     "duckdb>=0.9.0",
     "rich>=13.0.0",
     "rich-argparse>=1.0.0",
-    "pyfiglet>=1.0.0",
+    "pyfiglet>=0.8.post1,<1.0.0",
 ]
 
 [project.optional-dependencies]
@@ -58,3 +58,8 @@ where = ["src"]
 [tool.ruff]
 line-length = 88
 target-version = "py38"
+
+[tool.pytest.ini_options]
+markers = [
+    "network: tests that require network access",
+]
