@@ -59,7 +59,7 @@ csvnorm input.csv [options]
 | `-f, --force` | Force overwrite of existing output files |
 | `-k, --keep-names` | Keep original column names (disable snake_case) |
 | `-d, --delimiter CHAR` | Set custom output delimiter (default: `,`) |
-| `-o, --output-dir DIR` | Set output directory (default: current dir) |
+| `-o, --output-file PATH` | Set output file path (absolute or relative) |
 | `-V, --verbose` | Enable verbose output for debugging |
 | `-v, --version` | Show version number |
 | `-h, --help` | Show help message |
@@ -67,35 +67,47 @@ csvnorm input.csv [options]
 ### Examples
 
 ```bash
-# Basic usage
+# Basic usage (output: data.csv in current directory)
 csvnorm data.csv
 
+# Specify output file path
+csvnorm data.csv -o output/processed.csv
+
+# Use absolute path
+csvnorm data.csv -o /tmp/data_normalized.csv
+
 # Process remote CSV from URL
-csvnorm "https://raw.githubusercontent.com/aborruso/csvnorm/refs/heads/main/test/Trasporto%20Pubblico%20Locale%20Settore%20Pubblico%20Allargato%20-%20Indicatore%202000-2020%20Trasferimenti%20Correnti%20su%20Entrate%20Correnti.csv"
+csvnorm "https://raw.githubusercontent.com/aborruso/csvnorm/refs/heads/main/test/Trasporto%20Pubblico%20Locale%20Settore%20Pubblico%20Allargato%20-%20Indicatore%202000-2020%20Trasferimenti%20Correnti%20su%20Entrate%20Correnti.csv" -o output.csv
 
 # With semicolon delimiter
-csvnorm data.csv -d ';'
-
-# Custom output directory
-csvnorm data.csv -o ./output
+csvnorm data.csv -d ';' -o data_semicolon.csv
 
 # Keep original headers
-csvnorm data.csv --keep-names
+csvnorm data.csv --keep-names -o output.csv
 
 # Force overwrite with verbose output
-csvnorm data.csv -f -V
+csvnorm data.csv -f -V -o processed.csv
+
+# Custom output name and extension
+csvnorm data.csv -o results.txt
 ```
 
 ### Output
 
-Creates a normalized CSV file in specified output directory with:
+Creates a normalized CSV file at the specified path with:
 - UTF-8 encoding
 - Consistent field delimiters
 - Normalized column names (unless `--keep-names` is specified)
-- Error report if any invalid rows are found (saved as `{input_name}_reject_errors.csv`)
+- Error report if any invalid rows are found (saved as `{output_name}_reject_errors.csv` in the same directory)
+- Temporary encoding conversion files stored in system temp directory with auto-cleanup
+
+Output file path behavior:
+- If `-o` is specified: uses the exact path provided (supports absolute and relative paths)
+- If `-o` is omitted: uses input filename in current working directory
+- Any file extension is allowed (not limited to `.csv`)
 
 For remote URLs:
-- The output filename is derived from URL's last path segment
+- You must specify `-o` to set the output filename
 - Encoding is handled automatically by DuckDB
 - HTTP timeout is set to 30 seconds
 - Only public URLs are supported (no authentication)
