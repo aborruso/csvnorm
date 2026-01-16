@@ -7,6 +7,8 @@
 - Updated DEPLOYMENT.md: specify uv usage instead of pip3 --break-system-packages
 - Added GitHub release step (step 7) to DEPLOYMENT.md - required for every version
 - Added deployment section to CLAUDE.md
+- README: explained [dev] and [banner] extras, updated dev setup to use uv
+- Feature: ASCII banner now shows with `--version` flag (requires pyfiglet)
 
 ## 2026-01-16 (v0.3.1)
 
