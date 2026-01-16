@@ -20,7 +20,7 @@ make install_light
 **What it does:**
 - Installs DuckDB CLI (downloads from GitHub releases)
 - Installs Python dependencies (charset-normalizer, duckdb)
-- Copies `script/prepare.sh` to `$PREFIX/bin/csv_normalizer`
+- Copies `script/prepare.sh` to `$PREFIX/bin/csvnormr`
 - Makes it executable and globally available
 
 ### Development: Python Editable Install
@@ -39,7 +39,7 @@ uv pip install -e .
 
 **What it does:**
 - Installs charset-normalizer dependency
-- Creates `csv_normalizer` command that calls `csv_normalizer_wrapper.py`
+- Creates `csvnormr` command that calls `csvnormr_wrapper.py`
 - Wrapper executes `script/prepare.sh` with all arguments
 - Changes to `prepare.sh` are immediately reflected (editable mode)
 
@@ -51,13 +51,13 @@ uv pip install -e .
 
 **pyproject.toml:**
 - Build system: setuptools ≥61.0
-- Package name: `csv-normalizer` (PyPI-friendly hyphenated name)
+- Package name: `csvnormr` (PyPI-friendly hyphenated name)
 - Version: 0.1.0
 - Dependencies: charset-normalizer ≥3.0.0
 - Optional dev deps: duckdb ≥0.9.0
-- Entry point: `csv_normalizer = csv_normalizer_wrapper:main`
+- Entry point: `csvnormr = csvnormr_wrapper:main`
 
-**csv_normalizer_wrapper.py:**
+**csvnormr_wrapper.py:**
 - Python wrapper script
 - Searches for `script/prepare.sh` in multiple locations:
   1. `<wrapper_dir>/script/prepare.sh` (editable install)
@@ -93,8 +93,8 @@ source /tmp/test_env/bin/activate
 uv pip install -e .
 
 # Test command
-csv_normalizer --help
-csv_normalizer test/utf8_basic.csv -o /tmp/test_output
+csvnormr --help
+csvnormr test/utf8_basic.csv -o /tmp/test_output
 
 # Verify output
 ls -lh /tmp/test_output/
@@ -112,11 +112,11 @@ rm -rf /tmp/test_env /tmp/test_output
 make install PREFIX=~/.local
 
 # Verify
-which csv_normalizer
-csv_normalizer --help
+which csvnormr
+csvnormr --help
 
 # Test
-csv_normalizer test/utf8_basic.csv
+csvnormr test/utf8_basic.csv
 
 # Uninstall
 make uninstall PREFIX=~/.local
@@ -137,7 +137,7 @@ shellcheck script/prepare.sh
 script/prepare.sh test/utf8_basic.csv
 
 # Or if installed in editable mode
-csv_normalizer test/utf8_basic.csv
+csvnormr test/utf8_basic.csv
 
 # Run test suite
 make test
@@ -178,7 +178,7 @@ DUCKDB_VERSION = v1.1.3  # Update as needed
 
 ## Common Issues
 
-### Issue: `csv_normalizer: command not found`
+### Issue: `csvnormr: command not found`
 
 **Solution 1 (editable install):**
 ```bash
@@ -263,7 +263,7 @@ To publish to PyPI (when ready):
    uv venv /tmp/clean_env
    source /tmp/clean_env/bin/activate
    uv pip install -e .
-   csv_normalizer --help
+   csvnormr --help
    ```
 
 3. **Upload to PyPI:**

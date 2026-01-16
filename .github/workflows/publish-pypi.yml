@@ -53,7 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/csv-normalize
+      url: https://pypi.org/p/csvnorm
     permissions:
       id-token: write
     steps:

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from charset_normalizer import from_path
 
-logger = logging.getLogger("csv_normalizer")
+logger = logging.getLogger("csvnorm")
 
 # Encoding alias mapping for Python codec compatibility
 ENCODING_ALIASES: dict[str, str] = {

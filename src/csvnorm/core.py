@@ -1,4 +1,4 @@
-"""Core processing logic for CSV normalizer."""
+"""Core processing logic for csvnorm."""
 
 import logging
 from pathlib import Path
@@ -8,11 +8,11 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
-from csv_normalizer.encoding import convert_to_utf8, detect_encoding, needs_conversion
-from csv_normalizer.utils import ensure_output_dir, to_snake_case, validate_delimiter
-from csv_normalizer.validation import normalize_csv, validate_csv
+from csvnorm.encoding import convert_to_utf8, detect_encoding, needs_conversion
+from csvnorm.utils import ensure_output_dir, to_snake_case, validate_delimiter
+from csvnorm.validation import normalize_csv, validate_csv
 
-logger = logging.getLogger("csv_normalizer")
+logger = logging.getLogger("csvnorm")
 console = Console()
 
 

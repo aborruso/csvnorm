@@ -1,4 +1,4 @@
-"""Command-line interface for CSV normalizer."""
+"""Command-line interface for csvnorm."""
 
 import argparse
 import sys
@@ -7,9 +7,9 @@ from pathlib import Path
 from rich.console import Console
 from rich_argparse import RichHelpFormatter
 
-from csv_normalizer import __version__
-from csv_normalizer.core import process_csv
-from csv_normalizer.utils import setup_logger
+from csvnorm import __version__
+from csvnorm.core import process_csv
+from csvnorm.utils import setup_logger
 
 console = Console()
 
@@ -18,7 +18,7 @@ def show_banner() -> None:
     """Show ASCII art banner if pyfiglet is available."""
     try:
         from pyfiglet import figlet_format
-        banner = figlet_format("CSV Normalize", font="slant")
+        banner = figlet_format("csvnorm", font="slant")
         console.print(banner, style="bold cyan")
     except ImportError:
         # pyfiglet not installed, skip banner
@@ -28,14 +28,14 @@ def show_banner() -> None:
 def create_parser() -> argparse.ArgumentParser:
     """Create and return the argument parser."""
     parser = argparse.ArgumentParser(
-        prog="csv_normalize",
+        prog="csvnorm",
         description="Validate and normalize CSV files for exploratory data analysis",
         formatter_class=RichHelpFormatter,
         epilog="""\
 Examples:
-  csv_normalize data.csv -d ';' -o output_folder --force
-  csv_normalize data.csv --keep-names --delimiter '\\t'
-  csv_normalize data.csv -v
+  csvnorm data.csv -d ';' -o output_folder --force
+  csvnorm data.csv --keep-names --delimiter '\\t'
+  csvnorm data.csv -v
 """,
     )
 

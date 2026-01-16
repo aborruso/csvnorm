@@ -23,13 +23,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-CSV Normalizer - A Python CLI tool for validating and normalizing CSV files. Installable via PyPI (`pip install csv-normalize`).
+csvnorm - A Python CLI tool for validating and normalizing CSV files. Installable via PyPI (`pip install csvnorm`).
 
 ## Common Commands
 
 ### Installation
 ```bash
-pip install csv-normalize           # From PyPI
+pip install csvnorm           # From PyPI
 pip install -e .                    # Editable install for development
 pip install -e ".[dev]"             # With dev dependencies
 ```
@@ -42,18 +42,18 @@ pytest tests/test_utils.py -v       # Run specific test file
 
 ### Development
 ```bash
-csv_normalize test/utf8_basic.csv              # Basic test
-csv_normalize test/latin1_semicolon.csv -d ';' # Non-UTF8 + delimiter
-csv_normalize input.csv -f -v                  # Force + verbose
-csv_normalize input.csv -n                     # Keep original names
-csv_normalize input.csv -o ./output            # Custom output dir
+csvnorm test/utf8_basic.csv              # Basic test
+csvnorm test/latin1_semicolon.csv -d ';' # Non-UTF8 + delimiter
+csvnorm input.csv -f -v                  # Force + verbose
+csvnorm input.csv -n                     # Keep original names
+csvnorm input.csv -o ./output            # Custom output dir
 ```
 
 ## Architecture
 
 ### Package Structure
 ```
-src/csv_normalizer/
+src/csvnormr/
 ├── __init__.py      # Version and exports
 ├── __main__.py      # python -m support
 ├── cli.py           # argparse CLI
@@ -136,7 +136,7 @@ Test fixtures in `test/`:
 
 ## Key Files
 
-- `src/csv_normalizer/` - Python package
+- `src/csvnormr/` - Python package
 - `tests/` - Test suite
 - `test/` - CSV fixtures
 - `pyproject.toml` - Package configuration

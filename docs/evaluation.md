@@ -418,9 +418,9 @@ iconv -f UNKNOWN-ENCODING -t UTF-8 input.csv > temp.csv
   build-backend = "setuptools.build_meta"
 
   [project]
-  name = "csv-normalizer"
+  name = "csvnormr"
   version = "1.1.0"
-  scripts = {csv_normalizer = "script.prepare:main"}
+  scripts = {csvnormr = "script.prepare:main"}
   ```
 - C) Document as "Future Work" only
 

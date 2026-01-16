@@ -1,11 +1,11 @@
-"""Integration tests for csv_normalizer."""
+"""Integration tests for csvnorm."""
 
 import tempfile
 from pathlib import Path
 
 import pytest
 
-from csv_normalizer.core import process_csv
+from csvnorm.core import process_csv
 
 TEST_DIR = Path(__file__).parent.parent / "test"
 

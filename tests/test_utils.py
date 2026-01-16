@@ -2,7 +2,7 @@
 
 import pytest
 
-from csv_normalizer.utils import to_snake_case, validate_delimiter
+from csvnorm.utils import to_snake_case, validate_delimiter
 
 
 class TestToSnakeCase:

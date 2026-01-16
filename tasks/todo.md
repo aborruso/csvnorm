@@ -1,124 +1,140 @@
-# Modern CLI Enhancement Plan
+# Rename Project: csv-normalize → csvnorm
 
 ## Goal
-Add modern UX features (rich formatting, progress bars) to csv_normalize while maintaining simplicity and scriptability.
+Rinominare il progetto da "csv-normalize" / "csv_normalize" / "csv_normalizer" a "csvnorm" in tutto il codice e la documentazione.
 
-## Constraints
-- Keep argparse (no typer rewrite)
-- No forced interactivity (must remain scriptable)
-- Maintain all current CLI args and exit codes
-- Minimal complexity
+## Plan
 
-## Phase 1: Dependencies
+Eseguire un rename completo e sistematico del progetto:
+1. Rinominare directory package da `csv_normalizer` a `csvnorm`
+2. Aggiornare pyproject.toml (nome package, script CLI)
+3. Aggiornare tutti gli import Python
+4. Aggiornare documentazione (README, CLAUDE, PRD, DEPLOYMENT, LOG)
+5. Aggiornare test
+6. Verificare e aggiornare altri file (openspec, docs, .github)
 
-- [ ] Add `rich` to pyproject.toml dependencies
-- [ ] Add optional `pyfiglet` for verbose mode banner
+## Tasks
 
-## Phase 2: Core Enhancements
+### Phase 1: Package Structure
+- [ ] Rinominare directory `src/csv_normalizer/` → `src/csvnorm/`
+- [ ] Aggiornare `pyproject.toml`:
+  - name: `csv-normalize` → `csvnorm`
+  - scripts: `csv_normalize` → `csvnorm`
+  - PyPI URL references
+  - description e keywords se necessario
+- [ ] Pulire `src/csv_normalize.egg-info/` obsoleto
 
-- [ ] Replace print() with rich Console in core.py
-- [ ] Add progress spinner/bar for multi-step processing
-- [ ] Format errors with Rich panels
-- [ ] Add success summary table at end
+### Phase 2: Python Code
+- [ ] Aggiornare import in `src/csvnorm/__init__.py`
+- [ ] Aggiornare import in `src/csvnorm/__main__.py`
+- [ ] Aggiornare import in `src/csvnorm/cli.py`
+- [ ] Aggiornare import in `src/csvnorm/core.py`
+- [ ] Aggiornare import in `src/csvnorm/encoding.py`
+- [ ] Aggiornare import in `src/csvnorm/validation.py`
+- [ ] Aggiornare import in `src/csvnorm/utils.py`
 
-## Phase 3: Optional Visual Enhancements
+### Phase 3: Test Files
+- [ ] Aggiornare import in `tests/__init__.py`
+- [ ] Aggiornare import in `tests/test_encoding.py`
+- [ ] Aggiornare import in `tests/test_integration.py`
+- [ ] Aggiornare import in `tests/test_utils.py`
 
-- [ ] Add banner in verbose mode (pyfiglet)
-- [ ] Color-code log levels (info=cyan, success=green, error=red)
+### Phase 4: Documentation
+- [ ] Aggiornare README.md (nome package, install commands, esempi)
+- [ ] Aggiornare CLAUDE.md (package name, commands, structure)
+- [ ] Aggiornare PRD.md (nomi tool e script)
+- [ ] Aggiornare DEPLOYMENT.md (nomi file dist, PyPI URL)
+- [ ] Aggiornare LOG.md (aggiungere entry per rename v0.3.0)
 
-## Phase 4: Testing & Polish
+### Phase 5: Other Files
+- [ ] Verificare e aggiornare file openspec (se necessario)
+- [ ] Verificare e aggiornare file in docs/ (se necessario)
+- [ ] Verificare e aggiornare .github/ workflows (se necessario)
 
-- [ ] Test with existing test files
-- [ ] Verify exit codes unchanged
-- [ ] Verify scriptable (no prompts)
-- [ ] Update README if needed
-
-## Implementation Notes
-
-**Files to modify:**
-- `pyproject.toml` - add dependencies
-- `src/csv_normalizer/core.py` - replace print() with rich Console
-- `src/csv_normalizer/cli.py` - optional banner in verbose mode
-
-**Rich features to use:**
-- Console for colored output
-- Progress for step tracking
-- Panel for errors
-- Table for final summary
-
-**NOT using:**
-- questionary (no interactivity needed)
-- typer (too big a rewrite)
-
-## Questions
-
-None - approach is straightforward and low-risk.
-
----
+### Phase 6: Verification
+- [ ] Verificare che `pytest tests/ -v` passi
+- [ ] Verificare che `csvnorm --version` funzioni
+- [ ] Verificare che `csvnorm test/utf8_basic.csv -f` funzioni
 
 ## Review
 
 ### Summary
 
-Successfully enhanced CSV Normalizer CLI with modern UX features using the `rich` library. All changes are backward-compatible and maintain existing behavior.
+Completato con successo il rename completo del progetto da `csv-normalize` / `csv_normalize` / `csv_normalizer` a `csvnorm`.
 
 ### Changes Made
 
-**Dependencies (pyproject.toml):**
-- Added `rich>=13.0.0` as required dependency
-- Added `pyfiglet>=1.0.0` as optional dependency under `[banner]` extra
+**1. Package Structure**
+- ✓ Directory rinominata: `src/csv_normalizer/` → `src/csvnorm/`
+- ✓ Rimosso file obsoleto: `src/csv_normalize.egg-info/`
 
-**Core Processing (core.py):**
-- Replaced all `print()` calls with `rich.Console`
-- Added progress spinner for 4-step pipeline (transient, non-blocking)
-- Formatted all errors with `Panel` (red border)
-- Formatted warnings with `Panel` (yellow border)
-- Added success summary `Table` at completion showing:
-  - Input/Output paths
-  - Detected encoding
-  - Delimiter (if non-comma)
-  - Header normalization status
+**2. Configuration (pyproject.toml)**
+- ✓ Package name: `csv-normalize` → `csvnorm`
+- ✓ Version bump: `0.2.3` → `0.3.0`
+- ✓ Script entry point: `csv_normalize` → `csvnorm`
+- ✓ Python version: `>=3.8` → `>=3.9` (per compatibilità con pyfiglet)
 
-**CLI Interface (cli.py):**
-- Added optional ASCII art banner in verbose mode (requires pyfiglet)
-- Banner gracefully degrades if pyfiglet not installed
+**3. Python Code (src/csvnorm/)**
+- ✓ Tutti gli import aggiornati: `from csv_normalizer import ...` → `from csvnorm import ...`
+- ✓ Logger names aggiornati: `"csv_normalizer"` → `"csvnorm"`
+- ✓ CLI prog name: `"csv_normalize"` → `"csvnorm"`
+- ✓ Banner text: `"CSV Normalize"` → `"csvnorm"`
 
-**Logging (utils.py):**
-- Replaced basic StreamHandler with `RichHandler`
-- Enabled rich tracebacks for better error debugging
-- Color-coded log levels automatically
+**4. Test Files (tests/)**
+- ✓ Tutti gli import aggiornati nei test
+- ✓ Test suite completa: 35/35 test passano ✓
 
-### Testing Results
+**5. Documentation**
+- ✓ README.md: package name, install commands, esempi
+- ✓ CLAUDE.md: package name, commands, structure
+- ✓ PRD.md: riferimenti al tool
+- ✓ DEPLOYMENT.md: nomi file dist, PyPI URL
+- ✓ LOG.md: entry v0.3.0 con breaking changes e migration guide
 
-All existing functionality preserved:
-- ✓ Exit code 0 on success
-- ✓ Exit code 1 on errors
-- ✓ No interactive prompts (fully scriptable)
-- ✓ UTF-8 encoding detection/conversion works
-- ✓ CSV validation with DuckDB works
-- ✓ Error panels display correctly
-- ✓ Success table shows all relevant info
-- ✓ Banner appears in verbose mode (with pyfiglet)
-- ✓ Graceful degradation without pyfiglet
+**6. Other Files**
+- ✓ openspec/: 3 files aggiornati
+- ✓ docs/: 2 files aggiornati
+- ✓ .github/: 2 files aggiornati
 
-### Files Modified
+**7. Cleanup**
+- ✓ Rimosso `/home/aborruso/.local/bin/csv_normalizer`
+- ✓ Disinstallato `csv-normalize` da uv tool
 
-- `pyproject.toml` - dependencies
-- `src/csv_normalizer/core.py` - rich output formatting
-- `src/csv_normalizer/cli.py` - banner support
-- `src/csv_normalizer/utils.py` - rich logging
-- `README.md` - documented new features
-
-### Installation Note
-
-Users can install with banner support via:
+### Verification
 
 ```bash
-pip install csv-normalize[banner]
+# Version check
+csvnorm --version
+# Output: csvnorm 0.3.0
+
+# Test execution
+pytest tests/ -v
+# Result: 35 passed in 0.36s
+
+# Manual test
+csvnorm test/utf8_basic.csv -f
+# Result: Success ✓
 ```
 
-Or just the base tool (banner will be skipped):
+### Breaking Changes
+
+- **CLI command**: `csv_normalize` → `csvnorm`
+- **Package name**: `csv-normalize` → `csvnorm` (PyPI)
+- **Python imports**: `from csv_normalizer import ...` → `from csvnorm import ...`
+
+### Migration for Users
 
 ```bash
-pip install csv-normalize
+# Uninstall old package
+pip uninstall csv-normalize
+
+# Install new package
+pip install csvnorm
+
+# Update scripts: replace csv_normalize with csvnorm
+# Update imports: from csv_normalizer → from csvnorm
 ```
+
+### Ready for Release
+
+Il progetto è pronto per essere rilasciato come v0.3.0 su PyPI con il nuovo nome `csvnorm`.

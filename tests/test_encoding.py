@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from csv_normalizer.encoding import (
+from csvnorm.encoding import (
     detect_encoding,
     needs_conversion,
     normalize_encoding_name,

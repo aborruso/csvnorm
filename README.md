@@ -1,7 +1,7 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/aborruso/prepare_data)
-[![PyPI version](https://badge.fury.io/py/csv-normalize.svg)](https://pypi.org/project/csv-normalize/)
+[![PyPI version](https://badge.fury.io/py/csvnorm.svg)](https://pypi.org/project/csvnorm/)
 
-# CSV Normalizer
+# csvnorm
 
 A command-line utility to validate and normalize CSV files for initial exploration.
 
@@ -10,21 +10,21 @@ A command-line utility to validate and normalize CSV files for initial explorati
 Recommended (uv):
 
 ```bash
-uv tool install csv-normalize
+uv tool install csvnorm
 ```
 
 Or with pip:
 
 ```bash
-pip install csv-normalize
+pip install csvnorm
 ```
 
 For ASCII banner in verbose mode:
 
 ```bash
-uv tool install csv-normalize[banner]
+uv tool install csvnorm[banner]
 # or
-pip install csv-normalize[banner]
+pip install csvnorm[banner]
 ```
 
 ## Purpose
@@ -53,7 +53,7 @@ This tool prepares CSV files for **basic exploratory data analysis (EDA)**, not 
 ## Usage
 
 ```bash
-csv_normalize input.csv [options]
+csvnorm input.csv [options]
 ```
 
 ### Options
@@ -72,19 +72,19 @@ csv_normalize input.csv [options]
 
 ```bash
 # Basic usage
-csv_normalize data.csv
+csvnorm data.csv
 
 # With semicolon delimiter
-csv_normalize data.csv -d ';'
+csvnorm data.csv -d ';'
 
 # Custom output directory
-csv_normalize data.csv -o ./output
+csvnorm data.csv -o ./output
 
 # Keep original headers
-csv_normalize data.csv --keep-names
+csvnorm data.csv --keep-names
 
 # Force overwrite with verbose output
-csv_normalize data.csv -f -v
+csvnorm data.csv -f -v
 ```
 
 ### Output
@@ -118,7 +118,7 @@ The tool provides modern terminal output with:
   - `rich-argparse>=1.0.0` - Enhanced CLI help formatting
 
 Optional:
-- `pyfiglet>=1.0.0` - ASCII art banner in verbose mode (install with `pip install csv-normalize[banner]`)
+- `pyfiglet>=1.0.0` - ASCII art banner in verbose mode (install with `pip install csvnorm[banner]`)
 
 ## Development
 
@@ -140,7 +140,7 @@ pytest tests/ -v
 
 ```
 prepare_data/
-├── src/csv_normalize/
+├── src/csvnorm/
 │   ├── __init__.py      # Package version
 │   ├── __main__.py      # python -m support
 │   ├── cli.py           # CLI argument parsing

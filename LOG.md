@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-01-16 (v0.3.0)
+
+### Breaking Changes
+- **Project renamed**: `csv-normalize` → `csvnorm`
+  - PyPI package name: `csvnorm`
+  - CLI command: `csvnorm` (was `csv_normalize`)
+  - Python package: `csvnorm` (was `csv_normalizer`)
+  - All imports changed from `from csv_normalizer import ...` to `from csvnorm import ...`
+
+### Migration Guide
+For existing users:
+```bash
+# Uninstall old package
+pip uninstall csv-normalize
+
+# Install new package
+pip install csvnorm
+
+# Update scripts: replace csv_normalize with csvnorm
+# Update imports: from csv_normalizer → from csvnorm
+```
+
 ## 2026-01-16 (v0.2.3)
 
 ### Changed

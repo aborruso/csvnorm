@@ -33,8 +33,8 @@ pip install -e ".[dev]"
 pytest tests/ -v
 
 # Test manuale
-csv_normalize test/utf8_basic.csv -f
-csv_normalize test/latin1_semicolon.csv -d ';' -f -v
+csvnorm test/utf8_basic.csv -f
+csvnorm test/latin1_semicolon.csv -d ';' -f -v
 ```
 
 ### 3. Pulire build precedenti
@@ -52,22 +52,22 @@ python3 -m build
 Output atteso:
 ```
 dist/
-├── csv_normalize-0.3.0-py3-none-any.whl
-└── csv_normalize-0.3.0.tar.gz
+├── csvnorm-0.3.0-py3-none-any.whl
+└── csvnorm-0.3.0.tar.gz
 ```
 
 ### 5. Verificare build
 
 ```bash
 # Controllare contenuto wheel
-unzip -l dist/csv_normalize-*.whl
+unzip -l dist/csvnorm-*.whl
 
 # Test installazione in venv pulito
 python3 -m venv test_venv
 source test_venv/bin/activate
-pip install dist/csv_normalize-*.whl
-csv_normalize --version
-csv_normalize test/utf8_basic.csv -f
+pip install dist/csvnorm-*.whl
+csvnorm --version
+csvnorm test/utf8_basic.csv -f
 deactivate
 rm -rf test_venv
 ```
@@ -98,10 +98,10 @@ python3 -m twine upload --repository testpypi dist/*
 # Username: __token__
 # Password: <TestPyPI token>
 
-# Verificare su https://test.pypi.org/project/csv-normalize/
+# Verificare su https://test.pypi.org/project/csvnorm/
 
 # Test installazione da TestPyPI
-pip install --index-url https://test.pypi.org/simple/ csv-normalize
+pip install --index-url https://test.pypi.org/simple/ csvnorm
 ```
 
 **Upload su PyPI:**
@@ -113,7 +113,7 @@ python3 -m twine upload dist/*
 # Username: __token__
 # Password: <PyPI token>
 
-# Verificare su https://pypi.org/project/csv-normalize/
+# Verificare su https://pypi.org/project/csvnorm/
 ```
 
 ### 8. Post-release
@@ -123,8 +123,8 @@ python3 -m twine upload dist/*
 echo "## $(date +%Y-%m-%d)\n\n- Released v0.3.0\n" | cat - LOG.md > temp && mv temp LOG.md
 
 # Verificare installazione pubblica
-pip install --upgrade csv-normalize
-csv_normalize --version
+pip install --upgrade csvnorm
+csvnorm --version
 ```
 
 ## Troubleshooting

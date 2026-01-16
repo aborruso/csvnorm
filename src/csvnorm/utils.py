@@ -1,4 +1,4 @@
-"""Utility functions for CSV normalizer."""
+"""Utility functions for csvnorm."""
 
 import logging
 import re
@@ -41,7 +41,7 @@ def setup_logger(verbose: bool = False) -> logging.Logger:
     Args:
         verbose: If True, set log level to DEBUG, else INFO.
     """
-    logger = logging.getLogger("csv_normalizer")
+    logger = logging.getLogger("csvnorm")
 
     if not logger.handlers:
         handler = RichHandler(

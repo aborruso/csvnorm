@@ -1,4 +1,4 @@
-# CSV Normalizer Utility – Product Requirements Document (PRD)
+# csvnorm – Product Requirements Document (PRD)
 
 ## 1. Purpose
 Provide a robust command-line tool that validates, cleans, and normalizes CSV files so that downstream analytics, ETL, and data-science workflows can reliably consume them.
@@ -32,7 +32,7 @@ Many open data portals and legacy systems publish CSV files with inconsistent en
 | Open-Data Maintainer | Validate files before publishing. |
 
 ## 6. User Stories
-1. *As a Data Engineer* I want to run `csv_normalizer large.csv --force` so that existing outputs are overwritten without a prompt.  
+1. *As a Data Engineer* I want to run `csvnorm large.csv --force` so that existing outputs are overwritten without a prompt.  
 2. *As a Data Analyst* I want to keep original column names by adding `--keep-names` so that my downstream scripts referencing camelCase headers keep working.  
 3. *As an Open-Data Maintainer* I want the tool to fail fast and generate `reject_errors.csv` so that I can fix invalid rows.
 

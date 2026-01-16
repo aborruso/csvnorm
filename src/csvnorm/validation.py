@@ -5,7 +5,7 @@ from pathlib import Path
 
 import duckdb
 
-logger = logging.getLogger("csv_normalizer")
+logger = logging.getLogger("csvnorm")
 
 
 def validate_csv(file_path: Path, reject_file: Path) -> bool:

@@ -3,7 +3,7 @@
 The system SHALL write output files to the current working directory when `--output-dir` is not provided.
 
 #### Scenario: No output directory specified
-- **WHEN** a user runs `csv_normalizer` without `--output-dir`
+- **WHEN** a user runs `csvnormr` without `--output-dir`
 - **THEN** the output CSV is created in the process working directory
 - **AND THEN** temporary files (`reject_errors.csv`, `*_utf8.csv`) are created in the same directory
 

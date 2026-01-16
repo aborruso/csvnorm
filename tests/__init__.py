@@ -1,1 +1,1 @@
-"""Tests for csv_normalizer."""
+"""Tests for csvnorm."""
