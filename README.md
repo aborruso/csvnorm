@@ -119,16 +119,24 @@ The tool provides modern terminal output with:
   - `rich>=13.0.0` - Modern terminal output formatting
   - `rich-argparse>=1.0.0` - Enhanced CLI help formatting
 
-Optional:
-- `pyfiglet>=1.0.0` - ASCII art banner in verbose mode (install with `pip install csvnorm[banner]`)
+Optional extras:
+- `[banner]` - ASCII art banner in verbose mode (`pyfiglet>=1.0.0`)
+- `[dev]` - Development dependencies (`pytest>=7.0.0`, `pytest-cov>=4.0.0`, `ruff>=0.1.0`)
 
 ## Development
 
 ### Setup
 
 ```bash
-git clone https://github.com/aborruso/prepare_data
-cd prepare_data
+git clone https://github.com/aborruso/csvnorm
+cd csvnorm
+
+# Create and activate venv with uv (recommended)
+uv venv
+source .venv/bin/activate
+uv pip install -e ".[dev]"
+
+# Or with pip
 pip install -e ".[dev]"
 ```
 
