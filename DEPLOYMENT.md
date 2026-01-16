@@ -2,17 +2,19 @@
 
 Procedure to release a new version to PyPI.
 
+**NOTE**: Publishing to PyPI is now **fully automated** via GitHub Actions using Trusted Publishing. You only need to push a tag to trigger the release workflow.
+
 ## Prerequisites
 
-**IMPORTANT**: Always use `uv` and the project venv, never `pip3 --break-system-packages`.
+**IMPORTANT**: Always use `uv` and the project venv for local testing, never `pip3 --break-system-packages`.
 
 ```bash
 # Install uv (if not already installed)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Install build and twine in the project venv
+# Install dev dependencies in the project venv
 source .venv/bin/activate
-uv pip install build twine
+uv pip install -e ".[dev]"
 ```
 
 ## Full Procedure
@@ -51,30 +53,70 @@ csvnorm test/utf8_basic.csv -f
 csvnorm test/latin1_semicolon.csv -d ';' -f -V
 ```
 
-### 3. Clean previous builds
+### 3. Commit and tag Git
 
 ```bash
+# Commit changes
+git add pyproject.toml CHANGELOG.md  # plus any other modified files
+git commit -m "chore: bump version to 0.3.0"
+
+# Create and push tag (this triggers the GitHub Actions workflow)
+git tag v0.3.0
+git push origin main
+git push origin v0.3.0
+```
+
+**The GitHub Actions workflow will automatically:**
+1. Run tests on Python 3.9-3.12
+2. Build the package
+3. Publish to PyPI using Trusted Publishing
+4. Create attestations for the release
+
+You can monitor the workflow at: https://github.com/aborruso/csvnorm/actions
+
+### 4. Post-release
+
+```bash
+# Verify public install (wait a few minutes after workflow completes)
+pip install --upgrade csvnorm
+csvnorm --version
+
+# Update LOG.md
+echo "## $(date +%Y-%m-%d)\n\n- Released v0.3.0\n" | cat - LOG.md > temp && mv temp LOG.md
+```
+
+## Automated Deployment
+
+The project uses **GitHub Actions with Trusted Publishing** to automatically publish to PyPI.
+
+### Workflow: `.github/workflows/publish-pypi.yml`
+
+Triggered on tag push (`v*`):
+1. **Build job**: Creates wheel and sdist packages
+2. **Test job**: Runs tests on Python 3.9-3.12 matrix
+3. **Publish job**: Uploads to PyPI using OIDC trusted publishing (no tokens needed!)
+
+### Trusted Publishing Setup
+
+Configured on PyPI at: https://pypi.org/manage/account/publishing/
+
+- **Owner**: `aborruso`
+- **Repository**: `csvnorm`
+- **Workflow**: `publish-pypi.yml`
+- **Environment**: `pypi`
+
+No API tokens are stored in GitHub secrets. GitHub Actions authenticates directly with PyPI using OIDC.
+
+## Manual Build Testing (Optional)
+
+If you want to test the build locally before releasing:
+
+```bash
+# Clean previous builds
 rm -rf dist/ build/ src/*.egg-info/
-```
 
-### 4. Build the package
-
-```bash
+# Build the package
 python3 -m build
-```
-
-Expected output:
-```
-dist/
-├── csvnorm-0.3.0-py3-none-any.whl
-└── csvnorm-0.3.0.tar.gz
-```
-
-### 5. Verify build
-
-```bash
-# Inspect wheel contents
-unzip -l dist/csvnorm-*.whl
 
 # Test install in a clean venv with uv
 uv venv test_venv
@@ -86,89 +128,19 @@ deactivate
 rm -rf test_venv
 ```
 
-### 6. Commit and tag Git
-
-```bash
-# Commit changes
-git add pyproject.toml CHANGELOG.md  # plus any other modified files
-git commit -m "chore: bump version to 0.3.0"
-
-# Create tag
-git tag -a v0.3.0 -m "Release v0.3.0"
-
-# Push commit and tag
-git push origin main
-git push origin v0.3.0
-```
-
-### 7. Create GitHub Release
-
-**IMPORTANT**: Always create a GitHub release for each version (including patch/subrelease).
-
-```bash
-# Create release on GitHub
-gh release create v0.3.0 \
-  --title "v0.3.0" \
-  --notes "Short description of the main changes"
-
-# Example for patch release
-gh release create v0.3.1 \
-  --title "v0.3.1" \
-  --notes "CLI flags improvements: -k for --keep-names, -V for --verbose, -v for --version"
-```
-
-### 8. Upload to PyPI
-
-**TestPyPI (recommended):**
-
-```bash
-# Upload to TestPyPI
-python3 -m twine upload --repository testpypi dist/*
-
-# Username: __token__
-# Password: <TestPyPI token>
-
-# Verify at https://test.pypi.org/project/csvnorm/
-
-# Test install from TestPyPI
-pip install --index-url https://test.pypi.org/simple/ csvnorm
-```
-
-**Upload to PyPI:**
-
-```bash
-# Upload to PyPI
-python3 -m twine upload dist/*
-
-# Username: __token__
-# Password: <PyPI token>
-
-# Verify at https://pypi.org/project/csvnorm/
-```
-
-**Note for Codex CLI:**
-- Do not test or experiment with filesystem operations (e.g., `os.rename()`); just run the standard commands.
-- Credentials are already configured in `~/.pypirc` or the keyring: do not pass `TWINE_USERNAME/TWINE_PASSWORD`.
-- Do not use `--repository-url` or `--repository testpypi` unless strictly necessary.
-
-### 9. Post-release
-
-```bash
-# Update LOG.md
-echo "## $(date +%Y-%m-%d)\n\n- Released v0.3.0\n" | cat - LOG.md > temp && mv temp LOG.md
-
-# Verify public install
-pip install --upgrade csvnorm
-csvnorm --version
-```
-
-**Note:** for v0.3.6 the PyPI upload was completed manually.
-
 ## Troubleshooting
 
-**Error "File already exists":**
-- Increment version in `pyproject.toml`
-- PyPI does not allow re-upload of the same version
+**Workflow fails on "File already exists":**
+- You tried to republish an existing version
+- Increment version in `pyproject.toml` and push a new tag
+
+**Workflow fails on test matrix:**
+- Check that `requires-python` in `pyproject.toml` matches the matrix
+- Python 3.8 is no longer supported (requires-python = ">=3.9")
+
+**Trusted publisher authentication fails:**
+- Verify configuration at https://pypi.org/manage/account/publishing/
+- Ensure workflow name, environment name, and repository match exactly
 
 **Import errors after install:**
 - Verify package structure in `src/`
@@ -176,11 +148,11 @@ csvnorm --version
 
 **Missing dependencies:**
 - Verify `dependencies` in `pyproject.toml`
-- Test in a clean venv before upload
+- Test in a clean venv before releasing
 
 ## Notes
 
 - Never commit files in `dist/` to the repo
 - Keep `.gitignore` up to date
-- Always use `python3 -m build` (not `setup.py`)
-- PyPI tokens stored in `~/.pypirc` (optional)
+- GitHub Actions handles all build and publish steps automatically
+- No PyPI tokens needed (using Trusted Publishing with OIDC)
