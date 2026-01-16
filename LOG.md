@@ -9,6 +9,15 @@
   - Python package: `csvnorm` (was `csv_normalizer`)
   - All imports changed from `from csv_normalizer import ...` to `from csvnorm import ...`
 
+### Repository
+- Renamed GitHub repo: `csv-normalize` → `csvnorm`
+- Added repository description via gh cli
+- Added topics: python, csv, cli, data-validation, etl, duckdb, normalization
+- Set homepage URL to PyPI package page
+- Created GitHub release v0.3.0
+- Added badges to README: MIT License, Python 3.8+
+- Fixed DeepWiki badge URL
+
 ### Migration Guide
 For existing users:
 ```bash
