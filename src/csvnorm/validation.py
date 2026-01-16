@@ -1,6 +1,7 @@
 """CSV validation and normalization using DuckDB."""
 
 import logging
+import re
 from pathlib import Path
 from typing import Union
 
@@ -110,7 +111,39 @@ def normalize_csv(
     finally:
         conn.close()
 
+    if normalize_names:
+        _fix_duckdb_keyword_prefix(output_path)
+
     logger.debug(f"Normalized file written to: {output_path}")
+
+
+def _fix_duckdb_keyword_prefix(file_path: Path) -> None:
+    """Remove underscore prefix from DuckDB-prefixed SQL keywords in header.
+
+    DuckDB's normalize_names option prefixes SQL keywords like 'value' and 'location'
+    with an underscore to avoid conflicts. This function removes those prefixes
+    from the header row only.
+
+    Args:
+        file_path: Path to CSV file to fix.
+    """
+    with open(file_path, "r") as f:
+        lines = f.readlines()
+
+    if not lines:
+        return
+
+    header = lines[0]
+
+    header = re.sub(r",_value\b", ",value", header)
+    header = re.sub(r"^_value\b", "value", header)
+    header = re.sub(r",_location\b", ",location", header)
+    header = re.sub(r"^_location\b", "location", header)
+
+    lines[0] = header
+
+    with open(file_path, "w") as f:
+        f.writelines(lines)
 
 
 def _count_lines(file_path: Path) -> int:

@@ -65,19 +65,18 @@ def show_success_table(
     table.add_row("Input:", f"[cyan]{input_file}[/cyan]")
     table.add_row("Output:", f"[cyan]{output_file}[/cyan]")
 
-    # Encoding info
+    # Encoding info (only for local files)
     if not is_remote:
         if needs_conversion(encoding):
             table.add_row("Encoding:", f"{encoding} → UTF-8 [dim](converted)[/dim]")
         else:
             table.add_row("Encoding:", f"{encoding} [dim](no conversion needed)[/dim]")
-    else:
-        table.add_row("Encoding:", "remote [dim](handled by DuckDB)[/dim]")
 
     # Statistics
     table.add_row("Rows:", f"{row_count:,}")
     table.add_row("Columns:", f"{column_count}")
-    table.add_row("Input size:", format_file_size(input_size))
+    if not is_remote:
+        table.add_row("Input size:", format_file_size(input_size))
     table.add_row("Output size:", format_file_size(output_size))
 
     # Optional fields
