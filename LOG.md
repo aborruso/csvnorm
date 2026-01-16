@@ -2,6 +2,12 @@
 
 ## 2026-01-16
 
+- Released v0.3.3 to PyPI and GitHub
+- Restored ASCII banner as core feature by adding pyfiglet to main dependencies
+- ASCII banner now always displays with `--version` flag
+
+## 2026-01-16
+
 - Released v0.3.2 to PyPI and GitHub
 
 ## 2026-01-16 (v0.3.2)
