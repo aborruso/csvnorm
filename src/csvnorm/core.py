@@ -5,15 +5,20 @@ from pathlib import Path
 from typing import Union
 
 from rich.console import Console
-from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
-from rich.table import Table
 
 from csvnorm.encoding import convert_to_utf8, detect_encoding, needs_conversion
+from csvnorm.ui import (
+    show_error_panel,
+    show_success_table,
+    show_validation_error_panel,
+    show_warning_panel,
+)
 from csvnorm.utils import (
     ensure_output_dir,
     extract_filename_from_url,
-    format_file_size,
+    get_column_count,
+    get_row_count,
     is_url,
     to_snake_case,
     validate_delimiter,
@@ -55,7 +60,7 @@ def process_csv(
         try:
             validate_url(input_file)
         except ValueError as e:
-            console.print(Panel(f"[bold red]Error:[/bold red] {e}", border_style="red"))
+            show_error_panel(str(e))
             return 1
         base_name = extract_filename_from_url(input_file)
         input_path = input_file  # Keep as string for DuckDB
@@ -63,21 +68,11 @@ def process_csv(
         # Validate local file
         file_path = Path(input_file)
         if not file_path.exists():
-            console.print(
-                Panel(
-                    f"[bold red]Error:[/bold red] Input file not found\n{file_path}",
-                    border_style="red",
-                )
-            )
+            show_error_panel(f"Input file not found\n{file_path}")
             return 1
 
         if not file_path.is_file():
-            console.print(
-                Panel(
-                    f"[bold red]Error:[/bold red] Not a file\n{file_path}",
-                    border_style="red",
-                )
-            )
+            show_error_panel(f"Not a file\n{file_path}")
             return 1
 
         base_name = to_snake_case(file_path.name)
@@ -86,7 +81,7 @@ def process_csv(
     try:
         validate_delimiter(delimiter)
     except ValueError as e:
-        console.print(Panel(f"[bold red]Error:[/bold red] {e}", border_style="red"))
+        show_error_panel(str(e))
         return 1
 
     # Setup paths
@@ -98,13 +93,10 @@ def process_csv(
 
     # Check if output exists
     if output_file.exists() and not force:
-        console.print(
-            Panel(
-                f"[bold yellow]Warning:[/bold yellow] Output file already exists\n\n"
-                f"{output_file}\n\n"
-                f"Use [bold]--force[/bold] to overwrite.",
-                border_style="yellow",
-            )
+        show_warning_panel(
+            f"Output file already exists\n\n"
+            f"{output_file}\n\n"
+            f"Use [bold]--force[/bold] to overwrite."
         )
         return 1
 
@@ -143,9 +135,7 @@ def process_csv(
                     encoding = detect_encoding(file_input_path)
                 except ValueError as e:
                     progress.stop()
-                    console.print(
-                        Panel(f"[bold red]Error:[/bold red] {e}", border_style="red")
-                    )
+                    show_error_panel(str(e))
                     return 1
 
                 logger.debug(f"Detected encoding: {encoding}")
@@ -169,12 +159,7 @@ def process_csv(
                         )
                     except (UnicodeDecodeError, LookupError) as e:
                         progress.stop()
-                        console.print(
-                            Panel(
-                                f"[bold red]Error:[/bold red] Encoding conversion failed\n{e}",
-                                border_style="red",
-                            )
-                        )
+                        show_error_panel(f"Encoding conversion failed\n{e}")
                         return 1
                 else:
                     progress.update(
@@ -197,45 +182,30 @@ def process_csv(
                 # Check for common HTTP errors
                 if "HTTP Error" in error_msg or "HTTPException" in error_msg:
                     if "404" in error_msg:
-                        console.print(
-                            Panel(
-                                "[bold red]Error:[/bold red] Remote CSV file not found (HTTP 404)\n\n"
-                                f"URL: [cyan]{input_file}[/cyan]\n\n"
-                                "Please check the URL is correct.",
-                                border_style="red",
-                            )
+                        show_error_panel(
+                            f"Remote CSV file not found (HTTP 404)\n\n"
+                            f"URL: [cyan]{input_file}[/cyan]\n\n"
+                            "Please check the URL is correct."
                         )
                     elif "401" in error_msg or "403" in error_msg:
-                        console.print(
-                            Panel(
-                                "[bold red]Error:[/bold red] Authentication required (HTTP 401/403)\n\n"
-                                f"URL: [cyan]{input_file}[/cyan]\n\n"
-                                "This tool only supports public URLs without authentication.\n"
-                                "Please download the file manually first.",
-                                border_style="red",
-                            )
+                        show_error_panel(
+                            f"Authentication required (HTTP 401/403)\n\n"
+                            f"URL: [cyan]{input_file}[/cyan]\n\n"
+                            "This tool only supports public URLs without authentication.\n"
+                            "Please download the file manually first."
                         )
                     elif (
                         "timeout" in error_msg.lower()
                         or "timed out" in error_msg.lower()
                     ):
-                        console.print(
-                            Panel(
-                                "[bold red]Error:[/bold red] HTTP request timeout (30 seconds)\n\n"
-                                f"URL: [cyan]{input_file}[/cyan]\n\n"
-                                "The remote server took too long to respond.\n"
-                                "Try again later or download the file manually.",
-                                border_style="red",
-                            )
+                        show_error_panel(
+                            f"HTTP request timeout (30 seconds)\n\n"
+                            f"URL: [cyan]{input_file}[/cyan]\n\n"
+                            "The remote server took too long to respond.\n"
+                            "Try again later or download the file manually."
                         )
                     else:
-                        console.print(
-                            Panel(
-                                f"[bold red]Error:[/bold red] HTTP request failed\n\n"
-                                f"{error_msg}",
-                                border_style="red",
-                            )
-                        )
+                        show_error_panel(f"HTTP request failed\n\n{error_msg}")
                 else:
                     # Re-raise non-HTTP errors
                     raise
@@ -266,56 +236,26 @@ def process_csv(
             working_file.stat().st_size if isinstance(working_file, Path) else 0
         )
         output_size = output_file.stat().st_size
-        row_count = _get_row_count(output_file)
-        column_count = _get_column_count(output_file, delimiter)
+        row_count = get_row_count(output_file)
+        column_count = get_column_count(output_file, delimiter)
 
-        # Success summary table
-        table = Table(show_header=False, box=None, padding=(0, 1))
-        table.add_row("[green]✓[/green] Success", "")
-        table.add_row("Input:", f"[cyan]{input_file}[/cyan]")
-        table.add_row("Output:", f"[cyan]{output_file}[/cyan]")
-        if not is_remote:
-            if needs_conversion(encoding):
-                table.add_row("Encoding:", f"{encoding} → UTF-8 [dim](converted)[/dim]")
-            else:
-                table.add_row(
-                    "Encoding:", f"{encoding} [dim](no conversion needed)[/dim]"
-                )
-        else:
-            table.add_row("Encoding:", "remote [dim](handled by DuckDB)[/dim]")
-        table.add_row("Rows:", f"{row_count:,}")
-        table.add_row("Columns:", f"{column_count}")
-        table.add_row("Input size:", format_file_size(input_size))
-        table.add_row("Output size:", format_file_size(output_size))
-        if delimiter != ",":
-            table.add_row("Delimiter:", repr(delimiter))
-        if not keep_names:
-            table.add_row("Headers:", "normalized to snake_case")
+        # Show success summary
+        show_success_table(
+            input_file=input_file,
+            output_file=output_file,
+            encoding=encoding,
+            is_remote=is_remote,
+            row_count=row_count,
+            column_count=column_count,
+            input_size=input_size,
+            output_size=output_size,
+            delimiter=delimiter,
+            keep_names=keep_names,
+        )
 
-        console.print()
-        console.print(table)
-
-        # Error summary panel if validation failed
+        # Show validation errors if any
         if has_validation_errors:
-            console.print()
-            error_lines = []
-            error_lines.append("[bold red]Validation Errors:[/bold red]")
-            error_lines.append("")
-            error_lines.append(f"Rejected rows: [yellow]{reject_count - 1}[/yellow]")
-            if error_types:
-                error_lines.append("")
-                error_lines.append("[dim]Error types:[/dim]")
-                for error_type in error_types:
-                    error_lines.append(f"  • {error_type}")
-            error_lines.append("")
-            error_lines.append(f"Details: [cyan]{reject_file}[/cyan]")
-            console.print(
-                Panel(
-                    "\n".join(error_lines),
-                    border_style="yellow",
-                    title="[yellow]![/yellow] Validation Failed",
-                )
-            )
+            show_validation_error_panel(reject_count, error_types, reject_file)
             return 1
 
     finally:
@@ -334,52 +274,3 @@ def process_csv(
                 reject_file.unlink()
 
     return 0
-
-
-def _get_row_count(file_path: Union[Path, str]) -> int:
-    """Count number of rows in a CSV file.
-
-    Args:
-        file_path: Path to CSV file.
-
-    Returns:
-        Number of data rows (excluding header), or 0 if file doesn't exist.
-    """
-    if not isinstance(file_path, Path) or not file_path.exists():
-        return 0
-
-    try:
-        with open(file_path, "r") as f:
-            # Skip header
-            next(f, None)
-            return sum(1 for _ in f)
-    except Exception:
-        return 0
-
-
-def _get_column_count(file_path: Union[Path, str], delimiter: str = ",") -> int:
-    """Count number of columns in a CSV file using DuckDB.
-
-    Args:
-        file_path: Path to CSV file.
-        delimiter: Field delimiter used in the CSV file.
-
-    Returns:
-        Number of columns in the CSV, or 0 if file doesn't exist or error.
-    """
-    if not isinstance(file_path, Path) or not file_path.exists():
-        return 0
-
-    try:
-        import duckdb
-
-        conn = duckdb.connect(":memory:")
-        # Get column names from CSV using DuckDB DESCRIBE
-        columns = conn.execute(
-            f"DESCRIBE SELECT * FROM read_csv('{file_path}', delim='{delimiter}', header=true, sample_size=1)"
-        ).fetchall()
-        conn.close()
-
-        return len(columns)
-    except Exception:
-        return 0

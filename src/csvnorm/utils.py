@@ -3,6 +3,7 @@
 import logging
 import re
 from pathlib import Path
+from typing import Union
 from urllib.parse import urlparse
 
 from rich.logging import RichHandler
@@ -140,3 +141,52 @@ def format_file_size(size_bytes: int) -> str:
             return f"{size_bytes:.1f} {unit}" if unit != "B" else f"{size_bytes} B"
         size_bytes /= 1024.0
     return f"{size_bytes:.1f} TB"
+
+
+def get_row_count(file_path: Union[Path, str]) -> int:
+    """Count number of rows in a CSV file.
+
+    Args:
+        file_path: Path to CSV file.
+
+    Returns:
+        Number of data rows (excluding header), or 0 if file doesn't exist.
+    """
+    if not isinstance(file_path, Path) or not file_path.exists():
+        return 0
+
+    try:
+        with open(file_path, "r") as f:
+            # Skip header
+            next(f, None)
+            return sum(1 for _ in f)
+    except Exception:
+        return 0
+
+
+def get_column_count(file_path: Union[Path, str], delimiter: str = ",") -> int:
+    """Count number of columns in a CSV file using DuckDB.
+
+    Args:
+        file_path: Path to CSV file.
+        delimiter: Field delimiter used in the CSV file.
+
+    Returns:
+        Number of columns in the CSV, or 0 if file doesn't exist or error.
+    """
+    if not isinstance(file_path, Path) or not file_path.exists():
+        return 0
+
+    try:
+        import duckdb
+
+        conn = duckdb.connect(":memory:")
+        # Get column names from CSV using DuckDB DESCRIBE
+        columns = conn.execute(
+            f"DESCRIBE SELECT * FROM read_csv('{file_path}', delim='{delimiter}', header=true, sample_size=1)"
+        ).fetchall()
+        conn.close()
+
+        return len(columns)
+    except Exception:
+        return 0

@@ -2,6 +2,7 @@
 
 import tempfile
 from pathlib import Path
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -133,6 +134,80 @@ class TestProcessCSV:
         """Test handling of 404 error for remote URL."""
         result = process_csv(
             input_file="https://example.com/nonexistent.csv",
+            output_dir=output_dir,
+        )
+        assert result == 1
+
+
+class TestRemoteURLErrors:
+    """Tests for remote URL error scenarios (mocked)."""
+
+    @pytest.fixture
+    def output_dir(self):
+        """Create a temporary output directory."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            yield Path(tmpdir)
+
+    def test_invalid_url_scheme(self, output_dir):
+        """Test handling of invalid URL scheme."""
+        result = process_csv(
+            input_file="ftp://example.com/data.csv",
+            output_dir=output_dir,
+        )
+        assert result == 1
+
+    @patch("csvnorm.validation.duckdb.connect")
+    def test_http_401_unauthorized(self, mock_connect, output_dir):
+        """Test handling of 401 authentication required."""
+        mock_conn = Mock()
+        mock_connect.return_value = mock_conn
+        # Simulate 401 error in DuckDB HTTP request
+        mock_conn.execute.side_effect = Exception("HTTP Error 401")
+
+        result = process_csv(
+            input_file="https://example.com/protected.csv",
+            output_dir=output_dir,
+        )
+        assert result == 1
+
+    @patch("csvnorm.validation.duckdb.connect")
+    def test_http_403_forbidden(self, mock_connect, output_dir):
+        """Test handling of 403 forbidden."""
+        mock_conn = Mock()
+        mock_connect.return_value = mock_conn
+        mock_conn.execute.side_effect = Exception("HTTP Error 403")
+
+        result = process_csv(
+            input_file="https://example.com/forbidden.csv",
+            output_dir=output_dir,
+        )
+        assert result == 1
+
+    @patch("csvnorm.validation.duckdb.connect")
+    def test_http_timeout(self, mock_connect, output_dir):
+        """Test handling of HTTP timeout."""
+        mock_conn = Mock()
+        mock_connect.return_value = mock_conn
+        # First: SET http_timeout, Second: COPY...read_csv (fails with timeout)
+        # Error message must contain "HTTP Error" or "HTTPException" to be caught
+        mock_conn.execute.side_effect = [None, Exception("HTTPException: Connection timed out")]
+
+        result = process_csv(
+            input_file="https://example.com/slow.csv",
+            output_dir=output_dir,
+        )
+        assert result == 1
+
+    @patch("csvnorm.validation.duckdb.connect")
+    def test_http_500_error(self, mock_connect, output_dir):
+        """Test handling of HTTP 500 server error."""
+        mock_conn = Mock()
+        mock_connect.return_value = mock_conn
+        # First: SET http_timeout, Second: COPY...read_csv (fails with HTTP error)
+        mock_conn.execute.side_effect = [None, Exception("HTTP Error 500: Internal Server Error")]
+
+        result = process_csv(
+            input_file="https://example.com/broken.csv",
             output_dir=output_dir,
         )
         assert result == 1
