@@ -85,6 +85,28 @@ csvnorm --version
 echo "## $(date +%Y-%m-%d)\n\n- Released v0.3.0\n" | cat - LOG.md > temp && mv temp LOG.md
 ```
 
+## Fix Post-Release
+
+If you need to fix something after creating a tag/release:
+
+```bash
+# 1. Delete GitHub release
+gh release delete v0.3.0 -y
+
+# 2. Delete local and remote tag
+git tag -d v0.3.0
+git push origin :refs/tags/v0.3.0
+
+# 3. Fix the code, commit, and re-tag
+git add .
+git commit -m "fix: issue description"
+git tag v0.3.0
+git push origin main
+git push origin v0.3.0
+```
+
+The workflow will re-run and publish the fixed version.
+
 ## Automated Deployment
 
 The project uses **GitHub Actions with Trusted Publishing** to automatically publish to PyPI.
