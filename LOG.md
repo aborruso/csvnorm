@@ -1,5 +1,60 @@
 # Changelog
 
+## 2026-01-16
+
+- Added comprehensive CLI tests (tests/test_cli.py) - hybrid approach
+  - 13 tests for main() function with argv mocking (fast, isolated)
+  - 3 subprocess smoke tests (end-to-end validation)
+  - Test coverage: --version, --help, flags (force, delimiter, keep-names, verbose)
+  - Fixed test_help_flag to not expect SystemExit
+  - cli.py coverage: 0% → 96% (48 statements, only 2 missed)
+  - Overall coverage: 66% → 79% (+13 points)
+  - Total tests: 55 → 71 (+16 CLI tests)
+  - utils.py coverage improved: 80% → 92% (side effect of CLI tests)
+
+## 2026-01-16
+
+- Added coverage reporting to CI/CD (problem 6 from evaluation)
+  - Modified .github/workflows/publish-pypi.yml to use pytest --cov
+  - Added --cov=csvnorm --cov-report=term --cov-report=xml
+  - Added coverage files to .gitignore (.coverage, coverage.xml, htmlcov/)
+  - Initial coverage baseline: 66% (379 statements, 130 missed)
+  - Breakdown: core.py 74%, encoding.py 88%, utils.py 80%, validation.py 67%
+  - Gap identified: cli.py 0% (no direct CLI tests)
+
+## 2026-01-16
+
+- Updated PRD.md to reflect Python implementation (problem 4 from evaluation)
+  - Replaced Bash references with Python 3.9+
+  - Updated FR-2, FR-3: charset_normalizer + Python codecs (removed iconv)
+  - Updated NFR-3: cross-platform Python instead of Bash
+  - Updated NFR-4: ruff/pytest instead of shellcheck
+  - Added remote URL support to in-scope features
+  - Updated constraints: removed iconv, added Python dependencies
+  - Updated future work: removed PyPI publishing (already done)
+
+## 2026-01-16
+
+- Fixed delimiter bug in column counting (core.py:379)
+  - _get_column_count() now uses DuckDB DESCRIBE instead of hardcoded comma split
+  - Correctly counts columns for non-comma delimiters (semicolon, pipe, tab)
+  - Tested with semicolon and pipe delimiters
+- Fixed Python version mismatch in pyproject.toml
+  - Removed Python 3.8 classifier (requires-python is >=3.9)
+  - Aligned classifiers with actual requirement
+
+## 2026-01-16
+
+- Fixed version drift: aligned __init__.py to 0.3.8 (was 0.3.7, now matches pyproject.toml)
+- Verified csvnorm -v shows correct version 0.3.8
+
+## 2026-01-16
+
+- Created comprehensive project evaluation in docs/evaluation.md
+- Overall assessment: 85/100
+- Identified 3 critical issues: version drift, missing pyfiglet dependency, delimiter bug
+- Identified 3 high-priority items for v0.4.0
+
 ## 2026-01-16 (v0.3.6)
 
 - Released v0.3.6

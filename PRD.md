@@ -18,6 +18,7 @@ Many open data portals and legacy systems publish CSV files with inconsistent en
 * Optional snake_case header normalisation.
 * Detailed error report including row numbers and reasons.
 * Configurable output directory and overwrite behaviour.
+* Remote URL support for HTTP/HTTPS CSV files.
 
 ### Out-of-Scope
 * Interactive GUI.
@@ -37,27 +38,28 @@ Many open data portals and legacy systems publish CSV files with inconsistent en
 3. *As an Open-Data Maintainer* I want the tool to fail fast and generate `reject_errors.csv` so that I can fix invalid rows.
 
 ## 7. Functional Requirements
-FR-1 The tool SHALL accept an input CSV path as the first positional argument.  
-FR-2 The tool SHALL detect file encoding using `charset_normalizer` and fallback to `file` when necessary.  
-FR-3 If encoding ≠ UTF-8/ASCII, the tool SHALL convert the file to UTF-8 using `iconv`.  
-FR-4 The tool SHALL validate the CSV with DuckDB’s `read_csv` and store rejects to `reject_errors.csv`.  
-FR-5 If rejects are present (>1 data line), the tool SHALL exit with code 1.  
-FR-6 The tool SHALL support `--delimiter <char>` to override delimiter detection.  
-FR-7 The tool SHALL output the cleaned file to `<output_dir>/<clean_name>.csv`.  
-FR-8 The tool SHALL normalise headers to snake_case unless `--keep-names` is set.  
-FR-9 The tool SHALL support `--force` to overwrite existing output without a prompt.  
-FR-10 The tool SHALL support `--verbose` to print debug information.
+FR-1 The tool SHALL accept an input CSV path or HTTP/HTTPS URL as the first positional argument.
+FR-2 The tool SHALL detect file encoding using `charset_normalizer` library.
+FR-3 If encoding ≠ UTF-8/ASCII/UTF-8-SIG, the tool SHALL convert the file to UTF-8 using Python codecs.
+FR-4 The tool SHALL validate the CSV with DuckDB's `read_csv` and store rejects to `<basename>_reject_errors.csv`.
+FR-5 If validation errors are present, the tool SHALL display error summary and exit with code 1.
+FR-6 The tool SHALL support `--delimiter <char>` to set output delimiter (default: comma).
+FR-7 The tool SHALL output the cleaned file to `<output_dir>/<clean_name>.csv`.
+FR-8 The tool SHALL normalise headers to snake_case unless `--keep-names` is set.
+FR-9 The tool SHALL support `--force` to overwrite existing output without a prompt.
+FR-10 The tool SHALL support `--verbose` to enable debug logging with rich formatting.
 
 ## 8. Non-Functional Requirements
-NFR-1 Execution time for a 100 MB file SHOULD be < 60 s on a 4-core machine.  
-NFR-2 Memory footprint SHOULD not exceed 2× input file size.  
-NFR-3 The script SHALL target Bash 4+ and run on Linux and macOS.  
-NFR-4 The code SHALL follow the conventions in `CONVENTIONS.md` and pass `shellcheck`.
+NFR-1 Execution time for a 100 MB file SHOULD be < 60 s on a 4-core machine.
+NFR-2 Memory footprint SHOULD not exceed 2× input file size.
+NFR-3 The package SHALL target Python 3.9+ and run cross-platform (Linux, macOS, Windows).
+NFR-4 The code SHALL use type hints, pass ruff linting, and maintain pytest test coverage.
 
 ## 9. Constraints & Assumptions
-* Relies on DuckDB, charset_normalizer, and iconv being installed.
+* Python dependencies: charset-normalizer, duckdb, rich, rich-argparse (managed via pip/uv).
 * Users have write permission to the output directory.
 * Large files may require increased system resources.
+* Remote URLs must be publicly accessible (no authentication support).
 
 ## 10. KPIs / Success Metrics
 * ≥ 95 % of processed files produce zero rejects on first run.
@@ -66,6 +68,8 @@ NFR-4 The code SHALL follow the conventions in `CONVENTIONS.md` and pass `shellc
 
 ## 11. Future Work
 * Parallel processing for large datasets.
-* Native Windows PowerShell wrapper.
 * Optional JSON/YAML schema validation.
-* Publishing as a PyPI package with CLI entry point.
+* Authentication support for remote URLs (OAuth, API keys).
+* Coverage reporting in CI/CD pipeline.
+* Data quality metrics (null counts, data types distribution).
+* Plugin system for custom transformations.

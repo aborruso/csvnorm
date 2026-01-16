@@ -7,6 +7,9 @@ build/
 .pytest_cache/
 .mypy_cache/
 *_rows_reject_errors.csv
+.coverage
+coverage.xml
+htmlcov/
 
 dist/
 *.egg-info/

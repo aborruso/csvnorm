@@ -267,7 +267,7 @@ def process_csv(
         )
         output_size = output_file.stat().st_size
         row_count = _get_row_count(output_file)
-        column_count = _get_column_count(output_file)
+        column_count = _get_column_count(output_file, delimiter)
 
         # Success summary table
         table = Table(show_header=False, box=None, padding=(0, 1))
@@ -357,25 +357,29 @@ def _get_row_count(file_path: Union[Path, str]) -> int:
         return 0
 
 
-def _get_column_count(file_path: Union[Path, str]) -> int:
-    """Count number of columns in a CSV file.
+def _get_column_count(file_path: Union[Path, str], delimiter: str = ",") -> int:
+    """Count number of columns in a CSV file using DuckDB.
 
     Args:
         file_path: Path to CSV file.
+        delimiter: Field delimiter used in the CSV file.
 
     Returns:
-        Number of columns in the header, or 0 if file doesn't exist.
+        Number of columns in the CSV, or 0 if file doesn't exist or error.
     """
     if not isinstance(file_path, Path) or not file_path.exists():
         return 0
 
     try:
-        with open(file_path, "r") as f:
-            # Read header line
-            header = f.readline().strip()
-            if not header:
-                return 0
-            # Count columns based on comma delimiter
-            return len(header.split(","))
+        import duckdb
+
+        conn = duckdb.connect(":memory:")
+        # Get column names from CSV using DuckDB DESCRIBE
+        columns = conn.execute(
+            f"DESCRIBE SELECT * FROM read_csv('{file_path}', delim='{delimiter}', header=true, sample_size=1)"
+        ).fetchall()
+        conn.close()
+
+        return len(columns)
     except Exception:
         return 0
