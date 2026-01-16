@@ -2,8 +2,10 @@
 
 ## 2026-01-16
 
-- Released v0.3.1 to PyPI
+- Released v0.3.1 to PyPI and GitHub
+- Created GitHub release v0.3.1
 - Updated DEPLOYMENT.md: specify uv usage instead of pip3 --break-system-packages
+- Added GitHub release step (step 7) to DEPLOYMENT.md - required for every version
 - Added deployment section to CLAUDE.md
 
 ## 2026-01-16 (v0.3.1)
