@@ -2,6 +2,10 @@
 
 ## 2026-01-17
 
+### v1.1.4: Document mojibake
+
+**Docs**: Added a brief definition of mojibake in the README.
+
 ### v1.1.3: Help text for --fix-mojibake
 
 **Fix**: Documented `--fix-mojibake` in CLI help with default sample size.
