@@ -201,7 +201,7 @@ def process_csv(
             logger.debug("Validating CSV with DuckDB...")
 
             try:
-                reject_count, error_types = validate_csv(
+                reject_count, error_types, fallback_config = validate_csv(
                     working_file, reject_file, is_remote=is_remote
                 )
             except Exception as e:
@@ -249,13 +249,26 @@ def process_csv(
             # Step 4: Normalize and write output
             progress.update(task, description="[cyan]Normalizing and writing output...")
             logger.debug("Normalizing CSV...")
-            normalize_csv(
+            used_fallback = normalize_csv(
                 input_path=working_file,
                 output_path=actual_output_file,
                 delimiter=delimiter,
                 normalize_names=not keep_names,
                 is_remote=is_remote,
+                fallback_config=fallback_config,
+                reject_file=reject_file,
             )
+
+            # If normalize used a different fallback config, update reject_count
+            if used_fallback and used_fallback != fallback_config:
+                # Normalize used fallback and exported reject_errors
+                # Recount reject file lines
+                reject_count = sum(1 for _ in open(reject_file)) if reject_file.exists() else 0
+                has_validation_errors = reject_count > 1
+                if has_validation_errors:
+                    # Re-extract error types
+                    from csvnorm.validation import _get_error_types
+                    error_types = _get_error_types(reject_file)
 
             logger.debug(f"Output written to: {actual_output_file}")
             progress.update(task, description="[green]✓[/green] Complete")

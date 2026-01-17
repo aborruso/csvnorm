@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-01-17
+
+### Issue #1: Automatic fallback for CSV with non-standard headers
+
+**Problem**: Files with title rows or non-standard structures fail DuckDB dialect sniffing
+- Example: `POSAS_2025_it_Comuni.csv` has title row + semicolon delimiter
+- DuckDB unable to detect dialect automatically
+
+**Solution**: Automatic fallback with common delimiter/skip combinations
+- No new CLI options (fully automatic)
+- Tries `;`, `|`, `\t` delimiters with skip 1-2 rows
+- Uses `store_rejects=true` + `ignore_errors=true` for malformed rows
+- Produces clean output + `*_reject_errors.csv`
+
+**Implementation**:
+- `validation.py`: added `FALLBACK_CONFIGS`, `_try_read_csv_with_config()` helper
+- `validate_csv()`: tries fallback configs if standard sniffing fails
+- `normalize_csv()`: exports reject_errors when using fallback, returns config used
+- `core.py`: handles fallback config propagation and reject_count updates
+
+**Results**:
+- ✅ 805,392 valid rows extracted from problematic file
+- ✅ 5 malformed rows captured in reject_errors
+- ✅ All 93 tests passing
+- ✅ No regression on existing files
+
 ## 2026-01-17 (v1.0.0)
 
 ### BREAKING CHANGE: Stdout by Default
