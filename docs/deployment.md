@@ -19,7 +19,7 @@ make install_light
 
 **What it does:**
 - Installs DuckDB CLI (downloads from GitHub releases)
-- Installs Python dependencies (charset-normalizer, duckdb)
+- Installs Python dependencies (charset-normalizer, duckdb, ftfy)
 - Copies `script/prepare.sh` to `$PREFIX/bin/csvnormr`
 - Makes it executable and globally available
 
@@ -38,7 +38,7 @@ uv pip install -e .
 ```
 
 **What it does:**
-- Installs charset-normalizer dependency
+- Installs charset-normalizer and ftfy dependencies
 - Creates `csvnormr` command that calls `csvnormr_wrapper.py`
 - Wrapper executes `script/prepare.sh` with all arguments
 - Changes to `prepare.sh` are immediately reflected (editable mode)
@@ -53,7 +53,7 @@ uv pip install -e .
 - Build system: setuptools ≥61.0
 - Package name: `csvnormr` (PyPI-friendly hyphenated name)
 - Version: 0.1.0
-- Dependencies: charset-normalizer ≥3.0.0
+- Dependencies: charset-normalizer ≥3.0.0, ftfy ≥6.3.1
 - Optional dev deps: duckdb ≥0.9.0
 - Entry point: `csvnormr = csvnormr_wrapper:main`
 
@@ -160,6 +160,7 @@ Edit version in:
 # pyproject.toml
 dependencies = [
     "charset-normalizer>=3.0.0",
+    "ftfy>=6.3.1",
     "new-package>=1.0.0",
 ]
 ```
@@ -167,7 +168,7 @@ dependencies = [
 **Makefile dependency:**
 ```makefile
 # Makefile
-PYTHON_DEPS = charset_normalizer duckdb new-package
+PYTHON_DEPS = charset_normalizer ftfy duckdb new-package
 ```
 
 **DuckDB CLI version:**
@@ -199,11 +200,11 @@ export PATH="$HOME/.local/bin:$PATH"
 
 **Solution:**
 ```bash
-# Install charset-normalizer
-pip3 install charset-normalizer
+# Install charset-normalizer and ftfy
+pip3 install charset-normalizer ftfy
 
 # Or in venv
-uv pip install charset-normalizer
+uv pip install charset-normalizer ftfy
 ```
 
 ### Issue: `Error: required command not found: duckdb`

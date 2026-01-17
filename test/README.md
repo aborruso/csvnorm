@@ -24,3 +24,6 @@ Small fixtures used by `make test` and for quick manual checks.
 
 - `Trasporto Pubblico Locale Settore Pubblico Allargato - Indicatore 2000-2020 Trasferimenti Correnti su Entrate Correnti.csv`  
   Real-world sample file for integration-style testing.
+
+- `alberi_messina_mojibake.csv`  
+  Real-world sample with mojibake (UTF-8 interpreted as ISO-8859-1). Source: Comune di Messina open data.

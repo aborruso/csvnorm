@@ -10,6 +10,7 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from csvnorm.encoding import convert_to_utf8, detect_encoding, needs_conversion
+from csvnorm.mojibake import repair_file
 from csvnorm.ui import (
     show_error_panel,
     show_success_table,
@@ -17,6 +18,7 @@ from csvnorm.ui import (
     show_warning_panel,
 )
 from csvnorm.utils import (
+    download_url_to_file,
     get_column_count,
     get_row_count,
     is_url,
@@ -36,6 +38,7 @@ def process_csv(
     keep_names: bool = False,
     delimiter: str = ",",
     verbose: bool = False,
+    fix_mojibake_sample: Optional[int] = None,
 ) -> int:
     """Main CSV processing pipeline.
 
@@ -52,6 +55,10 @@ def process_csv(
     """
     # Determine if output mode is stdout or file
     use_stdout = output_file is None
+
+    if fix_mojibake_sample is not None and fix_mojibake_sample <= 0:
+        show_error_panel("--fix-mojibake must be a positive integer")
+        return 1
 
     # Detect if input is URL or file
     is_remote = is_url(input_file)
@@ -129,6 +136,18 @@ def process_csv(
     # Track files to clean up
     temp_files: list[Path] = [temp_dir]
 
+    # If mojibake repair is enabled for a remote URL, download first
+    if is_remote and fix_mojibake_sample is not None:
+        try:
+            download_path = temp_dir / "remote_download.csv"
+            download_url_to_file(input_file, download_path)
+        except Exception as e:
+            show_error_panel(f"Failed to download remote file\n{e}")
+            return 1
+        input_path = download_path
+        temp_files.append(download_path)
+        is_remote = False
+
     # Use stderr console for progress when writing to stdout
     progress_console = Console(stderr=True) if use_stdout else console
 
@@ -140,6 +159,7 @@ def process_csv(
             transient=True,
         ) as progress:
             task = progress.add_task("[cyan]Processing...", total=None)
+            mojibake_repaired = False
 
             # For remote URLs, skip encoding detection/conversion
             if is_remote:
@@ -195,6 +215,33 @@ def process_csv(
                         task,
                         description=f"[green]✓[/green] Encoding: {encoding} ({note})",
                     )
+
+                # Step 2b: Optional mojibake repair (local files only)
+                if fix_mojibake_sample is not None:
+                    sample_size = fix_mojibake_sample
+                    progress.update(task, description="[cyan]Checking mojibake...")
+                    try:
+                        repaired_path = temp_dir / "mojibake_fixed.csv"
+                        mojibake_repaired, working_file = repair_file(
+                            working_file, repaired_path, sample_size
+                        )
+                        if mojibake_repaired:
+                            temp_files.append(repaired_path)
+                            progress.update(
+                                task,
+                                description="[green]✓[/green] Mojibake repaired (ftfy)",
+                            )
+                        else:
+                            progress.update(
+                                task,
+                                description="[green]✓[/green] Mojibake check: clean",
+                            )
+                    except Exception as e:
+                        progress.stop()
+                        show_error_panel(f"Mojibake repair failed\n{e}")
+                        return 1
+                else:
+                    mojibake_repaired = False
 
             # Step 3: Validate CSV
             progress.update(task, description="[cyan]Validating CSV...")
@@ -307,6 +354,7 @@ def process_csv(
                 output_file=actual_output_file,
                 encoding=encoding,
                 is_remote=is_remote,
+                mojibake_repaired=mojibake_repaired,
                 row_count=row_count,
                 column_count=column_count,
                 input_size=input_size,

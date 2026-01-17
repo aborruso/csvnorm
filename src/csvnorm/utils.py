@@ -2,6 +2,8 @@
 
 import logging
 import re
+import shutil
+import urllib.request
 from pathlib import Path
 from typing import Union
 from urllib.parse import urlparse
@@ -141,6 +143,23 @@ def format_file_size(size_bytes: int) -> str:
             return f"{size_bytes:.1f} {unit}" if unit != "B" else f"{size_bytes} B"
         size_bytes /= 1024.0
     return f"{size_bytes:.1f} TB"
+
+
+def download_url_to_file(url: str, output_path: Path, timeout: int = 30) -> Path:
+    """Download a URL to a local file path.
+
+    Args:
+        url: Remote HTTP/HTTPS URL.
+        output_path: Destination file path.
+        timeout: Timeout in seconds.
+
+    Returns:
+        Path to the downloaded file.
+    """
+    with urllib.request.urlopen(url, timeout=timeout) as response:
+        with open(output_path, "wb") as output_file:
+            shutil.copyfileobj(response, output_file)
+    return output_path
 
 
 def get_row_count(file_path: Union[Path, str]) -> int:

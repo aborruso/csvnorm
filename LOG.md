@@ -2,6 +2,14 @@
 
 ## 2026-01-17
 
+### Mojibake Repair with ftfy (Issue #21)
+
+**Enhancement**: Optional mojibake repair step using ftfy
+- New `--fix-mojibake [N]` flag (optional sample size)
+- Repairs mojibake after UTF-8 conversion and before validation
+- When enabled for remote URLs, downloads the file to system temp first
+- Success summary shows mojibake repair status when applied
+
 ### Early Detection for Header Anomalies
 
 **Enhancement**: Pre-validation mechanism to detect title rows before DuckDB sniffing

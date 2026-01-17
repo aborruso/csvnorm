@@ -60,7 +60,7 @@ This tool prepares CSV files for **basic exploratory data analysis (EDA)**, not 
 - **Encoding Normalization**: Auto-detects encoding and converts to UTF-8 when needed (ASCII is already UTF-8 compatible)
 - **Processing Summary**: Displays comprehensive statistics (rows, columns, file sizes) and error details
 - **Error Reporting**: Exports detailed error file for invalid rows with summary panel
-- **Remote URL Support**: Process CSV files directly from HTTP/HTTPS URLs without downloading
+- **Remote URL Support**: Process CSV files directly from HTTP/HTTPS URLs without downloading (unless `--fix-mojibake` is used)
 
 ## Usage
 
@@ -78,6 +78,7 @@ csvnorm input.csv [options]
 | `-f, --force` | Force overwrite of existing output file (when `-o` is specified) |
 | `-k, --keep-names` | Keep original column names (disable snake_case) |
 | `-d, --delimiter CHAR` | Set custom output delimiter (default: `,`) |
+| `--fix-mojibake [N]` | Fix mojibake using ftfy (optional sample size `N`) |
 | `-V, --verbose` | Enable verbose output for debugging |
 | `-v, --version` | Show version number |
 | `-h, --help` | Show help message |
@@ -111,6 +112,12 @@ csvnorm data.csv --keep-names -o output.csv
 
 # Force overwrite with verbose output
 csvnorm data.csv -f -V -o processed.csv
+
+# Fix mojibake using ftfy (default sample size)
+csvnorm data.csv --fix-mojibake -o fixed.csv
+
+# Fix mojibake with custom sample size
+csvnorm data.csv --fix-mojibake 4000 -o fixed.csv
 ```
 
 ### Output
@@ -138,6 +145,7 @@ csvnorm data.csv -f -V -o processed.csv
 
 **Remote URLs:**
 - Encoding is handled automatically by DuckDB
+- If `--fix-mojibake` is enabled, the URL is downloaded to a temp file first
 - HTTP timeout is set to 30 seconds
 - Only public URLs are supported (no authentication)
 
@@ -200,6 +208,7 @@ The tool provides modern terminal output (shown only when using `-o` to write to
 - Dependencies (automatically installed):
   - `charset-normalizer>=3.0.0` - Encoding detection
   - `duckdb>=0.9.0` - CSV validation and normalization
+  - `ftfy>=6.3.1` - Mojibake repair
   - `rich>=13.0.0` - Modern terminal output formatting
   - `rich-argparse>=1.0.0` - Enhanced CLI help formatting
   - `pyfiglet>=0.8.post1,<1.0.0` - ASCII art banner

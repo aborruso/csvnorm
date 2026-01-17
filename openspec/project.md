@@ -22,6 +22,7 @@ CSV Normalizer Utility - A command-line tool that validates, cleans, and normali
 - Python 3.9+ (primary implementation language)
 - DuckDB Python library (CSV validation and normalization engine)
 - charset-normalizer (encoding detection and conversion)
+- ftfy (mojibake repair, optional)
 
 **CLI & UX**:
 - `rich` (modern terminal output: progress spinners, panels, tables)
@@ -202,7 +203,7 @@ script/prepare.sh test/<example.csv>
 
 **Operational Constraints**:
 - Users must have write permission to output directory
-- Dependencies (DuckDB, charset_normalizer, iconv, file) must be installed
+- Dependencies (DuckDB, charset_normalizer, ftfy, iconv, file) must be installed
 - Large files may require increased system resources
 
 ## External Dependencies
@@ -218,11 +219,15 @@ script/prepare.sh test/<example.csv>
    - CLI: `normalizer --minimal`
    - Installation: `pip3 install charset_normalizer` (auto via `make install`)
 
-3. **iconv** (system utility)
+3. **ftfy** (Python package)
+   - Purpose: Mojibake repair for already-decoded text
+   - Installation: `pip3 install ftfy`
+
+4. **iconv** (system utility)
    - Purpose: Encoding conversion to UTF-8
    - Usually pre-installed on Linux/macOS
 
-4. **file** (system utility)
+5. **file** (system utility)
    - Purpose: Fallback encoding detection
    - Usually pre-installed on Linux/macOS
 

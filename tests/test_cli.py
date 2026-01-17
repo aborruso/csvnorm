@@ -41,6 +41,7 @@ class TestCreateParser:
         assert "-k" in arg_strings or "--keep-names" in arg_strings
         assert "-d" in arg_strings or "--delimiter" in arg_strings
         assert "-o" in arg_strings or "--output-file" in arg_strings
+        assert "--fix-mojibake" in arg_strings
         assert "-V" in arg_strings or "--verbose" in arg_strings
         assert "-v" in arg_strings or "--version" in arg_strings
 
@@ -139,6 +140,20 @@ class TestMainFunction:
         content = output_file.read_text()
         # Output should use semicolon delimiter
         assert ";" in content
+
+    def test_fix_mojibake_flag(self, tmp_path):
+        """Test --fix-mojibake flag accepts sample size."""
+        test_csv = tmp_path / "test.csv"
+        test_csv.write_text("Nome,Citta\nGianni,CittÃ \n")
+
+        output_file = tmp_path / "output.csv"
+
+        exit_code = main(
+            [str(test_csv), "-o", str(output_file), "--fix-mojibake", "4000", "-f"]
+        )
+
+        assert exit_code == 0
+        assert output_file.exists()
 
     def test_verbose_flag(self, tmp_path, capsys):
         """Test --verbose flag shows banner and debug output."""

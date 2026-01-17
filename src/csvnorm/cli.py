@@ -10,6 +10,7 @@ from rich_argparse import RichHelpFormatter
 
 from csvnorm import __version__
 from csvnorm.core import process_csv
+from csvnorm.mojibake import DEFAULT_MOJIBAKE_SAMPLE
 from csvnorm.utils import setup_logger
 
 console = Console()
@@ -98,6 +99,17 @@ Examples:
     )
 
     parser.add_argument(
+        "--fix-mojibake",
+        nargs="?",
+        const=DEFAULT_MOJIBAKE_SAMPLE,
+        type=int,
+        help=(
+            "Fix mojibake using ftfy. Optionally pass sample size "
+            "(e.g., --fix-mojibake 4000)."
+        ),
+    )
+
+    parser.add_argument(
         "-V",
         "--verbose",
         action="store_true",
@@ -144,6 +156,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     setup_logger(args.verbose)
 
     # Run processing (output_file can be None for stdout)
+    fix_mojibake_sample = args.fix_mojibake
     return process_csv(
         input_file=args.input_file,
         output_file=args.output_file,
@@ -151,6 +164,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         keep_names=args.keep_names,
         delimiter=args.delimiter,
         verbose=args.verbose,
+        fix_mojibake_sample=fix_mojibake_sample,
     )
 
 

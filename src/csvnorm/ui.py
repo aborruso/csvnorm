@@ -39,6 +39,7 @@ def show_success_table(
     output_file: Path,
     encoding: str,
     is_remote: bool,
+    mojibake_repaired: bool,
     row_count: int,
     column_count: int,
     input_size: int,
@@ -53,6 +54,7 @@ def show_success_table(
         output_file: Output CSV file path.
         encoding: Detected encoding (or "remote" for URLs).
         is_remote: Whether input was a remote URL.
+        mojibake_repaired: Whether mojibake repair was applied.
         row_count: Number of data rows in output.
         column_count: Number of columns in output.
         input_size: Input file size in bytes (0 for remote).
@@ -75,6 +77,9 @@ def show_success_table(
             else:
                 note = "UTF-8; no conversion needed"
             table.add_row("Encoding:", f"{encoding} [dim]({note})[/dim]")
+
+    if mojibake_repaired:
+        table.add_row("Mojibake:", "repaired (ftfy)")
 
     # Statistics
     table.add_row("Rows:", f"{row_count:,}")
