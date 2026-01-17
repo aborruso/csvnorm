@@ -1,0 +1,45 @@
+title: "[Question] "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Question
+        Use this template for help or usage questions.
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What do you need help with?
+      placeholder: "How do I ...?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Add any relevant context, inputs, or constraints
+      placeholder: "I'm trying to..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Command used (if applicable)
+      description: The exact command you ran
+      placeholder: "csvnorm input.csv -o output.csv"
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS and Python version
+      placeholder: "macOS 14, Python 3.11"
+    validations:
+      required: false
