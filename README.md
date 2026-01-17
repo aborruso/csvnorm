@@ -146,6 +146,11 @@ csvnorm data.csv --fix-mojibake 4000 -o fixed.csv
 **Remote URLs:**
 - Encoding is handled automatically by DuckDB
 - If `--fix-mojibake` is enabled, the URL is downloaded to a temp file first
+
+**Mojibake repair (`--fix-mojibake [N]`):**
+- Enables optional mojibake repair using ftfy (for already-misdecoded text).
+- `N` is the sample size (number of characters) used by the detector; default is 5000.
+- The repair runs only when ftfy’s badness heuristic flags the sample as “bad.”
 - HTTP timeout is set to 30 seconds
 - Only public URLs are supported (no authentication)
 

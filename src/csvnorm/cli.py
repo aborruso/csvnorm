@@ -105,7 +105,7 @@ Examples:
         type=int,
         help=(
             "Fix mojibake using ftfy. Optionally pass sample size "
-            "(e.g., --fix-mojibake 4000)."
+            "(chars to sample, default 5000). Example: --fix-mojibake 4000."
         ),
     )
 

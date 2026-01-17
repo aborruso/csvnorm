@@ -2,6 +2,10 @@
 
 ## 2026-01-17
 
+### v1.1.3: Help text for --fix-mojibake
+
+**Fix**: Documented `--fix-mojibake` in CLI help with default sample size.
+
 ### Mojibake Repair with ftfy (Issue #21)
 
 **Enhancement**: Optional mojibake repair step using ftfy
