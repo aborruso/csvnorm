@@ -1,0 +1,208 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const title = 'csvnorm — Clean CSV for fast exploration';
+const description = 'csvnorm is a CLI that validates and normalizes CSV files: UTF-8 encoding, consistent delimiters, tidy headers, and clear error reports.';
+---
+<BaseLayout title={title} description={description}>
+  <header class="mx-auto flex max-w-6xl flex-col gap-6 px-6 pb-10 pt-16 md:flex-row md:items-center md:justify-between">
+    <div class="flex items-center gap-3">
+      <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-ink text-bone shadow-glow">
+        <span aria-hidden="true" class="text-2xl">⧉</span>
+      </div>
+      <div>
+        <p class="text-sm uppercase tracking-[0.35em] text-dusk">csvnorm</p>
+        <p class="text-base font-semibold">Normalize first, explore faster</p>
+      </div>
+    </div>
+    <nav aria-label="Sections" class="flex flex-wrap gap-4 text-sm uppercase tracking-[0.2em] text-dusk">
+      <a href="#what" class="hover:text-ink">What</a>
+      <a href="#why" class="hover:text-ink">Why</a>
+      <a href="#how" class="hover:text-ink">How</a>
+      <a href="#use" class="hover:text-ink">Use</a>
+    </nav>
+  </header>
+
+  <section class="mx-auto grid max-w-6xl gap-12 px-6 pb-20 pt-6 md:grid-cols-[1.2fr_0.8fr]">
+    <div class="flex flex-col gap-8">
+      <span class="data-chip">Csv | Clean | Ready</span>
+      <h1 class="hero-title">
+        csvnorm prepares CSV files for a first-pass exploration without surprises.
+      </h1>
+      <p class="text-lg text-ink/80">
+        A CLI built for messy CSVs: uncertain encodings, uneven columns, broken rows. In one command you get a coherent,
+        validated output ready for quick analysis or the next step in your pipeline.
+      </p>
+      <div class="flex flex-wrap gap-4">
+        <a
+          href="https://pypi.org/project/csvnorm/"
+          class="rounded-full bg-ink px-6 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-bone shadow-glow"
+        >
+          Install
+        </a>
+        <a
+          href="https://github.com/aborruso/csvnorm"
+          class="rounded-full border border-ink/20 bg-white/70 px-6 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-ink"
+        >
+          View code
+        </a>
+      </div>
+      <div class="grid gap-4 md:grid-cols-3">
+        <div class="glass rounded-2xl p-4">
+          <p class="text-xs uppercase tracking-[0.3em] text-dusk">Output</p>
+          <p class="text-xl font-semibold">Clean UTF-8</p>
+        </div>
+        <div class="glass rounded-2xl p-4">
+          <p class="text-xs uppercase tracking-[0.3em] text-dusk">Checks</p>
+          <p class="text-xl font-semibold">CSV validation</p>
+        </div>
+        <div class="glass rounded-2xl p-4">
+          <p class="text-xs uppercase tracking-[0.3em] text-dusk">Report</p>
+          <p class="text-xl font-semibold">Clear errors</p>
+        </div>
+      </div>
+    </div>
+    <div class="glass rounded-3xl p-6 shadow-lg">
+      <p class="text-xs uppercase tracking-[0.3em] text-dusk">Quick example</p>
+      <pre class="mt-4 rounded-2xl bg-ink px-5 py-4 text-sm text-bone">
+<code>csvnorm data.csv \
+  | head -20
+
+csvnorm data.csv -o output.csv
+csvnorm "https://.../dataset.csv" -o output.csv</code>
+      </pre>
+      <div class="mt-6 space-y-3 text-sm text-ink/80">
+        <p>✓ Normalize delimiters to comma</p>
+        <p>✓ Snake_case headers</p>
+        <p>✓ Convert encoding to UTF-8</p>
+        <p>✓ Rejected-row report</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="what" class="mx-auto max-w-6xl px-6 py-16">
+    <div class="grid gap-10 md:grid-cols-[0.6fr_1fr]">
+      <h2 class="section-title">What is csvnorm</h2>
+      <div class="space-y-6 text-lg text-ink/80">
+        <p>
+          csvnorm is a terminal command that takes a raw CSV and brings it to a standard form. It is built for the initial
+          exploration stage: understand the dataset, find issues, and get a consistent file.
+        </p>
+        <p>
+          It is not a full ETL or a heavy cleaning tool. It is step zero to make a CSV readable, reliable, and ready for
+          analysis with other tools.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section id="why" class="mx-auto max-w-6xl px-6 py-16">
+    <div class="grid gap-10 md:grid-cols-[1fr_0.8fr]">
+      <div class="space-y-6">
+        <h2 class="section-title">Why use it</h2>
+        <p class="text-lg text-ink/80">
+          CSVs from different sources waste time: mixed delimiters, wrong encodings, broken rows, uneven headers. csvnorm
+          removes friction and lets you start with a clean file.
+        </p>
+        <div class="grid gap-4 md:grid-cols-2">
+          <div class="glass rounded-2xl p-5">
+            <h3 class="text-lg font-semibold">Real validation</h3>
+            <p class="text-sm text-ink/70">Uses DuckDB to check structure and bad rows.</p>
+          </div>
+          <div class="glass rounded-2xl p-5">
+            <h3 class="text-lg font-semibold">Consistent output</h3>
+            <p class="text-sm text-ink/70">Standard delimiter and normalized snake_case headers.</p>
+          </div>
+          <div class="glass rounded-2xl p-5">
+            <h3 class="text-lg font-semibold">Detailed report</h3>
+            <p class="text-sm text-ink/70">Stats on rows, columns, sizes, and errors.</p>
+          </div>
+          <div class="glass rounded-2xl p-5">
+            <h3 class="text-lg font-semibold">Remote URLs</h3>
+            <p class="text-sm text-ink/70">Process CSV over HTTP without downloading first.</p>
+          </div>
+        </div>
+      </div>
+      <div class="glass rounded-3xl p-6">
+        <p class="text-xs uppercase tracking-[0.3em] text-dusk">Promise</p>
+        <p class="mt-4 text-2xl font-semibold">
+          One command to move from "uncertain file" to "ready file".
+        </p>
+        <p class="mt-6 text-sm text-ink/70">
+          csvnorm is non-destructive: it never overwrites the input file and keeps you in control of the output.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section id="how" class="mx-auto max-w-6xl px-6 py-16">
+    <h2 class="section-title">How it works</h2>
+    <div class="mt-10 grid gap-6 md:grid-cols-3">
+      <article class="glass rounded-2xl p-6">
+        <p class="text-xs uppercase tracking-[0.3em] text-dusk">1</p>
+        <h3 class="mt-4 text-xl font-semibold">Analyze</h3>
+        <p class="mt-3 text-sm text-ink/70">
+          Detects encoding, delimiter, headers, and structural inconsistencies.
+        </p>
+      </article>
+      <article class="glass rounded-2xl p-6">
+        <p class="text-xs uppercase tracking-[0.3em] text-dusk">2</p>
+        <h3 class="mt-4 text-xl font-semibold">Normalize</h3>
+        <p class="mt-3 text-sm text-ink/70">
+          Converts to UTF-8, standardizes separators, and cleans column names.
+        </p>
+      </article>
+      <article class="glass rounded-2xl p-6">
+        <p class="text-xs uppercase tracking-[0.3em] text-dusk">3</p>
+        <h3 class="mt-4 text-xl font-semibold">Report</h3>
+        <p class="mt-3 text-sm text-ink/70">
+          Shows a summary with rows, columns, sizes, and rejected-row files.
+        </p>
+      </article>
+    </div>
+  </section>
+
+  <section id="use" class="mx-auto max-w-6xl px-6 py-16">
+    <div class="grid gap-10 md:grid-cols-[1fr_0.9fr]">
+      <div class="space-y-6">
+        <h2 class="section-title">Use it now</h2>
+        <p class="text-lg text-ink/80">
+          csvnorm writes to stdout by default, so it plugs into other tools. If you want a file, just set the output path.
+        </p>
+        <div class="rounded-3xl bg-ink px-6 py-5 text-bone">
+          <pre class="text-sm">
+<code>csvnorm input.csv
+csvnorm input.csv -o output.csv
+csvnorm input.csv | csvstat
+csvnorm "https://.../dataset.csv" -o output.csv</code>
+          </pre>
+        </div>
+      </div>
+      <div class="glass rounded-3xl p-6">
+        <h3 class="text-xl font-semibold">Quick install</h3>
+        <p class="mt-3 text-sm text-ink/70">Recommended with uv:</p>
+        <pre class="mt-3 rounded-2xl bg-white/80 px-4 py-3 text-sm text-ink">
+<code>uv tool install csvnorm</code>
+        </pre>
+        <p class="mt-4 text-sm text-ink/70">Or with pip:</p>
+        <pre class="mt-3 rounded-2xl bg-white/80 px-4 py-3 text-sm text-ink">
+<code>pip install csvnorm</code>
+        </pre>
+      </div>
+    </div>
+  </section>
+
+  <footer class="mx-auto max-w-6xl px-6 pb-16 pt-10">
+    <div class="glass rounded-3xl p-6 text-sm text-ink/70">
+      <p class="text-base font-semibold text-ink">csvnorm is open source</p>
+      <p class="mt-2">
+        Built to speed up data exploration and reduce early-stage errors when working with public CSV files.
+      </p>
+      <div class="mt-6 flex flex-wrap gap-4 text-xs uppercase tracking-[0.2em]">
+        <a href="https://github.com/aborruso/csvnorm" class="hover:text-ink">GitHub</a>
+        <a href="https://pypi.org/project/csvnorm/" class="hover:text-ink">PyPI</a>
+        <a href="https://github.com/aborruso/csvnorm/issues" class="hover:text-ink">Issues</a>
+      </div>
+    </div>
+  </footer>
+</BaseLayout>

@@ -1,0 +1,47 @@
+---
+import '../styles/global.css';
+
+const { title = 'csvnorm', description = 'Normalize CSV files quickly and reliably.' } = Astro.props;
+const site = Astro.site ?? new URL('http://localhost:4321');
+const base = Astro.base === '/' ? '' : Astro.base;
+const ogPath = `${base}/og/og.svg`;
+const ogImage = new URL(ogPath, site).toString();
+const canonical = new URL(base || '/', site).toString();
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="brand-grid min-h-screen">
+    <div class="absolute inset-0 -z-10 opacity-80">
+      <div class="absolute -top-24 right-0 h-64 w-64 rounded-full bg-mint/40 blur-3xl animate-float"></div>
+      <div class="absolute left-10 top-1/3 h-72 w-72 rounded-full bg-rust/30 blur-3xl animate-float"></div>
+      <div class="absolute bottom-0 left-1/2 h-80 w-80 -translate-x-1/2 rounded-full bg-sea/30 blur-3xl animate-sweep"></div>
+    </div>
+    <main class="relative">
+      <slot />
+    </main>
+  </body>
+</html>

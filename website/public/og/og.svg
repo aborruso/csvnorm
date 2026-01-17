@@ -1,0 +1,26 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F9F4EB"/>
+      <stop offset="1" stop-color="#EFE7DD"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(980 120) rotate(120) scale(260 220)">
+      <stop stop-color="#7DD6B3" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#7DD6B3" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(200 520) rotate(40) scale(300 240)">
+      <stop stop-color="#FF6F4C" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#FF6F4C" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <rect width="1200" height="630" fill="url(#glow2)"/>
+  <rect x="90" y="90" width="1020" height="450" rx="36" fill="#FFFFFF" fill-opacity="0.85"/>
+  <rect x="120" y="120" width="960" height="390" rx="28" fill="#0F1623"/>
+  <text x="170" y="230" fill="#F9F4EB" font-size="64" font-family="Space Grotesk, sans-serif" font-weight="600">csvnorm</text>
+  <text x="170" y="300" fill="#F9F4EB" font-size="34" font-family="Space Grotesk, sans-serif" font-weight="400">Clean CSV for fast exploration</text>
+  <text x="170" y="380" fill="#7DD6B3" font-size="22" font-family="Space Grotesk, sans-serif" letter-spacing="6">VALIDATE • NORMALIZE • REPORT</text>
+  <rect x="170" y="420" width="220" height="52" rx="26" fill="#FF6F4C"/>
+  <text x="200" y="454" fill="#0F1623" font-size="20" font-family="Space Grotesk, sans-serif" font-weight="600">csvnorm CLI</text>
+</svg>

@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --color-ink: 15 22 35;
+  --color-bone: 249 244 235;
+  --color-rust: 255 111 76;
+  --color-mint: 125 214 179;
+  --color-sea: 48 92 132;
+  --color-dusk: 80 60 123;
+}
+
+* {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  @apply bg-bone text-ink font-body;
+}
+
+::selection {
+  background: rgba(255, 111, 76, 0.25);
+}
+
+.brand-grid {
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(125, 214, 179, 0.2), transparent 40%),
+    radial-gradient(circle at 80% 0%, rgba(255, 111, 76, 0.2), transparent 45%),
+    radial-gradient(circle at 20% 80%, rgba(48, 92, 132, 0.22), transparent 50%),
+    linear-gradient(120deg, rgba(15, 22, 35, 0.04) 0%, rgba(15, 22, 35, 0.01) 100%);
+}
+
+.glass {
+  background: rgba(249, 244, 235, 0.7);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(15, 22, 35, 0.08);
+}
+
+.data-chip {
+  @apply inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-sm uppercase tracking-[0.2em] text-dusk;
+}
+
+.hero-title {
+  @apply font-display text-4xl leading-tight md:text-6xl;
+}
+
+.section-title {
+  @apply font-display text-3xl md:text-4xl;
+}
