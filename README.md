@@ -27,7 +27,7 @@ This tool prepares CSV files for **basic exploratory data analysis (EDA)**, not 
 
 **What it does:**
 - Validates CSV structure and reports errors
-- Normalizes encoding to UTF-8
+- Normalizes encoding to UTF-8 when needed
 - Normalizes delimiters and field names
 - Creates a consistent starting point for data exploration
 
@@ -41,7 +41,7 @@ This tool prepares CSV files for **basic exploratory data analysis (EDA)**, not 
 - **CSV Validation**: Checks for common CSV errors and inconsistencies using DuckDB
 - **Delimiter Normalization**: Converts all field separators to standard commas (`,`)
 - **Field Name Normalization**: Converts column headers to snake_case format
-- **Encoding Normalization**: Auto-detects encoding and converts to UTF-8
+- **Encoding Normalization**: Auto-detects encoding and converts to UTF-8 when needed (ASCII is already UTF-8 compatible)
 - **Processing Summary**: Displays comprehensive statistics (rows, columns, file sizes) and error details
 - **Error Reporting**: Exports detailed error file for invalid rows with summary panel
 - **Remote URL Support**: Process CSV files directly from HTTP/HTTPS URLs without downloading
@@ -116,7 +116,7 @@ The tool provides modern terminal output with:
 - Progress indicators for multi-step processing
 - Color-coded error messages with panels
 - Success summary table with statistics (rows, columns, file sizes)
-- Encoding conversion status (converted/no conversion/remote)
+- Encoding conversion status (converted/no conversion/remote; ASCII is already UTF-8 compatible)
 - Error summary panel with reject count and error types when validation fails
 - ASCII art banner with `--version` and `-V` verbose mode
 
@@ -125,7 +125,7 @@ The tool provides modern terminal output with:
  ✓ Success
  Input:        test/utf8_basic.csv
  Output:       output/utf8_basic.csv
- Encoding:     ascii (no conversion needed)
+ Encoding:     ascii (ASCII is UTF-8 compatible; no conversion needed)
  Rows:         2
  Columns:      3
  Input size:   42 B
@@ -138,7 +138,7 @@ The tool provides modern terminal output with:
  ✓ Success
  Input:        test/malformed_rows.csv
  Output:       output/malformed_rows.csv
- Encoding:     ascii (no conversion needed)
+ Encoding:     ascii (ASCII is UTF-8 compatible; no conversion needed)
  Rows:         1
  Columns:      4
  Input size:   24 B

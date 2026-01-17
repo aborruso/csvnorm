@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-01-17 (v0.3.12)
+
+- Clarified ASCII encoding message: "ASCII is UTF-8 compatible; no conversion needed"
+- README now states encoding conversion happens only when needed
+
 ## 2026-01-16
 
 ### Breaking Changes

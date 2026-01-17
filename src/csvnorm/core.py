@@ -161,9 +161,13 @@ def process_csv(
                         show_error_panel(f"Encoding conversion failed\n{e}")
                         return 1
                 else:
+                    if encoding == "ascii":
+                        note = "ASCII is UTF-8 compatible; no conversion needed"
+                    else:
+                        note = "UTF-8; no conversion needed"
                     progress.update(
                         task,
-                        description=f"[green]✓[/green] Encoding: {encoding} (no conversion needed)",
+                        description=f"[green]✓[/green] Encoding: {encoding} ({note})",
                     )
 
             # Step 3: Validate CSV

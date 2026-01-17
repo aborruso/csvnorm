@@ -70,7 +70,11 @@ def show_success_table(
         if needs_conversion(encoding):
             table.add_row("Encoding:", f"{encoding} → UTF-8 [dim](converted)[/dim]")
         else:
-            table.add_row("Encoding:", f"{encoding} [dim](no conversion needed)[/dim]")
+            if encoding == "ascii":
+                note = "ASCII is UTF-8 compatible; no conversion needed"
+            else:
+                note = "UTF-8; no conversion needed"
+            table.add_row("Encoding:", f"{encoding} [dim]({note})[/dim]")
 
     # Statistics
     table.add_row("Rows:", f"{row_count:,}")
