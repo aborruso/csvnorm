@@ -118,6 +118,12 @@ export default {
 }
 ```
 
+**Runtime base path guard**:
+
+- Prefer `import.meta.env.BASE_URL` (includes trailing slash) for canonical/OG paths
+- Normalize to `''` for root, or `'/repo-name'` for GitHub Pages projects
+- Avoid producing URLs like `/undefined/...` or missing `/repo-name` in Open Graph metadata
+
 **Deploy target**: GitHub Pages
 
 - Static site hosting
