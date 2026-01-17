@@ -16,3 +16,9 @@ dist/
 .venv/
 .tmp/
 VALUTAZIONE.md
+
+# Astro site (website/)
+website/node_modules/
+website/dist/
+website/.astro/
+tasks/
