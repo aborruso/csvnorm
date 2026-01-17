@@ -159,6 +159,32 @@ class TestMainFunction:
         exit_code = main(["/nonexistent/file.csv"])
         assert exit_code == 1
 
+    def test_stdout_default(self, tmp_path, capsys):
+        """Test default output is stdout (no -o flag)."""
+        test_csv = tmp_path / "test.csv"
+        test_csv.write_text("Name,Age\nJohn,30\n")
+
+        exit_code = main([str(test_csv)])
+
+        assert exit_code == 0
+        captured = capsys.readouterr()
+        # CSV data should be in stdout
+        assert "name,age" in captured.out.lower() or "john" in captured.out.lower()
+
+    def test_input_overwrite_prevention(self, tmp_path):
+        """Test that input file cannot be overwritten even with --force."""
+        test_csv = tmp_path / "test.csv"
+        test_csv.write_text("Col1,Col2\nA,B\n")
+
+        # Try to overwrite input file
+        exit_code = main([str(test_csv), "-o", str(test_csv), "--force"])
+
+        # Should fail with error
+        assert exit_code == 1
+        # Original file should still exist and be unchanged
+        assert test_csv.exists()
+        assert "Col1,Col2" in test_csv.read_text()
+
 
 class TestCLISubprocess:
     """Integration tests using subprocess (smoke tests)."""
@@ -209,3 +235,39 @@ class TestCLISubprocess:
 
         assert result.returncode == 0
         assert output_file.exists()
+
+    def test_stdout_output(self, tmp_path):
+        """Test stdout output works via subprocess."""
+        test_csv = tmp_path / "test.csv"
+        test_csv.write_text("Name,Value\nTest,123\n")
+
+        result = subprocess.run(
+            [sys.executable, "-m", "csvnorm", str(test_csv)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        assert result.returncode == 0
+        # CSV should be in stdout
+        assert "name" in result.stdout.lower() or "test" in result.stdout.lower()
+
+    def test_shell_redirect(self, tmp_path):
+        """Test that stdout can be redirected with shell."""
+        test_csv = tmp_path / "test.csv"
+        test_csv.write_text("A,B\n1,2\n")
+        output_file = tmp_path / "redirected.csv"
+
+        # Use shell redirect
+        result = subprocess.run(
+            f'{sys.executable} -m csvnorm "{test_csv}" > "{output_file}"',
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        assert result.returncode == 0
+        assert output_file.exists()
+        content = output_file.read_text()
+        assert "a,b" in content.lower() or "1,2" in content

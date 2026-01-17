@@ -7,6 +7,22 @@
 
 A command-line utility to validate and normalize CSV files for initial exploration.
 
+## Version 1.0 Breaking Change
+
+**If upgrading from v0.x:** The default output has changed from file to stdout for better Unix composability.
+
+```bash
+# v0.x behavior
+csvnorm data.csv              # Created data.csv in current directory
+
+# v1.0 behavior (NEW)
+csvnorm data.csv              # Outputs to stdout
+csvnorm data.csv -o data.csv  # Explicitly save to file
+csvnorm data.csv > data.csv   # Or use shell redirect
+```
+
+This follows the Unix philosophy and matches tools like `jq`, `csvkit`, and `xsv`.
+
 ## Installation
 
 Recommended (uv):
@@ -52,14 +68,16 @@ This tool prepares CSV files for **basic exploratory data analysis (EDA)**, not 
 csvnorm input.csv [options]
 ```
 
+**By default, csvnorm writes to stdout** for easy piping and composability with other Unix tools.
+
 ### Options
 
 | Option | Description |
 |--------|-------------|
-| `-f, --force` | Force overwrite of existing output files |
+| `-o, --output-file PATH` | Write to file instead of stdout |
+| `-f, --force` | Force overwrite of existing output file (when `-o` is specified) |
 | `-k, --keep-names` | Keep original column names (disable snake_case) |
 | `-d, --delimiter CHAR` | Set custom output delimiter (default: `,`) |
-| `-o, --output-file PATH` | Set output file path (absolute or relative) |
 | `-V, --verbose` | Enable verbose output for debugging |
 | `-v, --version` | Show version number |
 | `-h, --help` | Show help message |
@@ -67,47 +85,58 @@ csvnorm input.csv [options]
 ### Examples
 
 ```bash
-# Basic usage (output: data.csv in current directory)
+# Default: output to stdout
 csvnorm data.csv
 
-# Specify output file path
-csvnorm data.csv -o output/processed.csv
+# Preview first rows
+csvnorm data.csv | head -20
 
-# Use absolute path
-csvnorm data.csv -o /tmp/data_normalized.csv
+# Pipe to other tools
+csvnorm data.csv | csvcut -c name,age | csvstat
+
+# Save to file
+csvnorm data.csv -o output.csv
+
+# Shell redirect
+csvnorm data.csv > output.csv
 
 # Process remote CSV from URL
 csvnorm "https://raw.githubusercontent.com/aborruso/csvnorm/refs/heads/main/test/Trasporto%20Pubblico%20Locale%20Settore%20Pubblico%20Allargato%20-%20Indicatore%202000-2020%20Trasferimenti%20Correnti%20su%20Entrate%20Correnti.csv" -o output.csv
 
-# With semicolon delimiter
-csvnorm data.csv -d ';' -o data_semicolon.csv
+# Custom delimiter
+csvnorm data.csv -d ';' -o output.csv
 
 # Keep original headers
 csvnorm data.csv --keep-names -o output.csv
 
 # Force overwrite with verbose output
 csvnorm data.csv -f -V -o processed.csv
-
-# Custom output name and extension
-csvnorm data.csv -o results.txt
 ```
 
 ### Output
 
-Creates a normalized CSV file at the specified path with:
-- UTF-8 encoding
-- Consistent field delimiters
-- Normalized column names (unless `--keep-names` is specified)
-- Error report if any invalid rows are found (saved as `{output_name}_reject_errors.csv` in the same directory)
-- Temporary encoding conversion files stored in system temp directory with auto-cleanup
+**Default behavior (stdout):**
+- Writes normalized CSV to stdout
+- Progress and errors go to stderr
+- Validation errors (if any) are written to a temporary file with path shown in stderr
+- Perfect for piping to other tools or shell redirection
 
-Output file path behavior:
-- If `-o` is specified: uses the exact path provided (supports absolute and relative paths)
-- If `-o` is omitted: uses input filename in current working directory
+**File output (with `-o`):**
+- Creates a normalized CSV file at the specified path with:
+  - UTF-8 encoding
+  - Consistent field delimiters
+  - Normalized column names (unless `--keep-names` is specified)
+- Error report if any invalid rows are found (saved as `{output_name}_reject_errors.csv` in the same directory)
+- Shows success table with statistics (rows, columns, file sizes)
+- Supports absolute and relative paths
 - Any file extension is allowed (not limited to `.csv`)
 
-For remote URLs:
-- You must specify `-o` to set the output filename
+**Input file protection:**
+- csvnorm will **never** overwrite the input file, even with `--force`
+- If you try to use the same path for input and output, you'll get an error
+- Use `-o` to specify a different output path
+
+**Remote URLs:**
 - Encoding is handled automatically by DuckDB
 - HTTP timeout is set to 30 seconds
 - Only public URLs are supported (no authentication)

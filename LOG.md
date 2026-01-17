@@ -1,7 +1,56 @@
 # Changelog
 
+## 2026-01-17 (v1.0.0)
+
+### BREAKING CHANGE: Stdout by Default
+
+**Major behavior change for better Unix composability:**
+
+- **Default output is now stdout** (was: file in current directory)
+  - `csvnorm data.csv` → outputs to stdout
+  - `csvnorm data.csv -o output.csv` → writes to file
+  - `csvnorm data.csv > output.csv` → shell redirect works
+
+- **Input file overwrite protection**
+  - Never allows overwriting input file, even with `--force`
+  - Shows clear error message if input == output
+  - Suggests using `-o` with different path
+
+- **Behavior changes:**
+  - Progress/errors go to stderr when using stdout
+  - Success table only shown in file mode
+  - Reject files in temp dir for stdout mode
+  - `-f/--force` only applies when `-o` specified
+
+**Why this change:**
+- Follows Unix philosophy and standard CLI tools (`jq`, `xsv`, `csvkit`)
+- Enables pipe chains: `csvnorm data.csv | head | other-tool`
+- Preview without creating files: `csvnorm data.csv | less`
+- Safer: no accidental file overwrites
+- More composable with other tools
+
+**Migration:**
+```bash
+# v0.x
+csvnorm data.csv              # Created file
+
+# v1.0
+csvnorm data.csv              # Stdout
+csvnorm data.csv -o data.csv  # Explicit file
+```
+
+**Technical changes:**
+- cli.py: `-o` now optional (None = stdout)
+- core.py: stdout mode with temp files, stderr console
+- Added tests for stdout and input protection
+- Updated README with migration guide
+
+**Fixes:**
+- #19: Critical bug preventing input file destruction
+
 ## 2026-01-17 (v0.3.12)
 
+- Fixed #14: hide encoding and input size info for remote files (not available/meaningful)
 - Clarified ASCII encoding message: "ASCII is UTF-8 compatible; no conversion needed"
 - README now states encoding conversion happens only when needed
 

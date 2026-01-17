@@ -1,9 +1,10 @@
 """Core processing logic for csvnorm."""
 
 import logging
+import sys
 import tempfile
 from pathlib import Path
-from typing import Union
+from typing import Optional, Union
 
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -16,11 +17,9 @@ from csvnorm.ui import (
     show_warning_panel,
 )
 from csvnorm.utils import (
-    extract_filename_from_url,
     get_column_count,
     get_row_count,
     is_url,
-    to_snake_case,
     validate_delimiter,
     validate_url,
 )
@@ -32,7 +31,7 @@ console = Console()
 
 def process_csv(
     input_file: str,
-    output_file: Path,
+    output_file: Optional[Path],
     force: bool = False,
     keep_names: bool = False,
     delimiter: str = ",",
@@ -42,8 +41,8 @@ def process_csv(
 
     Args:
         input_file: Path to input CSV file or HTTP/HTTPS URL.
-        output_file: Full path for output file.
-        force: If True, overwrite existing output files.
+        output_file: Full path for output file, or None for stdout.
+        force: If True, overwrite existing output files (only when output_file is specified).
         keep_names: If True, keep original column names.
         delimiter: Output field delimiter.
         verbose: If True, enable debug logging.
@@ -51,6 +50,9 @@ def process_csv(
     Returns:
         Exit code: 0 for success, 1 for error.
     """
+    # Determine if output mode is stdout or file
+    use_stdout = output_file is None
+
     # Detect if input is URL or file
     is_remote = is_url(input_file)
 
@@ -62,7 +64,6 @@ def process_csv(
         except ValueError as e:
             show_error_panel(str(e))
             return 1
-        base_name = extract_filename_from_url(input_file)
         input_path = input_file  # Keep as string for DuckDB
     else:
         # Validate local file
@@ -75,8 +76,20 @@ def process_csv(
             show_error_panel(f"Not a file\n{file_path}")
             return 1
 
-        base_name = to_snake_case(file_path.name)
         input_path = file_path
+
+        # Prevent input file overwrite (never allow, even with --force)
+        if output_file is not None:
+            input_absolute = file_path.resolve()
+            output_absolute = output_file.resolve()
+            if input_absolute == output_absolute:
+                show_error_panel(
+                    "Cannot overwrite input file\n\n"
+                    f"Input:  {input_file}\n"
+                    f"Output: {output_file}\n\n"
+                    "Use -o to specify a different output path."
+                )
+                return 1
 
     try:
         validate_delimiter(delimiter)
@@ -85,32 +98,45 @@ def process_csv(
         return 1
 
     # Setup paths
-    output_dir = output_file.parent
     temp_dir = Path(tempfile.mkdtemp(prefix="csvnorm_"))
-    reject_file = output_dir / f"{output_file.stem}_reject_errors.csv"
-    temp_utf8_file = temp_dir / f"{output_file.stem}_utf8.csv"
 
-    # Check if output exists
-    if output_file.exists() and not force:
-        show_warning_panel(
-            f"Output file already exists\n\n"
-            f"{output_file}\n\n"
-            f"Use [bold]--force[/bold] to overwrite."
-        )
-        return 1
+    if use_stdout:
+        # For stdout mode: create temp files
+        actual_output_file = temp_dir / "output.csv"
+        reject_file = temp_dir / "reject_errors.csv"
+        temp_utf8_file = temp_dir / "utf8.csv"
+    else:
+        # For file mode: use specified output path
+        assert output_file is not None  # Type narrowing
+        output_dir = output_file.parent
+        actual_output_file = output_file
+        reject_file = output_dir / f"{output_file.stem}_reject_errors.csv"
+        temp_utf8_file = temp_dir / f"{output_file.stem}_utf8.csv"
 
-    # Clean up previous reject file (always overwrite)
-    if reject_file.exists():
-        reject_file.unlink()
+        # Check if output exists
+        if output_file.exists() and not force:
+            show_warning_panel(
+                f"Output file already exists\n\n"
+                f"{output_file}\n\n"
+                f"Use [bold]--force[/bold] to overwrite."
+            )
+            return 1
+
+        # Clean up previous reject file (always overwrite)
+        if reject_file.exists():
+            reject_file.unlink()
 
     # Track files to clean up
     temp_files: list[Path] = [temp_dir]
+
+    # Use stderr console for progress when writing to stdout
+    progress_console = Console(stderr=True) if use_stdout else console
 
     try:
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
-            console=console,
+            console=progress_console,
             transient=True,
         ) as progress:
             task = progress.add_task("[cyan]Processing...", total=None)
@@ -225,56 +251,97 @@ def process_csv(
             logger.debug("Normalizing CSV...")
             normalize_csv(
                 input_path=working_file,
-                output_path=output_file,
+                output_path=actual_output_file,
                 delimiter=delimiter,
                 normalize_names=not keep_names,
                 is_remote=is_remote,
             )
 
-            logger.debug(f"Output written to: {output_file}")
+            logger.debug(f"Output written to: {actual_output_file}")
             progress.update(task, description="[green]✓[/green] Complete")
 
-        # Collect statistics
-        input_size = (
-            working_file.stat().st_size if isinstance(working_file, Path) else 0
-        )
-        output_size = output_file.stat().st_size
-        row_count = get_row_count(output_file)
-        column_count = get_column_count(output_file, delimiter)
+        # Handle output based on mode
+        if use_stdout:
+            # Write to stdout
+            with open(actual_output_file, "r") as f:
+                sys.stdout.write(f.read())
 
-        # Show success summary
-        show_success_table(
-            input_file=input_file,
-            output_file=output_file,
-            encoding=encoding,
-            is_remote=is_remote,
-            row_count=row_count,
-            column_count=column_count,
-            input_size=input_size,
-            output_size=output_size,
-            delimiter=delimiter,
-            keep_names=keep_names,
-        )
+            # Show validation errors on stderr if any
+            if has_validation_errors:
+                stderr_console = Console(stderr=True)
+                stderr_console.print()
+                stderr_console.print(
+                    f"[yellow]Warning:[/yellow] {reject_count - 1} rows rejected during validation",
+                    style="yellow",
+                )
+                stderr_console.print(
+                    f"Reject file saved to: {reject_file}", style="dim"
+                )
+                stderr_console.print()
+                return 1
+        else:
+            # File mode: show success table
+            input_size = (
+                working_file.stat().st_size if isinstance(working_file, Path) else 0
+            )
+            output_size = actual_output_file.stat().st_size
+            row_count = get_row_count(actual_output_file)
+            column_count = get_column_count(actual_output_file, delimiter)
 
-        # Show validation errors if any
-        if has_validation_errors:
-            show_validation_error_panel(reject_count, error_types, reject_file)
-            return 1
+            # Show success summary
+            show_success_table(
+                input_file=input_file,
+                output_file=actual_output_file,
+                encoding=encoding,
+                is_remote=is_remote,
+                row_count=row_count,
+                column_count=column_count,
+                input_size=input_size,
+                output_size=output_size,
+                delimiter=delimiter,
+                keep_names=keep_names,
+            )
+
+            # Show validation errors if any
+            if has_validation_errors:
+                show_validation_error_panel(reject_count, error_types, reject_file)
+                return 1
 
     finally:
         # Cleanup temp directory
         import shutil
 
+        # In stdout mode, preserve reject file if it has errors
+        # In file mode, keep reject file in output directory
+        if use_stdout and reject_file.exists():
+            # Check if reject file has actual errors (more than just header)
+            with open(reject_file, "r") as f:
+                line_count = sum(1 for _ in f)
+            if line_count <= 1:
+                # Empty reject file, remove it
+                reject_file.unlink()
+            # If has errors, it's already been mentioned in stderr output above
+
         for temp_path in temp_files:
             if temp_path.exists():
                 logger.debug(f"Removing temp path: {temp_path}")
                 if temp_path.is_dir():
-                    shutil.rmtree(temp_path)
+                    # Skip temp_dir removal if reject file is inside and should be preserved
+                    if use_stdout and reject_file.exists() and reject_file.parent == temp_path:
+                        # Remove everything except reject_file
+                        for item in temp_path.iterdir():
+                            if item != reject_file:
+                                if item.is_dir():
+                                    shutil.rmtree(item)
+                                else:
+                                    item.unlink()
+                    else:
+                        shutil.rmtree(temp_path)
                 else:
                     temp_path.unlink()
 
-        # Remove reject file if empty (only header)
-        if reject_file.exists():
+        # Remove reject file if empty (only header) in file mode
+        if not use_stdout and reject_file.exists():
             with open(reject_file, "r") as f:
                 line_count = sum(1 for _ in f)
             if line_count <= 1:

@@ -50,10 +50,12 @@ def create_parser() -> argparse.ArgumentParser:
         formatter_class=RichHelpFormatter,
         epilog="""\
 Examples:
-  csvnorm data.csv -d ';' -o output.csv --force
-  csvnorm data.csv --keep-names --delimiter '\\t'
-  csvnorm https://example.com/data.csv -o processed/data.csv
-  csvnorm data.csv -V
+  csvnorm data.csv                          # Output to stdout
+  csvnorm data.csv -o output.csv            # Write to file
+  csvnorm data.csv > output.csv             # Shell redirect
+  csvnorm data.csv | head -20               # Preview with pipe
+  csvnorm data.csv -d ';' -o output.csv     # Custom delimiter
+  csvnorm https://example.com/data.csv -o processed.csv
 """,
     )
 
@@ -67,7 +69,7 @@ Examples:
         "-f",
         "--force",
         action="store_true",
-        help="Force overwrite of existing output files",
+        help="Force overwrite of existing output file (when -o is specified)",
     )
 
     parser.add_argument(
@@ -92,7 +94,7 @@ Examples:
         "-o",
         "--output-file",
         type=Path,
-        help="Set output file path (absolute or relative)",
+        help="Write to file instead of stdout (default: stdout)",
     )
 
     parser.add_argument(
@@ -141,17 +143,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     # Setup logging
     setup_logger(args.verbose)
 
-    # Determine output file (default: input filename in current directory)
-    if args.output_file is None:
-        input_name = Path(args.input_file).name
-        output_file = Path.cwd() / input_name
-    else:
-        output_file = args.output_file
-
-    # Run processing
+    # Run processing (output_file can be None for stdout)
     return process_csv(
         input_file=args.input_file,
-        output_file=output_file,
+        output_file=args.output_file,
         force=args.force,
         keep_names=args.keep_names,
         delimiter=args.delimiter,
