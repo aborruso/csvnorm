@@ -1,26 +1,42 @@
 <svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+    <linearGradient id="base" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#F9F4EB"/>
       <stop offset="1" stop-color="#EFE7DD"/>
     </linearGradient>
-    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(980 120) rotate(120) scale(260 220)">
-      <stop stop-color="#7DD6B3" stop-opacity="0.8"/>
+    <radialGradient id="mint" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(260 150) rotate(35) scale(420 320)">
+      <stop stop-color="#7DD6B3" stop-opacity="0.28"/>
       <stop offset="1" stop-color="#7DD6B3" stop-opacity="0"/>
     </radialGradient>
-    <radialGradient id="glow2" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(200 520) rotate(40) scale(300 240)">
-      <stop stop-color="#FF6F4C" stop-opacity="0.7"/>
+    <radialGradient id="rust" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(980 120) rotate(120) scale(420 360)">
+      <stop stop-color="#FF6F4C" stop-opacity="0.25"/>
       <stop offset="1" stop-color="#FF6F4C" stop-opacity="0"/>
     </radialGradient>
+    <radialGradient id="sea" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(320 560) rotate(10) scale(520 420)">
+      <stop stop-color="#305C84" stop-opacity="0.2"/>
+      <stop offset="1" stop-color="#305C84" stop-opacity="0"/>
+    </radialGradient>
   </defs>
-  <rect width="1200" height="630" fill="url(#bg)"/>
-  <rect width="1200" height="630" fill="url(#glow)"/>
-  <rect width="1200" height="630" fill="url(#glow2)"/>
-  <rect x="90" y="90" width="1020" height="450" rx="36" fill="#FFFFFF" fill-opacity="0.85"/>
-  <rect x="120" y="120" width="960" height="390" rx="28" fill="#0F1623"/>
-  <text x="170" y="230" fill="#F9F4EB" font-size="64" font-family="Space Grotesk, sans-serif" font-weight="600">csvnorm</text>
-  <text x="170" y="300" fill="#F9F4EB" font-size="34" font-family="Space Grotesk, sans-serif" font-weight="400">Clean CSV for fast exploration</text>
-  <text x="170" y="380" fill="#7DD6B3" font-size="22" font-family="Space Grotesk, sans-serif" letter-spacing="6">VALIDATE • NORMALIZE • REPORT</text>
-  <rect x="170" y="420" width="220" height="52" rx="26" fill="#FF6F4C"/>
-  <text x="200" y="454" fill="#0F1623" font-size="20" font-family="Space Grotesk, sans-serif" font-weight="600">csvnorm CLI</text>
+
+  <rect width="1200" height="630" fill="url(#base)"/>
+  <rect width="1200" height="630" fill="url(#mint)"/>
+  <rect width="1200" height="630" fill="url(#rust)"/>
+  <rect width="1200" height="630" fill="url(#sea)"/>
+
+  <rect x="80" y="80" width="1040" height="470" rx="36" fill="#FFFFFF" fill-opacity="0.72"/>
+  <rect x="110" y="110" width="980" height="410" rx="28" fill="#F9F4EB" stroke="#0F1623" stroke-opacity="0.08"/>
+
+  <text x="160" y="175" fill="#503C7B" font-size="18" font-family="Space Grotesk, sans-serif" font-weight="600" letter-spacing="6">CSV | CLEAN | READY</text>
+
+  <text x="160" y="245" fill="#0F1623" font-size="60" font-family="DM Serif Display, serif" font-weight="400">
+    <tspan x="160" dy="0">csvnorm prepares CSV</tspan>
+    <tspan x="160" dy="68">files for a first-pass</tspan>
+    <tspan x="160" dy="68">exploration without</tspan>
+    <tspan x="160" dy="68">surprises.</tspan>
+  </text>
+
+  <text x="160" y="515" fill="#0F1623" font-size="20" font-family="Space Grotesk, sans-serif" font-weight="400" opacity="0.7">
+    <tspan x="160" dy="0">A CLI built for messy CSVs: uncertain encodings, uneven columns, broken rows.</tspan>
+    <tspan x="160" dy="28">One command yields coherent, validated output ready for analysis.</tspan>
+  </text>
 </svg>
