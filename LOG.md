@@ -2,6 +2,30 @@
 
 ## 2026-01-17
 
+### Early Detection for Header Anomalies
+
+**Enhancement**: Pre-validation mechanism to detect title rows before DuckDB sniffing
+- Analyzes first 5 lines to detect separator pattern anomalies
+- If line 1 has < 50% of data lines' average delimiter count → anomaly
+- Automatically suggests delimiter + skip=1 configuration
+- Works for local files only (not remote URLs)
+
+**Benefits**:
+- Catches files where DuckDB sampling misses problematic rows
+- Handles small files with title rows that don't fail standard sniffing
+- Provides early feedback on likely configuration
+
+**Documentation**: `docs/early-detection.md` (technical details)
+**PRD update**: Added FR-11 (early detection requirement)
+
+**Results**:
+- ✅ Detects title rows in small files (< 100 rows)
+- ✅ Automatically processes files like `POSAS_2025_it_Comuni.csv`
+- ✅ All 93 tests passing
+- ✅ No regression on existing files
+
+## 2026-01-17
+
 ### Issue #1: Automatic fallback for CSV with non-standard headers
 
 **Problem**: Files with title rows or non-standard structures fail DuckDB dialect sniffing

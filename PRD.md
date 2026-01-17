@@ -48,6 +48,7 @@ FR-7 The tool SHALL output the cleaned file to `<output_dir>/<clean_name>.csv`.
 FR-8 The tool SHALL normalise headers to snake_case unless `--keep-names` is set.
 FR-9 The tool SHALL support `--force` to overwrite existing output without a prompt.
 FR-10 The tool SHALL support `--verbose` to enable debug logging with rich formatting.
+FR-11 The tool SHALL pre-validate first 5 lines to detect header anomalies (title rows) and automatically suggest delimiter + skip configuration (local files only).
 
 ## 8. Non-Functional Requirements
 NFR-1 Execution time for a 100 MB file SHOULD be < 60 s on a 4-core machine.

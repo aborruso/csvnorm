@@ -19,6 +19,9 @@ FALLBACK_CONFIGS = [
     {"delim": "\t", "skip": 2},
 ]
 
+# Common delimiters to check
+COMMON_DELIMITERS = [",", ";", "|", "\t"]
+
 
 def validate_csv(
     file_path: Union[Path, str], reject_file: Path, is_remote: bool = False
@@ -41,67 +44,100 @@ def validate_csv(
     conn = duckdb.connect()
     fallback_config = None
 
+    # Pre-check for header anomalies (local files only)
+    suggested_config = None
+    if not is_remote and isinstance(file_path, Path):
+        suggested_config = _detect_header_anomaly(file_path)
+        if suggested_config:
+            logger.info(f"Early detection suggests config: {suggested_config}")
+
     try:
         # Set HTTP timeout for remote URLs (30 seconds)
         if is_remote:
             conn.execute("SET http_timeout=30000")
 
-        # Try standard automatic detection first
-        try:
-            # Read CSV with store_rejects to capture malformed rows
-            # Use all_varchar=true to avoid type inference failures
-            conn.execute(f"""
-                COPY (
-                    FROM read_csv(
-                        '{file_path}',
-                        store_rejects=true,
-                        sample_size=-1,
-                        all_varchar=true
-                    )
-                ) TO '/dev/null'
-            """)
-            logger.debug("Standard CSV sniffing succeeded")
+        # If early detection found anomaly, try that config first
+        if suggested_config:
+            logger.debug("Trying early-detected config before standard sniffing...")
+            try:
+                delim = suggested_config["delim"]
+                skip = suggested_config["skip"]
+                conn.execute(f"""
+                    COPY (
+                        FROM read_csv(
+                            '{file_path}',
+                            delim='{delim}',
+                            skip={skip},
+                            store_rejects=true,
+                            ignore_errors=true,
+                            sample_size=-1,
+                            all_varchar=true
+                        )
+                    ) TO '/dev/null'
+                """)
+                fallback_config = suggested_config
+                logger.info("Early-detected config succeeded")
+            except Exception as e:
+                logger.debug(f"Early-detected config failed: {e}, trying standard sniffing")
+                suggested_config = None  # Fall through to standard sniffing
 
-        except Exception as e:
-            error_msg = str(e)
-            # Check if it's a dialect detection failure
-            if "sniffing" in error_msg.lower() or "detect" in error_msg.lower():
-                logger.debug("Standard sniffing failed, trying fallback configurations...")
+        # Try standard automatic detection if early detection didn't work
+        if not suggested_config:
+            try:
+                # Read CSV with store_rejects to capture malformed rows
+                # Use all_varchar=true to avoid type inference failures
+                conn.execute(f"""
+                    COPY (
+                        FROM read_csv(
+                            '{file_path}',
+                            store_rejects=true,
+                            sample_size=-1,
+                            all_varchar=true
+                        )
+                    ) TO '/dev/null'
+                """)
+                logger.debug("Standard CSV sniffing succeeded")
 
-                # Try each fallback configuration
-                success = False
-                for config in FALLBACK_CONFIGS:
-                    logger.debug(f"Trying config: {config}")
-                    if _try_read_csv_with_config(conn, file_path, config):
-                        logger.info(f"Fallback succeeded with config: {config}")
-                        fallback_config = config
-                        success = True
+            except Exception as e:
+                error_msg = str(e)
+                # Check if it's a dialect detection failure
+                if "sniffing" in error_msg.lower() or "detect" in error_msg.lower():
+                    logger.debug("Standard sniffing failed, trying fallback configurations...")
 
-                        # Now do the actual validation with this config
-                        # Use both store_rejects and ignore_errors to handle malformed rows
-                        delim = config["delim"]
-                        skip = config["skip"]
-                        conn.execute(f"""
-                            COPY (
-                                FROM read_csv(
-                                    '{file_path}',
-                                    delim='{delim}',
-                                    skip={skip},
-                                    store_rejects=true,
-                                    ignore_errors=true,
-                                    sample_size=-1,
-                                    all_varchar=true
-                                )
-                            ) TO '/dev/null'
-                        """)
-                        break
+                    # Try each fallback configuration
+                    success = False
+                    for config in FALLBACK_CONFIGS:
+                        logger.debug(f"Trying config: {config}")
+                        if _try_read_csv_with_config(conn, file_path, config):
+                            logger.info(f"Fallback succeeded with config: {config}")
+                            fallback_config = config
+                            success = True
 
-                if not success:
-                    # No fallback worked, re-raise original error
+                            # Now do the actual validation with this config
+                            # Use both store_rejects and ignore_errors to handle malformed rows
+                            delim = config["delim"]
+                            skip = config["skip"]
+                            conn.execute(f"""
+                                COPY (
+                                    FROM read_csv(
+                                        '{file_path}',
+                                        delim='{delim}',
+                                        skip={skip},
+                                        store_rejects=true,
+                                        ignore_errors=true,
+                                        sample_size=-1,
+                                        all_varchar=true
+                                    )
+                                ) TO '/dev/null'
+                            """)
+                            break
+
+                    if not success:
+                        # No fallback worked, re-raise original error
+                        raise
+                else:
+                    # Not a sniffing error, re-raise
                     raise
-            else:
-                # Not a sniffing error, re-raise
-                raise
 
         # Export rejected rows to file
         conn.execute(f"COPY (FROM reject_errors) TO '{reject_file}'")
@@ -163,7 +199,8 @@ def normalize_csv(
         if fallback_config:
             delim = fallback_config["delim"]
             skip = fallback_config["skip"]
-            read_opts += f", delim='{delim}', skip={skip}"
+            # Add ignore_errors when using fallback (may have malformed rows)
+            read_opts += f", delim='{delim}', skip={skip}, ignore_errors=true"
             logger.debug(f"Using fallback config: {fallback_config}")
 
         # Build copy options
@@ -328,6 +365,88 @@ def _try_read_csv_with_config(
         return False
     except Exception:
         return False
+
+
+def _detect_header_anomaly(
+    file_path: Path, num_lines: int = 5
+) -> Optional[dict[str, Union[str, int]]]:
+    """Detect if first line has anomalous separator pattern.
+
+    Analyzes the first N lines to detect if line 1 has a significantly
+    different separator pattern compared to lines 2-N. This helps catch
+    files with title rows that DuckDB's sampling might miss.
+
+    Args:
+        file_path: Path to CSV file.
+        num_lines: Number of lines to analyze (default: 5).
+
+    Returns:
+        Suggested config dict with 'delim' and 'skip' if anomaly detected,
+        None otherwise.
+    """
+    try:
+        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            lines = [f.readline().rstrip("\n") for _ in range(num_lines)]
+
+        # Filter out empty lines
+        lines = [line for line in lines if line.strip()]
+        if len(lines) < 3:
+            # Not enough lines to detect pattern
+            return None
+
+        # Count each delimiter type per line
+        separator_counts = []
+        for line in lines:
+            counts = {}
+            for delim in COMMON_DELIMITERS:
+                counts[delim] = line.count(delim)
+            separator_counts.append(counts)
+
+        # Analyze lines 2-N to find dominant delimiter pattern
+        if len(separator_counts) < 2:
+            return None
+
+        data_lines = separator_counts[1:]  # Skip first line for analysis
+
+        # Find the most common delimiter in data lines
+        delimiter_totals = {delim: 0 for delim in COMMON_DELIMITERS}
+        for counts in data_lines:
+            for delim, count in counts.items():
+                delimiter_totals[delim] += count
+
+        # Get dominant delimiter (most occurrences in data lines)
+        dominant_delim = max(delimiter_totals.items(), key=lambda x: x[1])[0]
+        dominant_count = delimiter_totals[dominant_delim]
+
+        # Skip if no clear delimiter in data lines
+        if dominant_count == 0:
+            return None
+
+        # Check if dominant delimiter is consistent across data lines
+        data_counts = [counts[dominant_delim] for counts in data_lines]
+        if not data_counts:
+            return None
+
+        # Average count in data lines
+        avg_data_count = sum(data_counts) / len(data_counts)
+
+        # Check first line
+        first_line_count = separator_counts[0][dominant_delim]
+
+        # Anomaly if first line has significantly fewer delimiters
+        # Threshold: less than 50% of average in data lines
+        if avg_data_count > 0 and first_line_count < (avg_data_count * 0.5):
+            logger.info(
+                f"Header anomaly detected: line 1 has {first_line_count} '{dominant_delim}', "
+                f"data lines average {avg_data_count:.1f}"
+            )
+            return {"delim": dominant_delim, "skip": 1}
+
+        return None
+
+    except Exception as e:
+        logger.debug(f"Header anomaly detection failed: {e}")
+        return None
 
 
 def _get_error_types(reject_file: Path) -> list[str]:
