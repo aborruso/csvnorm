@@ -3,7 +3,7 @@ import '../styles/global.css';
 
 const { title = 'csvnorm', description = 'Normalize CSV files quickly and reliably.' } = Astro.props;
 const site = Astro.site ?? new URL('http://localhost:4321');
-const base = Astro.base === '/' ? '' : Astro.base;
+const base = Astro.base && Astro.base !== '/' ? Astro.base : '';
 const ogPath = `${base}/og/og.png`;
 const ogImage = new URL(ogPath, site).toString();
 const canonical = new URL(base || '/', site).toString();
