@@ -31,15 +31,6 @@ body:
       required: true
 
   - type: input
-    id: install
-    attributes:
-      label: Installation method
-      description: How did you install csvnorm?
-      placeholder: "uv tool install csvnorm"
-    validations:
-      required: true
-
-  - type: textarea
     id: command
     attributes:
       label: Command used
