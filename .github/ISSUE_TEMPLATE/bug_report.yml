@@ -30,7 +30,7 @@ body:
     validations:
       required: true
 
-  - type: input
+  - type: textarea
     id: command
     attributes:
       label: Command used
