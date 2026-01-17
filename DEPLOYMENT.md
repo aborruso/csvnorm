@@ -83,6 +83,14 @@ csvnorm --version
 
 # Update LOG.md
 echo "## $(date +%Y-%m-%d)\n\n- Released v0.3.0\n" | cat - LOG.md > temp && mv temp LOG.md
+
+# Create GitHub Release with notes
+# 1. Go to: https://github.com/aborruso/csvnorm/releases/new
+# 2. Select tag: v0.3.0
+# 3. Use .github/RELEASE_TEMPLATE.md as template
+# 4. Fill in breaking changes (if any), features, and bug fixes
+# 5. If BREAKING CHANGES exist, create announcement in Discussions:
+#    https://github.com/aborruso/csvnorm/discussions/new?category=announcements
 ```
 
 ## Fix Post-Release

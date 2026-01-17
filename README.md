@@ -247,6 +247,24 @@ csvnorm/
 └── pyproject.toml       # Package configuration
 ```
 
+## Stay Updated
+
+### Get notified of new releases
+**Watch → Custom → ✓ Releases** to receive notifications for all new versions.
+
+### Get notified of breaking changes only
+**[Subscribe to Announcements](https://github.com/aborruso/csvnorm/discussions/categories/announcements)** to be notified only about:
+- Breaking changes (major version bumps)
+- Security updates
+- Important deprecation notices
+
+We follow [Semantic Versioning](https://semver.org/):
+- **MAJOR** (e.g., 1.0.0 → 2.0.0): Breaking changes
+- **MINOR** (e.g., 1.0.0 → 1.1.0): New features, backward compatible
+- **PATCH** (e.g., 1.0.0 → 1.0.1): Bug fixes only
+
+See [docs/COMMUNICATION.md](docs/COMMUNICATION.md) for details.
+
 ## License
 
 MIT License (c) 2026 aborruso@gmail.com - See LICENSE file for details

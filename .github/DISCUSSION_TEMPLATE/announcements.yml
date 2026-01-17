@@ -1,0 +1,76 @@
+title: "[Announcement] "
+labels: ["announcement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 📢 Important Announcement
+        
+        Use this template to announce breaking changes, major releases, or important updates.
+  
+  - type: dropdown
+    id: announcement-type
+    attributes:
+      label: Type
+      description: What kind of announcement is this?
+      options:
+        - Breaking Change
+        - Major Release
+        - Deprecation Notice
+        - Security Update
+        - Important Update
+    validations:
+      required: true
+  
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Which version does this affect? (e.g., v2.0.0)
+      placeholder: "v2.0.0"
+    validations:
+      required: false
+  
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Brief summary of the announcement
+      placeholder: "This release introduces breaking changes to..."
+    validations:
+      required: true
+  
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: Full details of the change
+      placeholder: "Provide comprehensive information about the change..."
+    validations:
+      required: true
+  
+  - type: textarea
+    id: migration
+    attributes:
+      label: Migration Guide (if applicable)
+      description: How should users adapt to this change?
+      placeholder: |
+        # Before (v1.x.x):
+        csvnorm input.csv --old-flag
+        
+        # After (v2.x.x):
+        csvnorm input.csv --new-flag
+    validations:
+      required: false
+  
+  - type: textarea
+    id: resources
+    attributes:
+      label: Additional Resources
+      description: Links to documentation, examples, or related issues
+      placeholder: |
+        - Documentation: https://...
+        - Migration guide: https://...
+        - Related issue: #123
+    validations:
+      required: false
