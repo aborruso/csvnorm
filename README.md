@@ -141,7 +141,7 @@ csvnorm data.csv -f -V -o processed.csv
 - HTTP timeout is set to 30 seconds
 - Only public URLs are supported (no authentication)
 
-The tool provides modern terminal output with:
+The tool provides modern terminal output (shown only when using `-o` to write to a file) with:
 - Progress indicators for multi-step processing
 - Color-coded error messages with panels
 - Success summary table with statistics (rows, columns, file sizes)
@@ -149,7 +149,7 @@ The tool provides modern terminal output with:
 - Error summary panel with reject count and error types when validation fails
 - ASCII art banner with `--version` and `-V` verbose mode
 
-**Success Example:**
+**Success Example:** (shown only when using `-o`)
 ```
  ✓ Success
  Input:        test/utf8_basic.csv
@@ -162,7 +162,7 @@ The tool provides modern terminal output with:
  Headers:      normalized to snake_case
 ```
 
-**Error Example:**
+**Error Example:** (shown only when using `-o`)
 ```
  ✓ Success
  Input:        test/malformed_rows.csv
