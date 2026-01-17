@@ -3,6 +3,9 @@ description: Suggest a new feature or enhancement
 labels: ["enhancement"]
 
 body:
+  - type: markdown
+    attributes:
+      value: "Please write your issue in English."
   - type: textarea
     id: problem
     attributes:

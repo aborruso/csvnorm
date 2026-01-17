@@ -3,6 +3,9 @@ description: Report a bug or unexpected behavior
 labels: ["bug"]
 
 body:
+  - type: markdown
+    attributes:
+      value: "Please write your issue in English."
   - type: input
     id: version
     attributes:
