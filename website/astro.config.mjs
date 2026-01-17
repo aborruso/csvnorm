@@ -1,6 +1,7 @@
 import { defineConfig } from 'astro/config';
 import react from '@astrojs/react';
 import tailwind from '@astrojs/tailwind';
+import { rehypeValidateAlt } from './src/lib/rehype-validate-alt.mjs';
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -15,5 +16,8 @@ export default defineConfig({
         applyBaseStyles: false
       }
     })
-  ]
+  ],
+  markdown: {
+    rehypePlugins: [rehypeValidateAlt]
+  }
 });

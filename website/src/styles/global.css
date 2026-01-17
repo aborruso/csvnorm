@@ -25,6 +25,15 @@ body {
   background: rgba(255, 111, 76, 0.25);
 }
 
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid rgba(255, 111, 76, 0.7);
+  outline-offset: 3px;
+}
+
 .brand-grid {
   background-image:
     radial-gradient(circle at 20% 20%, rgba(125, 214, 179, 0.2), transparent 40%),
