@@ -2,6 +2,14 @@
 
 ## 2026-01-18
 
+### v1.1.6 - Patch Release
+
+**Missing changes from issue #21**:
+- validation.py: preserve fallback delimiter when `--skip-rows` specified
+- Fixes edge case where auto-detected non-comma delimiter was ignored when user provided skip-rows
+
+## 2026-01-18
+
 ### Comprehensive Project Evaluation
 
 **Completed systematic evaluation** of csvnorm codebase using hypothesis-driven methodology:
