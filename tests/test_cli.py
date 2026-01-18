@@ -40,6 +40,7 @@ class TestCreateParser:
         assert "-f" in arg_strings or "--force" in arg_strings
         assert "-k" in arg_strings or "--keep-names" in arg_strings
         assert "-d" in arg_strings or "--delimiter" in arg_strings
+        assert "-s" in arg_strings or "--skip-rows" in arg_strings
         assert "-o" in arg_strings or "--output-file" in arg_strings
         assert "--fix-mojibake" in arg_strings
         assert "-V" in arg_strings or "--verbose" in arg_strings
@@ -199,6 +200,87 @@ class TestMainFunction:
         # Original file should still exist and be unchanged
         assert test_csv.exists()
         assert "Col1,Col2" in test_csv.read_text()
+
+    def test_skip_rows_metadata(self, tmp_path):
+        """Test --skip-rows skips metadata rows correctly."""
+        test_csv = tmp_path / "test.csv"
+        test_csv.write_text(
+            "# Metadata line 1\n# Metadata line 2\nName,Age\nJohn,30\nJane,25\n"
+        )
+
+        output_file = tmp_path / "output.csv"
+
+        # Skip first 2 rows (metadata)
+        exit_code = main([str(test_csv), "-o", str(output_file), "--skip-rows", "2", "-f"])
+
+        assert exit_code == 0
+        content = output_file.read_text()
+        # Header should be "Name,Age" (normalized to "name,age")
+        assert "name,age" in content.lower()
+        # Should have data rows
+        assert "john" in content.lower()
+        assert "jane" in content.lower()
+        # Metadata should not be in output
+        assert "metadata" not in content.lower()
+
+    def test_skip_rows_title_row(self, tmp_path):
+        """Test --skip-rows skips title row correctly."""
+        test_csv = tmp_path / "test.csv"
+        test_csv.write_text("Annual Report 2025\nProduct,Sales\nWidget A,100\nWidget B,200\n")
+
+        output_file = tmp_path / "output.csv"
+
+        # Skip first row (title)
+        exit_code = main([str(test_csv), "-o", str(output_file), "-s", "1", "-f"])
+
+        assert exit_code == 0
+        content = output_file.read_text()
+        # Header should be "Product,Sales" (normalized to "product,sales")
+        assert "product,sales" in content.lower()
+        # Should have data rows
+        assert "widget" in content.lower()
+        # Title should not be in output
+        assert "annual report" not in content.lower()
+
+    def test_skip_rows_negative_value(self):
+        """Test --skip-rows rejects negative values."""
+        exit_code = main(["nonexistent.csv", "--skip-rows", "-1"])
+
+        # Should fail with error
+        assert exit_code == 1
+
+    def test_skip_rows_zero_default(self, tmp_path):
+        """Test --skip-rows=0 (default) doesn't skip any rows."""
+        test_csv = tmp_path / "test.csv"
+        test_csv.write_text("Name,Age\nJohn,30\n")
+
+        output_file = tmp_path / "output.csv"
+
+        # Don't specify --skip-rows (default 0)
+        exit_code = main([str(test_csv), "-o", str(output_file), "-f"])
+
+        assert exit_code == 0
+        content = output_file.read_text()
+        # Should process normally with header
+        assert "name,age" in content.lower()
+        assert "john" in content.lower()
+
+    def test_skip_rows_with_delimiter(self, tmp_path):
+        """Test --skip-rows works with custom delimiter."""
+        test_csv = tmp_path / "test.csv"
+        test_csv.write_text("Title Row\nCol A;Col B\nVal1;Val2\n")
+
+        output_file = tmp_path / "output.csv"
+
+        # Skip title row and use semicolon input
+        exit_code = main(
+            [str(test_csv), "-o", str(output_file), "--skip-rows", "1", "-d", ",", "-f"]
+        )
+
+        assert exit_code == 0
+        content = output_file.read_text()
+        # Should have normalized headers
+        assert "col_a" in content.lower() or "col a" in content.lower()
 
 
 class TestCLISubprocess:

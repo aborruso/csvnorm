@@ -78,6 +78,7 @@ csvnorm input.csv [options]
 | `-f, --force` | Force overwrite of existing output file (when `-o` is specified) |
 | `-k, --keep-names` | Keep original column names (disable snake_case) |
 | `-d, --delimiter CHAR` | Set custom output delimiter (default: `,`) |
+| `-s, --skip-rows N` | Skip first N rows of input file (useful for metadata/comments) |
 | `--fix-mojibake [N]` | Fix mojibake using ftfy (optional sample size `N`) |
 | `-V, --verbose` | Enable verbose output for debugging |
 | `-v, --version` | Show version number |
@@ -109,6 +110,9 @@ csvnorm data.csv -d ';' -o output.csv
 
 # Keep original headers
 csvnorm data.csv --keep-names -o output.csv
+
+# Skip first 2 rows (metadata or comments)
+csvnorm data.csv --skip-rows 2 -o output.csv
 
 # Force overwrite with verbose output
 csvnorm data.csv -f -V -o processed.csv
