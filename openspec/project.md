@@ -2,17 +2,18 @@
 
 ## Purpose
 
-CSV Normalizer Utility - A command-line tool that validates, cleans, and normalizes CSV files for reliable consumption by analytics, ETL, and data-science workflows.
+CSV Normalizer Utility - A command-line tool that validates and normalizes CSV files for exploratory data analysis and quick pipeline checks.
 
 **Core Goals**:
 - Accept raw CSV files with inconsistent encodings, delimiters, and headers
-- Output fully normalized UTF-8 comma-delimited files
+- Output fully normalized UTF-8 CSV (comma-delimited by default)
 - Detect and report structural/encoding errors early
-- Integrate seamlessly into shell scripts and CI pipelines
+- Integrate seamlessly into shell scripts and CI pipelines (stdout-first by default)
+- Support CSV inputs from local files and HTTP/HTTPS URLs
 - Support datasets up to 1 GB on commodity hardware
 
 **Target Users**:
-- Data Engineers: batch-process hundreds of CSVs in CI pipelines
+- Data Engineers: batch-process CSVs in CI pipelines
 - Data Analysts: quickly clean files before importing into BI tools
 - Open-Data Maintainers: validate files before publishing
 
@@ -20,20 +21,19 @@ CSV Normalizer Utility - A command-line tool that validates, cleans, and normali
 
 **Core Runtime**:
 - Python 3.9+ (primary implementation language)
-- DuckDB Python library (CSV validation and normalization engine)
-- charset-normalizer (encoding detection and conversion)
-- ftfy (mojibake repair, optional)
+- DuckDB (Python library for CSV validation/normalization)
+- charset-normalizer (encoding detection)
+- ftfy (optional mojibake repair)
 
 **CLI & UX**:
 - `rich` (modern terminal output: progress spinners, panels, tables)
 - `rich-argparse` (enhanced CLI help formatting)
-- `pyfiglet` (ASCII art banner)
 
 **Build/Test Tools**:
 - setuptools (build backend for PyPI packaging)
 - pytest (test framework)
-- pytest-cov (code coverage)
-- ruff (Python linter/formatter)
+- pytest-cov (coverage reporting)
+- ruff (linter/formatter)
 
 ## Project Conventions
 
@@ -49,8 +49,7 @@ CSV Normalizer Utility - A command-line tool that validates, cleans, and normali
 - No temporary fixes - find root causes
 
 **Naming**:
-- Output files: snake_case (via `to_snake_case()` utility)
-- DuckDB columns: snake_case (via `normalize_names=True` parameter)
+- Column headers: snake_case (via DuckDB `normalize_names=True`)
 - Variables/functions: snake_case (Python convention)
 - Classes: PascalCase (Python convention)
 
@@ -63,35 +62,35 @@ CSV Normalizer Utility - A command-line tool that validates, cleans, and normali
 
 **Pipeline Architecture** (sequential stages in `src/csvnorm/core.py::process_csv()`):
 
-1. **Input Validation** (`core.py:40-62`):
-   - Check file exists and is a file
+1. **Input Validation** (`core.py:40-96`):
+   - Check file exists and is a file (for local paths)
+   - Validate URL for HTTP/HTTPS inputs
    - Validate delimiter format
-   - Setup output paths with snake_case names
+   - Setup output/reject paths and temp directory
 
 2. **Encoding Detection** (`encoding.py::detect_encoding()`):
-   - Use `charset_normalizer.from_path()` for detection
-   - Sample first 10,000 lines for efficiency
-   - Returns detected encoding (e.g., "utf-8", "windows-1252")
+   - Uses `charset_normalizer.from_path()` for detection (local files only)
+   - Samples a limited amount for efficiency
+   - Returns normalized codec name (e.g., `utf-8`, `windows-1252`)
 
 3. **Encoding Conversion** (`encoding.py::convert_to_utf8()`):
-   - Only runs when `needs_conversion()` returns True (encoding ≠ utf-8/ascii)
-   - Uses charset_normalizer for conversion (not iconv)
-   - Writes to temporary `{base_name}_utf8.csv` file
+   - Runs only when `needs_conversion()` returns True (encoding ≠ UTF-8/ASCII)
+   - Uses charset-normalizer for conversion
+   - Writes to a temp UTF-8 file before validation/normalization
 
 4. **Validation** (`validation.py::validate_csv()`):
    - DuckDB `read_csv(store_rejects=True, sample_size=-1)`
-   - Writes rejects to `{base_name}_reject_errors.csv`
-   - Returns reject count
+   - Writes rejects to `{output_stem}_reject_errors.csv`
+   - Returns reject count and error summaries
 
 5. **Normalization** (`validation.py::normalize_csv()`):
    - DuckDB `COPY ... TO ... WITH (HEADER, DELIMITER, FORMAT CSV)`
-   - Uses `normalize_names=True` (unless `--keep-names` flag)
-   - Respects custom delimiter from `--delimiter` flag
+   - Uses `normalize_names=True` (unless `--keep-names` is set)
+   - Respects custom delimiter from `--delimiter`
 
-6. **Cleanup** (`core.py:165-174`):
-   - Remove `reject_errors.csv` if empty (file size ≤ header only)
-   - Remove temp `{base_name}_utf8.csv` files
-   - Display success summary table
+6. **Cleanup** (`core.py:170-360`):
+   - Remove temp files and directories
+   - Emit success/validation panels and summary table (stderr in stdout mode)
 
 **Error Handling**:
 - Exit code 0: success
@@ -100,20 +99,20 @@ CSV Normalizer Utility - A command-line tool that validates, cleans, and normali
 - Detailed error messages with file paths
 
 **File Contract**:
-- Input: Arbitrary CSV (any encoding, delimiter, size)
-- Output: UTF-8 comma-delimited CSV (or custom delimiter) + optional `{name}_reject_errors.csv`
+- Input: Local CSV or HTTP/HTTPS URL
+- Output: UTF-8 CSV to stdout (default) or file + optional `{name}_reject_errors.csv`
 
 ### Testing Strategy
 
 **Pre-Commit Requirements**:
-- All shell edits MUST pass `shellcheck script/prepare.sh`
-- Run `make test` before commits
+- Run `pytest` (or `make test` if defined) before commits
+- Run `ruff` for lint/format checks
 
 **Smoke Test Pattern**:
 
 ```bash
-script/prepare.sh test/<example.csv>
-# Verify: script/tmp/<snake_name>.csv exists
+csvnorm test/<example.csv> -o /tmp/<example_out.csv>
+# Verify: output exists and content is normalized
 # Verify: reject_errors.csv is absent (or contains expected errors)
 ```
 
@@ -125,8 +124,9 @@ script/prepare.sh test/<example.csv>
 - Large files (performance validation)
 
 **Verification Commands**:
-- `make check` - verify dependencies installed
-- `make test` - run full test suite
+- `pytest` - run full test suite
+- `ruff check .` - lint
+- `ruff format --check .` - format check
 
 ### Git Workflow
 
@@ -149,8 +149,7 @@ script/prepare.sh test/<example.csv>
 - Keep bullet points short and high-signal
 
 **Before Commit**:
-- Run `shellcheck script/prepare.sh`
-- Run `make test`
+- Run `pytest` and `ruff` checks
 - Update LOG.md if behavior changed
 
 ## Domain Context
@@ -169,10 +168,9 @@ script/prepare.sh test/<example.csv>
 - `sample_size=-1` ensures validation of entire file
 
 **Encoding Detection Complexity**:
-- `normalizer` can produce SIGPIPE (141) on large files → handled gracefully
-- `file` command provides reliable fallback
-- MACROMAN encoding requires mapping to MACINTOSH for iconv compatibility
-- UTF-8-SIG (BOM) requires special handling to avoid conversion
+- charset-normalizer can fail on edge cases; errors are surfaced cleanly
+- UTF-8-SIG (BOM) is handled by Python codecs and DuckDB read options
+- Local files may be converted before validation to avoid mixed encodings
 
 **ETL Integration**:
 - Designed for shell script and CI/CD pipeline integration
@@ -182,19 +180,17 @@ script/prepare.sh test/<example.csv>
 ## Important Constraints
 
 **Technical Constraints**:
-1. **No Python Packaging Yet**: `pyproject.toml`/`setup.py` do not exist. README mentions `pip install .` but this is NOT supported. Update README + Makefile if adding Python packaging.
+1. **Python Packaging**: `pyproject.toml` defines the package; keep metadata in sync with README.
 
-2. **ShellCheck Compliance**: PRD NFR-4 requires passing `shellcheck`. This is non-negotiable - always run after script edits.
-
-3. **Simplicity Mandate**: From global CLAUDE.md:
+2. **Simplicity Mandate**: From global CLAUDE.md:
    - Make every task and code change as simple as possible
    - Impact as little code as possible
    - Avoid over-engineering, massive changes, or complex refactors
    - No premature abstractions
 
-4. **Bash 4+ Target**: Must work on Linux and macOS (NFR-3)
+3. **Cross-Platform**: Must work on Linux and macOS (NFR-3)
 
-5. **Memory Constraint**: Should not exceed 2× input file size (NFR-2)
+4. **Memory Constraint**: Should not exceed 2× input file size (NFR-2)
 
 **Performance Targets**:
 - 100 MB file: < 60 seconds on 4-core machine (NFR-1)
@@ -203,41 +199,27 @@ script/prepare.sh test/<example.csv>
 
 **Operational Constraints**:
 - Users must have write permission to output directory
-- Dependencies (DuckDB, charset_normalizer, ftfy, iconv, file) must be installed
+- Dependencies (DuckDB, charset-normalizer, ftfy) must be installed
 - Large files may require increased system resources
 
 ## External Dependencies
 
 **Required at Runtime**:
-1. **DuckDB CLI** (v1.0.0+)
+1. **DuckDB** (Python package, v0.9+)
    - Purpose: CSV validation, normalization, error reporting
-   - Installation: Auto-downloaded by `make install` (Linux x86_64/ARM, macOS)
-   - Fallback: Manual install from duckdb.org
+   - Installed via Python dependencies
 
-2. **charset_normalizer** (Python package)
-   - Purpose: Primary encoding detection
-   - CLI: `normalizer --minimal`
-   - Installation: `pip3 install charset_normalizer` (auto via `make install`)
+2. **charset-normalizer** (Python package)
+   - Purpose: Encoding detection and conversion
 
-3. **ftfy** (Python package)
+3. **ftfy** (Python package, optional feature)
    - Purpose: Mojibake repair for already-decoded text
-   - Installation: `pip3 install ftfy`
-
-4. **iconv** (system utility)
-   - Purpose: Encoding conversion to UTF-8
-   - Usually pre-installed on Linux/macOS
-
-5. **file** (system utility)
-   - Purpose: Fallback encoding detection
-   - Usually pre-installed on Linux/macOS
 
 **Build-Time Dependencies**:
-- `curl` (for DuckDB CLI download)
-- `unzip` (for DuckDB CLI extraction)
-- Python 3.8+ (for charset_normalizer)
-- `shellcheck` (for linting - dev/CI only)
+- Python 3.9+
+- setuptools
+- pytest/ruff for dev workflows
 
 **Dependency Management**:
-- `make install` - full install (script + deps + DuckDB)
-- `make install_light` - script only (user manages deps separately)
-- `make check` - verify all dependencies present
+- `pip install csvnorm` or `uv tool install csvnorm`
+- `pip install -e .[dev]` for development
