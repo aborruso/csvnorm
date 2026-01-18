@@ -165,6 +165,29 @@ def download_url_to_file(url: str, output_path: Path, timeout: int = 30) -> Path
     return output_path
 
 
+def supports_http_range(url: str, timeout: int = 10) -> bool:
+    """Check whether a URL supports HTTP range requests.
+
+    Args:
+        url: Remote HTTP/HTTPS URL.
+        timeout: Timeout in seconds.
+
+    Returns:
+        True if the server supports byte ranges, False otherwise.
+    """
+    request = urllib.request.Request(url, headers={"Range": "bytes=0-0"})
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            # Prefer explicit partial content or headers signaling range support.
+            if response.status == 206:
+                return True
+            accept_ranges = response.headers.get("Accept-Ranges", "")
+            content_range = response.headers.get("Content-Range", "")
+            return "bytes" in accept_ranges.lower() or bool(content_range)
+    except (OSError, urllib.error.URLError):
+        return False
+
+
 def get_row_count(file_path: Union[Path, str]) -> int:
     """Count number of rows in a CSV file.
 

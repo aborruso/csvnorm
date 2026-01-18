@@ -24,6 +24,7 @@ from csvnorm.utils import (
     get_column_count,
     get_row_count,
     is_url,
+    supports_http_range,
     validate_delimiter,
     validate_url,
 )
@@ -123,6 +124,11 @@ def _download_for_mojibake_if_needed(
 
     temp_files.append(download_path)
     return download_path, False
+
+
+def _check_remote_range_support(input_file: str) -> bool:
+    """Verify the remote server supports HTTP range requests."""
+    return supports_http_range(input_file)
 
 
 def _handle_local_encoding(
@@ -240,6 +246,13 @@ def _validate_csv_with_http_handling(
                     f"URL: [cyan]{input_file}[/cyan]\n\n"
                     "The remote server took too long to respond.\n"
                     "Try again later or download the file manually."
+                )
+            elif "range" in error_msg.lower():
+                show_error_panel(
+                    "Remote server does not support HTTP range requests\n\n"
+                    f"URL: [cyan]{input_file}[/cyan]\n\n"
+                    "DuckDB requires HTTP range requests to read remote CSVs.\n"
+                    "Please download the file locally and run csvnorm on the file."
                 )
             else:
                 show_error_panel(f"HTTP request failed\n\n{error_msg}")
@@ -382,6 +395,15 @@ def process_csv(
     try:
         input_path, is_remote = _resolve_input_path(input_file, output_file)
     except (ValueError, FileNotFoundError, IsADirectoryError):
+        return 1
+
+    if is_remote and not _check_remote_range_support(input_file):
+        show_error_panel(
+            "Remote server does not support HTTP range requests\n\n"
+            f"URL: [cyan]{input_file}[/cyan]\n\n"
+            "DuckDB requires HTTP range requests to read remote CSVs.\n"
+            "Please download the file locally and run csvnorm on the file."
+        )
         return 1
 
     try:

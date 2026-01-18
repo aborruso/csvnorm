@@ -165,8 +165,21 @@ class TestRemoteURLErrors:
         )
         assert result == 1
 
+    @patch("csvnorm.core.supports_http_range", return_value=False)
     @patch("csvnorm.validation.duckdb.connect")
-    def test_http_401_unauthorized(self, mock_connect, output_dir):
+    def test_http_range_not_supported(self, mock_connect, _mock_range, output_dir):
+        """Test handling when server does not support HTTP range requests."""
+        output_file = output_dir / "output.csv"
+        result = process_csv(
+            input_file="https://example.com/no-range.csv",
+            output_file=output_file,
+        )
+        assert result == 1
+        mock_connect.assert_not_called()
+
+    @patch("csvnorm.core.supports_http_range", return_value=True)
+    @patch("csvnorm.validation.duckdb.connect")
+    def test_http_401_unauthorized(self, mock_connect, _mock_range, output_dir):
         """Test handling of 401 authentication required."""
         mock_conn = Mock()
         mock_connect.return_value = mock_conn
@@ -180,8 +193,9 @@ class TestRemoteURLErrors:
         )
         assert result == 1
 
+    @patch("csvnorm.core.supports_http_range", return_value=True)
     @patch("csvnorm.validation.duckdb.connect")
-    def test_http_403_forbidden(self, mock_connect, output_dir):
+    def test_http_403_forbidden(self, mock_connect, _mock_range, output_dir):
         """Test handling of 403 forbidden."""
         mock_conn = Mock()
         mock_connect.return_value = mock_conn
@@ -194,8 +208,9 @@ class TestRemoteURLErrors:
         )
         assert result == 1
 
+    @patch("csvnorm.core.supports_http_range", return_value=True)
     @patch("csvnorm.validation.duckdb.connect")
-    def test_http_timeout(self, mock_connect, output_dir):
+    def test_http_timeout(self, mock_connect, _mock_range, output_dir):
         """Test handling of HTTP timeout."""
         mock_conn = Mock()
         mock_connect.return_value = mock_conn
@@ -213,8 +228,9 @@ class TestRemoteURLErrors:
         )
         assert result == 1
 
+    @patch("csvnorm.core.supports_http_range", return_value=True)
     @patch("csvnorm.validation.duckdb.connect")
-    def test_http_500_error(self, mock_connect, output_dir):
+    def test_http_500_error(self, mock_connect, _mock_range, output_dir):
         """Test handling of HTTP 500 server error."""
         mock_conn = Mock()
         mock_connect.return_value = mock_conn

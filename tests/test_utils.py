@@ -2,9 +2,12 @@
 
 import pytest
 
+from unittest.mock import Mock, patch
+
 from csvnorm.utils import (
     extract_filename_from_url,
     is_url,
+    supports_http_range,
     to_snake_case,
     validate_delimiter,
     validate_url,
@@ -154,3 +157,48 @@ class TestExtractFilenameFromUrl:
 
     def test_root_url(self):
         assert extract_filename_from_url("https://example.com") == "data"
+
+
+class TestSupportsHttpRange:
+    """Tests for supports_http_range function."""
+
+    @patch("csvnorm.utils.urllib.request.urlopen")
+    def test_status_206(self, mock_urlopen):
+        mock_response = Mock()
+        mock_response.status = 206
+        mock_response.headers = {}
+        mock_urlopen.return_value.__enter__.return_value = mock_response
+
+        assert supports_http_range("https://example.com/data.csv") is True
+
+    @patch("csvnorm.utils.urllib.request.urlopen")
+    def test_accept_ranges_header(self, mock_urlopen):
+        mock_response = Mock()
+        mock_response.status = 200
+        mock_response.headers = {"Accept-Ranges": "bytes"}
+        mock_urlopen.return_value.__enter__.return_value = mock_response
+
+        assert supports_http_range("https://example.com/data.csv") is True
+
+    @patch("csvnorm.utils.urllib.request.urlopen")
+    def test_content_range_header(self, mock_urlopen):
+        mock_response = Mock()
+        mock_response.status = 200
+        mock_response.headers = {"Content-Range": "bytes 0-0/100"}
+        mock_urlopen.return_value.__enter__.return_value = mock_response
+
+        assert supports_http_range("https://example.com/data.csv") is True
+
+    @patch("csvnorm.utils.urllib.request.urlopen")
+    def test_no_range_support(self, mock_urlopen):
+        mock_response = Mock()
+        mock_response.status = 200
+        mock_response.headers = {}
+        mock_urlopen.return_value.__enter__.return_value = mock_response
+
+        assert supports_http_range("https://example.com/data.csv") is False
+
+    @patch("csvnorm.utils.urllib.request.urlopen")
+    def test_urlopen_error(self, mock_urlopen):
+        mock_urlopen.side_effect = OSError("boom")
+        assert supports_http_range("https://example.com/data.csv") is False
