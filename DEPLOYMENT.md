@@ -20,7 +20,7 @@ uv pip install -e ".[dev]"
 ## Full Procedure
 
 **Overview**:
-1. Update version in `pyproject.toml` and `src/csvnorm/__init__.py`
+1. Update version in `pyproject.toml`
 2. Run tests locally
 3. Commit, tag, and push to GitHub (triggers automatic PyPI publish)
 4. **Create GitHub Release manually** (workflow does NOT do this)
@@ -35,16 +35,10 @@ Update the version number in `pyproject.toml`:
 version = "0.3.0"  # <- update here
 ```
 
-Also align the version in `src/csvnorm/__init__.py`:
-
-```python
-__version__ = "0.3.0"  # <- update here
-
-**Sanity check (must match before tagging):**
+**Sanity check before tagging:**
 
 ```bash
-rg '^version = "|^__version__ = "' -n pyproject.toml src/csvnorm/__init__.py
-```
+rg '^version = "' -n pyproject.toml
 ```
 
 ### 2. Local tests

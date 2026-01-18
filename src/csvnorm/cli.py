@@ -8,7 +8,7 @@ from typing import Optional
 from rich.console import Console
 from rich_argparse import RichHelpFormatter
 
-from csvnorm import __version__
+from importlib.metadata import version
 from csvnorm.core import process_csv
 from csvnorm.mojibake import DEFAULT_MOJIBAKE_SAMPLE
 from csvnorm.utils import setup_logger
@@ -28,7 +28,7 @@ class VersionAction(argparse.Action):
 
     def __call__(self, parser, _namespace, _values, _option_string=None):
         show_banner()
-        console.print(f"csvnorm {__version__}", style="bold")
+        console.print(f"csvnorm {version('csvnorm')}", style="bold")
         console.print()
         console.print(
             "Validate and normalize CSV files for exploratory data analysis",

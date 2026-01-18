@@ -5,7 +5,7 @@ import sys
 
 import pytest
 
-from csvnorm import __version__
+from importlib.metadata import version
 from csvnorm.cli import create_parser, main, show_banner
 
 
@@ -57,7 +57,7 @@ class TestMainFunction:
 
         assert exc_info.value.code == 0
         captured = capsys.readouterr()
-        assert __version__ in captured.out
+        assert version("csvnorm") in captured.out
         assert "csvnorm" in captured.out
 
     def test_version_short_flag(self, capsys):
@@ -67,7 +67,7 @@ class TestMainFunction:
 
         assert exc_info.value.code == 0
         captured = capsys.readouterr()
-        assert __version__ in captured.out
+        assert version("csvnorm") in captured.out
 
     def test_help_flag(self, capsys):
         """Test --help flag displays help and exits."""
@@ -295,7 +295,7 @@ class TestCLISubprocess:
             timeout=10,
         )
         assert result.returncode == 0
-        assert __version__ in result.stdout or "csvnorm" in result.stdout
+        assert version("csvnorm") in result.stdout or "csvnorm" in result.stdout
 
     def test_help_command(self):
         """Test csvnorm --help command works end-to-end."""
