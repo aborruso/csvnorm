@@ -96,6 +96,45 @@ csvnorm "https://.../dataset.csv" -o output.csv</code>
     </div>
   </section>
 
+  <section class="mx-auto max-w-6xl px-6 py-16">
+    <h2 class="section-title">Before and after</h2>
+    <p class="mt-4 text-lg text-ink/80">See the transformation in action. Raw CSV on the left, normalized on the right.</p>
+    <div class="mt-10 grid gap-6 md:grid-cols-2">
+      <div class="glass rounded-3xl p-6">
+        <div class="flex items-center justify-between">
+          <p class="text-xs uppercase tracking-[0.3em] text-dusk">Input file</p>
+          <span class="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700">Messy</span>
+        </div>
+        <pre class="mt-4 overflow-x-auto rounded-2xl bg-ink/5 px-4 py-3 text-xs font-mono text-ink"><code>City Name;Total Population;Year
+London;8900000;2023
+Berlin;3700000;2023
+ZÃ¼rich;421000;2023
+Madrid;3300000;2023</code></pre>
+        <div class="mt-4 space-y-2 text-sm text-ink/70">
+          <p>✗ Delimiter: <code class="rounded bg-ink/10 px-2 py-0.5">;</code></p>
+          <p>✗ Encoding: <code class="rounded bg-ink/10 px-2 py-0.5">Latin-1</code> (mojibake: "ZÃ¼rich")</p>
+          <p>✗ Headers: mixed case, spaces</p>
+        </div>
+      </div>
+      <div class="glass rounded-3xl p-6">
+        <div class="flex items-center justify-between">
+          <p class="text-xs uppercase tracking-[0.3em] text-dusk">Output file</p>
+          <span class="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">Clean</span>
+        </div>
+        <pre class="mt-4 overflow-x-auto rounded-2xl bg-ink/5 px-4 py-3 text-xs font-mono text-ink"><code>city_name,total_population,year
+London,8900000,2023
+Berlin,3700000,2023
+Zürich,421000,2023
+Madrid,3300000,2023</code></pre>
+        <div class="mt-4 space-y-2 text-sm text-ink/70">
+          <p>✓ Delimiter: <code class="rounded bg-ink/10 px-2 py-0.5">,</code></p>
+          <p>✓ Encoding: <code class="rounded bg-ink/10 px-2 py-0.5">UTF-8</code> (readable: "Zürich")</p>
+          <p>✓ Headers: snake_case</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section id="why" class="mx-auto max-w-6xl px-6 py-16">
     <div class="grid gap-10 md:grid-cols-[1fr_0.8fr]">
       <div class="space-y-6">

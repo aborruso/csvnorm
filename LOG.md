@@ -2,6 +2,20 @@
 
 ## 2026-01-18
 
+### Website Enhancement
+
+**Added before/after CSV comparison section** to website/src/pages/index.astro:
+- Visual example showing CSV transformation (input → output)
+- Side-by-side display with raw CSV text in monospace font
+- Demonstrates three key transformations:
+  - Encoding: Latin-1 mojibake ("CittÃ ") → UTF-8 ("citta")
+  - Delimiter: semicolon (`;`) → comma (`,`)
+  - Headers: mixed case with spaces → snake_case
+- Badge indicators: "Messy" (red) vs "Clean" (green)
+- Section placed after "What" section for immediate visual impact
+
+## 2026-01-18
+
 ### Architecture Decision Records (ADRs)
 
 **Created comprehensive ADR documentation** (`docs/adr/`):
