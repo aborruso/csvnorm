@@ -16,3 +16,19 @@ Use `@/openspec/AGENTS.md` to learn:
 Keep this managed block so 'openspec update' can refresh the instructions.
 
 <!-- OPENSPEC:END -->
+
+## GH CLI comment note
+
+When posting issue comments with `gh`, avoid shell expansion by using a quoted heredoc or a file:
+
+```sh
+cat << 'EOF' | gh issue comment 24 -R aborruso/csvnorm -F -
+Your comment with `backticks` and `head` here.
+EOF
+```
+
+or
+
+```sh
+gh issue comment 24 -R aborruso/csvnorm -F /path/to/comment.md
+```
