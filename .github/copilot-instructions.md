@@ -1,48 +1,106 @@
-## CSV Normalizer — Quick instructions for AI coding agents
+## csvnorm — Quick instructions for AI coding agents
 
 Purpose: Get an AI contributor productive quickly. This file highlights the runtime entrypoint, important implementation details to preserve, and the minimal commands and files you will need.
 
-1) Big picture
-- Single-command CSV normalizer implemented as a Bash wrapper: `script/prepare.sh` is the runtime entrypoint.
-- Flow: encoding detection (chardet -> fallback to `file`) -> optional `iconv` to UTF‑8 -> validate with DuckDB `read_csv(store_rejects=true)` -> write normalized CSV via DuckDB `copy` into `script/tmp` (or `--output-dir`).
+### 1. Big picture
+- Python CLI tool for CSV validation and normalization (not Bash)
+- Installable via PyPI: `pip install csvnorm`
+- Flow: encoding detection (charset_normalizer) → UTF-8 conversion (Python codecs) → optional mojibake repair (ftfy) → validation (DuckDB with `store_rejects=true`) → normalization (DuckDB COPY)
+- Two output modes: **stdout** (default) or **file** (with `-o`)
 
-2) Where to look (source of truth)
-- `script/prepare.sh` — full CLI parsing, encoding logic, DuckDB commands, temp-file lifecycle, and header normalisation.
-- `PRD.md` / `README.md` — product goals, usage examples and Make targets.
-- `LOG.md` — changelog with behavioral fixes (e.g., SIGPIPE handling for `chardetect`).
-- `test/` — example CSVs for fast smoke tests.
+### 2. Where to look (source of truth)
+- `src/csvnorm/` — Python package modules
+- `src/csvnorm/core.py` — Main `process_csv()` pipeline
+- `src/csvnorm/validation.py` — DuckDB validation with fallback configs and early detection
+- `PRD.md` / `README.md` — Product goals, usage examples
+- `LOG.md` — Changelog with behavioral fixes
+- `test/` — CSV fixtures for testing
+- `tests/` — pytest test suite (105 tests)
 
-3) Key commands & examples
-- Run locally: `script/prepare.sh test/<example.csv>` (creates `script/tmp/<snake_cased_name>.csv`).
-- Common flags: `-f|--force`, `-n|--no-normalize`, `-d|--delimiter $'\\t'`, `-o|--output-dir /path`.
-- DuckDB validation (as used in the script):
-  - `read_csv('<file>', store_rejects=true, sample_size=-1)` to collect rejects.
-  - final write: `copy (...) to '<out>.csv' (header true, format csv[, delimiter \'\\t\'])`.
+### 3. Key commands & examples
+```bash
+# Development
+source .venv/bin/activate
+uv pip install -e ".[dev]"
 
-4) Implementation details to preserve (explicit)
-- Encoding: `chardet --minimal` with SIGPIPE handling; fallback `file -b --mime-encoding`.
-- Conversion: only run `iconv -f <detected> -t UTF-8` when encoding is not `utf-8|ascii|utf-8-sig`. The script writes a temp `${output_dir}/${base_name}_utf8.csv` and uses it as DuckDB input.
-- Header normalization: `normalize_names=true` is used in DuckDB; `base_name` is created with `tr`/`sed` to snake_case for output filename.
-- Temp files: remove `${output_dir}/reject_errors.csv` and `${output_dir}/${base_name}_utf8.csv` when empty/unused — keep this cleanup behaviour.
+# Testing
+pytest tests/ -v
+pytest tests/test_cli.py::TestMainFunction::test_skip_rows_metadata -v
 
-5) Project conventions & checks
-- Shell policy: scripts use `set -euo pipefail`. Maintain this style in any new shell tooling.
-- Run `shellcheck script/prepare.sh` after edits; PRD mentions ShellCheck compliance.
-- README lists `make` targets (install, test, check, clean). Packaging files (`pyproject.toml`/`setup.py`) are not present — validate before adding Python packaging changes.
+# Usage
+csvnorm input.csv                    # stdout mode
+csvnorm input.csv -o output.csv      # file mode
+csvnorm input.csv -s 2 -o out.csv    # skip first 2 rows
+csvnorm input.csv --fix-mojibake     # repair mojibake
+csvnorm https://example.com/data.csv # remote URL
+```
 
-6) External deps & integration points
-- Required at runtime: `chardet` (CLI), `iconv`, `file`, DuckDB CLI (or Python `duckdb` package if invoked differently).
-- `Makefile` automates installing DuckDB and Python deps; check it before adding install steps.
+### 4. Implementation details to preserve (explicit)
 
-7) Quick contract for edits
-- Input: arbitrary CSV path (may be large). Output: UTF-8, comma-delimited CSV in `<output_dir>/<clean_name>.csv` and `reject_errors.csv` for invalid rows.
-- Error modes to treat carefully: non-UTF-8 encodings, DuckDB rejects, and pre-existing outputs (respect `--force`).
+**Encoding** (encoding.py):
+- Detection: `charset_normalizer.from_path()`
+- Conversion: Only if encoding ∉ {utf-8, ascii, utf-8-sig}
+- Uses Python codecs (not iconv)
 
-8) Fast smoke tests
-- `script/prepare.sh test/<example.csv>`, then verify `script/tmp/<snake_name>.csv` exists and `reject_errors.csv` is absent.
-- After editing shell code, run `shellcheck script/prepare.sh` and re-run the smoke test.
+**Validation** (validation.py):
+- **Early detection**: Pre-checks first 5 lines for header anomalies (title rows)
+- **Fallback mechanism**: If DuckDB auto-detection fails, tries common delimiter/skip combinations
+- DuckDB query: `read_csv(..., store_rejects=true, sample_size=-1, all_varchar=true)`
+- Returns: (reject_count, error_types, fallback_config)
 
-9) When adding features
-- If you introduce Python packaging or CLI entrypoints, add `pyproject.toml` and update `README.md` and `Makefile` accordingly — README currently suggests `pip install .` but packaging files are missing.
+**Normalization** (validation.py):
+- DuckDB COPY with `normalize_names=true` (unless `--keep-names`)
+- Preserves fallback_config delimiter if provided
+- Output delimiter configurable via `-d`
 
-If anything in these notes is unclear or you want more detail (exact shellcheck rules, CI hooks, or example `make` output), tell me which section to expand.
+**Mojibake repair** (mojibake.py):
+- Optional with `--fix-mojibake [N]` (N = sample size, default 5000)
+- Uses ftfy badness heuristic to detect, repairs only if flagged as "bad"
+- For remote URLs: downloads to temp file first
+
+**Output modes**:
+- **Stdout mode** (default): CSV to stdout, progress/errors to stderr, temp reject file
+- **File mode** (`-o`): CSV to file, rich success table, reject file in same dir
+
+**Temp file cleanup**:
+- UTF-8 conversion creates temp file in system temp dir
+- Reject files removed if empty (< 2 lines, just header)
+- Stdout mode: reject files in temp dir with path shown in stderr
+
+### 5. Project conventions & checks
+- Type hints for all functions
+- Run `pytest tests/ -v` after edits
+- Run `ruff check .` for linting
+- Python 3.9+ compatibility
+- Cross-platform (Linux, macOS, Windows)
+
+### 6. External deps & integration points
+- Runtime: charset-normalizer, duckdb, ftfy, rich, rich-argparse, pyfiglet
+- Dev: pytest, pytest-cov, ruff
+- All managed via `pyproject.toml`
+- DuckDB used as Python library (not CLI)
+
+### 7. Quick contract for edits
+- Input: CSV path or HTTP/HTTPS URL (any encoding, any delimiter)
+- Output: UTF-8, comma-delimited CSV (configurable with `-d`)
+- Headers: normalized to snake_case (unless `-k/--keep-names`)
+- Error modes: Non-UTF-8 encodings, DuckDB rejects, pre-existing outputs (respect `--force`)
+- Input protection: Never overwrite input file, even with `--force`
+
+### 8. Fast smoke tests
+```bash
+source .venv/bin/activate
+csvnorm test/utf8_basic.csv | head
+csvnorm test/latin1_semicolon.csv -o /tmp/out.csv
+csvnorm test/metadata_skip_rows.csv -s 2 -o /tmp/out.csv
+csvnorm -v  # Version check (must not fail)
+```
+
+### 9. When adding features
+- Add tests in `tests/` with pytest
+- Update `LOG.md` with changes
+- Update `README.md` if user-facing
+- Update `PRD.md` if new functional requirement
+- For deployment: see `DEPLOYMENT.md` (uses GitHub Actions + Trusted Publishing)
+
+If anything in these notes is unclear or you want more detail, check `CLAUDE.md` for comprehensive architecture documentation.
