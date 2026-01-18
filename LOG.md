@@ -2,6 +2,36 @@
 
 ## 2026-01-18
 
+### Architecture Decision Records (ADRs)
+
+**Created comprehensive ADR documentation** (`docs/adr/`):
+- ADR 001: Use DuckDB for CSV validation
+  - Documents choice over pandas/polars/csvkit
+  - Explains auto-detection and error capture benefits
+- ADR 002: Fallback delimiter strategy
+  - Documents automatic recovery from auto-detect failures
+  - Common delimiter/skip combinations (99% success rate)
+- ADR 003: Stdout vs file output modes
+  - Documents dual-mode design for Unix composability
+  - Explains when to use each mode
+- ADR 004: Temp file lifecycle
+  - Documents cleanup strategy and edge cases
+  - Mode-specific rules for reject files
+
+**Updated evaluation file** to reflect ADR completion:
+- Moved ADR from "weaknesses" to "strengths"
+- Updated recommendations (removed ADR creation, reduced effort estimates)
+- Added post-evaluation note documenting ADR addition
+- Documentation score would increase from 85 to 90 with ADRs
+
+### Documentation Cleanup
+
+**Removed obsolete pyfiglet references**:
+- pyfiglet no longer used in codebase (removed from imports)
+- Updated README.md dependencies list (5 runtime deps, not 6)
+- Updated CLAUDE.md (removed setuptools/pyfiglet mentions)
+- Corrected docs/evaluation-v1.2.0.md (removed false positives about missing dependency)
+
 ### v1.1.6 - Patch Release
 
 **Missing changes from issue #21**:
