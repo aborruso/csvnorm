@@ -19,6 +19,13 @@ uv pip install -e ".[dev]"
 
 ## Full Procedure
 
+**Overview**:
+1. Update version in `pyproject.toml` and `src/csvnorm/__init__.py`
+2. Run tests locally
+3. Commit, tag, and push to GitHub (triggers automatic PyPI publish)
+4. **Create GitHub Release manually** (workflow does NOT do this)
+5. Verify installation from PyPI
+
 ### 1. Update version
 
 Update the version number in `pyproject.toml`:
@@ -72,25 +79,51 @@ git push origin v0.3.0
 3. Publish to PyPI using Trusted Publishing
 4. Create attestations for the release
 
+**⚠️ IMPORTANT**: The workflow does **NOT** create a GitHub Release. You must create it manually in step 4.
+
 You can monitor the workflow at: https://github.com/aborruso/csvnorm/actions
 
-### 4. Post-release
+### 4. Create GitHub Release (REQUIRED)
+
+**Wait for the workflow to complete successfully**, then create the GitHub Release:
 
 ```bash
-# Verify public install (wait a few minutes after workflow completes)
+# Create release notes file
+cat > /tmp/release_notes.md << 'EOF'
+## Features
+- Feature description
+
+## Bug Fixes
+- Fix description
+
+## Changes
+- Change description
+
+Full Changelog: https://github.com/aborruso/csvnorm/compare/v0.2.0...v0.3.0
+EOF
+
+# Create GitHub Release using gh CLI
+gh release create v0.3.0 --repo aborruso/csvnorm \
+  --title "v0.3.0" \
+  --notes-file /tmp/release_notes.md
+
+# Alternative: Create via web UI
+# 1. Go to: https://github.com/aborruso/csvnorm/releases/new
+# 2. Select tag: v0.3.0
+# 3. Fill in title and description
+```
+
+**Why this is required**: The GitHub Release page shows "Latest" releases to users. Without this step, the releases page will still show the old version as latest, even though PyPI has the new version.
+
+### 5. Post-release verification
+
+```bash
+# Verify PyPI install (wait a few minutes after workflow completes)
 pip install --upgrade csvnorm
 csvnorm --version
 
-# Update LOG.md
-echo "## $(date +%Y-%m-%d)\n\n- Released v0.3.0\n" | cat - LOG.md > temp && mv temp LOG.md
-
-# Create GitHub Release with notes
-# 1. Go to: https://github.com/aborruso/csvnorm/releases/new
-# 2. Select tag: v0.3.0
-# 3. Use .github/RELEASE_TEMPLATE.md as template
-# 4. Fill in breaking changes (if any), features, and bug fixes
-# 5. If BREAKING CHANGES exist, create announcement in Discussions:
-#    https://github.com/aborruso/csvnorm/discussions/new?category=announcements
+# Verify GitHub Release is marked as "Latest"
+# Visit: https://github.com/aborruso/csvnorm/releases
 ```
 
 ## Fix Post-Release
