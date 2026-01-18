@@ -223,3 +223,31 @@ csvnorm test/<example.csv> -o /tmp/<example_out.csv>
 **Dependency Management**:
 - `pip install csvnorm` or `uv tool install csvnorm`
 - `pip install -e .[dev]` for development
+
+## Deployment & Release
+
+**Release Process**:
+- Publishing to PyPI is automated via GitHub Actions (Trusted Publishing)
+- Release is triggered by pushing a `vX.Y.Z` tag
+- A GitHub Release must be created manually after the workflow succeeds
+
+**Local Release Checklist**:
+- Update version in `pyproject.toml`
+- Use the project `.venv` and `uv` for testing
+- Run `pytest tests/ -v` and manual CLI smoke tests:
+  - `csvnorm test/utf8_basic.csv -f`
+  - `csvnorm test/latin1_semicolon.csv -d ';' -f -V`
+- Commit changes and push tag (`vX.Y.Z`) to trigger the workflow
+
+**Workflow Notes**:
+- Workflow file: `.github/workflows/publish-pypi.yml`
+- Tests run on Python 3.9–3.12 before publish
+- OIDC Trusted Publishing is configured; no PyPI tokens stored in secrets
+
+**Operational Rules**:
+- Do not use `pip3 --break-system-packages`
+- Do not commit `dist/` artifacts
+
+**Post-Release Verification**:
+- `pip install --upgrade csvnorm` and confirm `csvnorm --version`
+- Check GitHub Releases shows the new version as "Latest"
