@@ -48,6 +48,9 @@ jobs:
       - name: Run tests with coverage
         run: pytest tests/ -v --cov=csvnorm --cov-report=term --cov-report=xml
 
+      - name: Run mypy type checks
+        run: mypy --config-file mypy.ini
+
   publish:
     needs: [build, test]
     runs-on: ubuntu-latest

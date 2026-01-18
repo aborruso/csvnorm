@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Union
 from urllib.parse import urlparse
 
+import duckdb
+
 from rich.logging import RichHandler
 
 
@@ -84,7 +86,7 @@ def is_url(input_str: str) -> bool:
     try:
         result = urlparse(input_str)
         return result.scheme in ("http", "https") and bool(result.netloc)
-    except Exception:
+    except (AttributeError, TypeError, ValueError):
         return False
 
 
@@ -138,11 +140,12 @@ def format_file_size(size_bytes: int) -> str:
     Returns:
         Formatted size string (e.g., "1.5 MB", "256 KB").
     """
+    size = float(size_bytes)
     for unit in ["B", "KB", "MB", "GB"]:
-        if size_bytes < 1024.0:
-            return f"{size_bytes:.1f} {unit}" if unit != "B" else f"{size_bytes} B"
-        size_bytes /= 1024.0
-    return f"{size_bytes:.1f} TB"
+        if size < 1024.0:
+            return f"{size:.1f} {unit}" if unit != "B" else f"{size_bytes} B"
+        size /= 1024.0
+    return f"{size:.1f} TB"
 
 
 def download_url_to_file(url: str, output_path: Path, timeout: int = 30) -> Path:
@@ -179,7 +182,7 @@ def get_row_count(file_path: Union[Path, str]) -> int:
             # Skip header
             next(f, None)
             return sum(1 for _ in f)
-    except Exception:
+    except (OSError, UnicodeDecodeError):
         return 0
 
 
@@ -197,8 +200,6 @@ def get_column_count(file_path: Union[Path, str], delimiter: str = ",") -> int:
         return 0
 
     try:
-        import duckdb
-
         conn = duckdb.connect(":memory:")
         # Get column names from CSV using DuckDB DESCRIBE
         columns = conn.execute(
@@ -207,5 +208,5 @@ def get_column_count(file_path: Union[Path, str], delimiter: str = ",") -> int:
         conn.close()
 
         return len(columns)
-    except Exception:
+    except (duckdb.Error, OSError):
         return 0

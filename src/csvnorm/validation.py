@@ -9,8 +9,10 @@ import duckdb
 
 logger = logging.getLogger("csvnorm")
 
+ConfigDict = dict[str, Union[str, int]]
+
 # Fallback configurations to try when automatic dialect detection fails
-FALLBACK_CONFIGS = [
+FALLBACK_CONFIGS: list[ConfigDict] = [
     {"delim": ";", "skip": 1},
     {"delim": ";", "skip": 2},
     {"delim": "|", "skip": 1},
@@ -20,7 +22,7 @@ FALLBACK_CONFIGS = [
 ]
 
 # Common delimiters to check
-COMMON_DELIMITERS = [",", ";", "|", "\t"]
+COMMON_DELIMITERS: list[str] = [",", ";", "|", "\t"]
 
 
 def validate_csv(
@@ -28,7 +30,7 @@ def validate_csv(
     reject_file: Path,
     is_remote: bool = False,
     skip_rows: int = 0,
-) -> tuple[int, list[str], Optional[dict[str, Union[str, int]]]]:
+) -> tuple[int, list[str], Optional[ConfigDict]]:
     """Validate CSV file using DuckDB and export rejected rows.
 
     Args:
@@ -46,11 +48,11 @@ def validate_csv(
     logger.debug(f"Validating CSV: {file_path}")
 
     conn = duckdb.connect()
-    fallback_config = None
+    fallback_config: Optional[ConfigDict] = None
 
     # Pre-check for header anomalies (local files only)
     # Skip early detection if user provided skip_rows
-    suggested_config = None
+    suggested_config: Optional[ConfigDict] = None
     if skip_rows == 0 and not is_remote and isinstance(file_path, Path):
         suggested_config = _detect_header_anomaly(file_path)
         if suggested_config:
@@ -81,7 +83,7 @@ def validate_csv(
                 """).fetchall()
                 fallback_config = suggested_config
                 logger.info("Early-detected config succeeded")
-            except Exception as e:
+            except duckdb.Error as e:
                 logger.debug(f"Early-detected config failed: {e}, trying standard sniffing")
                 suggested_config = None  # Fall through to standard sniffing
 
@@ -106,7 +108,7 @@ def validate_csv(
                 """).fetchall()
                 logger.debug("Standard CSV sniffing succeeded")
 
-            except Exception as e:
+            except duckdb.Error as e:
                 error_msg = str(e)
                 # Check if it's a dialect detection failure
                 if "sniffing" in error_msg.lower() or "detect" in error_msg.lower():
@@ -116,7 +118,7 @@ def validate_csv(
                     # If skip_rows > 0, use it; otherwise use predefined FALLBACK_CONFIGS
                     if skip_rows > 0:
                         # User provided skip_rows, try different delimiters with user's skip
-                        fallback_configs = [
+                        fallback_configs: list[ConfigDict] = [
                             {"delim": delim, "skip": skip_rows}
                             for delim in COMMON_DELIMITERS
                         ]
@@ -183,9 +185,9 @@ def normalize_csv(
     normalize_names: bool = True,
     is_remote: bool = False,
     skip_rows: int = 0,
-    fallback_config: Optional[dict[str, Union[str, int]]] = None,
+    fallback_config: Optional[ConfigDict] = None,
     reject_file: Optional[Path] = None,
-) -> Optional[dict[str, Union[str, int]]]:
+) -> Optional[ConfigDict]:
     """Normalize CSV file using DuckDB.
 
     Args:
@@ -204,7 +206,7 @@ def normalize_csv(
     logger.debug(f"Normalizing CSV: {input_path} -> {output_path}")
 
     conn = duckdb.connect()
-    used_fallback_config = None
+    used_fallback_config: Optional[ConfigDict] = None
 
     try:
         # Set HTTP timeout for remote URLs (30 seconds)
@@ -254,7 +256,7 @@ def normalize_csv(
             logger.debug(f"DuckDB query: {query}")
             conn.execute(query)
 
-        except Exception as e:
+        except duckdb.Error as e:
             error_msg = str(e)
             # If not already using fallback and it's a sniffing error, try fallback
             if not fallback_config and skip_rows == 0 and ("sniffing" in error_msg.lower() or "detect" in error_msg.lower()):
@@ -361,7 +363,7 @@ def _count_lines(file_path: Path) -> int:
 def _try_read_csv_with_config(
     conn: duckdb.DuckDBPyConnection,
     file_path: Union[Path, str],
-    config: dict[str, Union[str, int]],
+    config: ConfigDict,
     all_varchar: bool = True,
 ) -> bool:
     """Try to read CSV with specific configuration.
@@ -395,13 +397,13 @@ def _try_read_csv_with_config(
                 return True
 
         return False
-    except Exception:
+    except (duckdb.Error, OSError):
         return False
 
 
 def _detect_header_anomaly(
     file_path: Path, num_lines: int = 5
-) -> Optional[dict[str, Union[str, int]]]:
+) -> Optional[ConfigDict]:
     """Detect if first line has anomalous separator pattern.
 
     Analyzes the first N lines to detect if line 1 has a significantly
@@ -476,7 +478,7 @@ def _detect_header_anomaly(
 
         return None
 
-    except Exception as e:
+    except OSError as e:
         logger.debug(f"Header anomaly detection failed: {e}")
         return None
 
@@ -507,7 +509,7 @@ def _get_error_types(reject_file: Path) -> list[str]:
                         error_types.add(error_reason)
                         if len(error_types) >= 3:
                             break
-    except Exception as e:
+    except (OSError, UnicodeDecodeError) as e:
         logger.warning(f"Failed to extract error types: {e}")
         return []
 

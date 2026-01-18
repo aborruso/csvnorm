@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
+import duckdb
 
 from csvnorm.core import process_csv
 
@@ -170,7 +171,7 @@ class TestRemoteURLErrors:
         mock_conn = Mock()
         mock_connect.return_value = mock_conn
         # Simulate 401 error in DuckDB HTTP request
-        mock_conn.execute.side_effect = Exception("HTTP Error 401")
+        mock_conn.execute.side_effect = duckdb.Error("HTTP Error 401")
 
         output_file = output_dir / "output.csv"
         result = process_csv(
@@ -184,7 +185,7 @@ class TestRemoteURLErrors:
         """Test handling of 403 forbidden."""
         mock_conn = Mock()
         mock_connect.return_value = mock_conn
-        mock_conn.execute.side_effect = Exception("HTTP Error 403")
+        mock_conn.execute.side_effect = duckdb.Error("HTTP Error 403")
 
         output_file = output_dir / "output.csv"
         result = process_csv(
@@ -202,7 +203,7 @@ class TestRemoteURLErrors:
         # Error message must contain "HTTP Error" or "HTTPException" to be caught
         mock_conn.execute.side_effect = [
             None,
-            Exception("HTTPException: Connection timed out"),
+            duckdb.Error("HTTPException: Connection timed out"),
         ]
 
         output_file = output_dir / "output.csv"
@@ -220,7 +221,7 @@ class TestRemoteURLErrors:
         # First: SET http_timeout, Second: COPY...read_csv (fails with HTTP error)
         mock_conn.execute.side_effect = [
             None,
-            Exception("HTTP Error 500: Internal Server Error"),
+            duckdb.Error("HTTP Error 500: Internal Server Error"),
         ]
 
         output_file = output_dir / "output.csv"

@@ -3,11 +3,13 @@
 import logging
 import sys
 import tempfile
+import urllib.error
 from pathlib import Path
 from typing import Optional, Union
 
+import duckdb
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.progress import Progress, SpinnerColumn, TextColumn, TaskID
 
 from csvnorm.encoding import convert_to_utf8, detect_encoding, needs_conversion
 from csvnorm.mojibake import repair_file
@@ -29,6 +31,320 @@ from csvnorm.validation import normalize_csv, validate_csv
 
 logger = logging.getLogger("csvnorm")
 console = Console()
+
+
+def _resolve_input_path(
+    input_file: str, output_file: Optional[Path]
+) -> tuple[Union[str, Path], bool]:
+    """Validate input and return input path plus remote flag."""
+    is_remote = is_url(input_file)
+
+    if is_remote:
+        try:
+            validate_url(input_file)
+        except ValueError as e:
+            show_error_panel(str(e))
+            raise
+        return input_file, True
+
+    file_path = Path(input_file)
+    if not file_path.exists():
+        show_error_panel(f"Input file not found\n{file_path}")
+        raise FileNotFoundError(str(file_path))
+
+    if not file_path.is_file():
+        show_error_panel(f"Not a file\n{file_path}")
+        raise IsADirectoryError(str(file_path))
+
+    if output_file is not None:
+        input_absolute = file_path.resolve()
+        output_absolute = output_file.resolve()
+        if input_absolute == output_absolute:
+            show_error_panel(
+                "Cannot overwrite input file\n\n"
+                f"Input:  {input_file}\n"
+                f"Output: {output_file}\n\n"
+                "Use -o to specify a different output path."
+            )
+            raise ValueError("Output path matches input path")
+
+    return file_path, False
+
+
+def _setup_output_paths(
+    output_file: Optional[Path],
+    force: bool,
+    temp_dir: Path,
+) -> tuple[Path, Path, Path]:
+    """Determine output, reject, and temp UTF-8 paths."""
+    if output_file is None:
+        actual_output_file = temp_dir / "output.csv"
+        reject_file = temp_dir / "reject_errors.csv"
+        temp_utf8_file = temp_dir / "utf8.csv"
+        return actual_output_file, reject_file, temp_utf8_file
+
+    output_dir = output_file.parent
+    actual_output_file = output_file
+    reject_file = output_dir / f"{output_file.stem}_reject_errors.csv"
+    temp_utf8_file = temp_dir / f"{output_file.stem}_utf8.csv"
+
+    if output_file.exists() and not force:
+        show_warning_panel(
+            f"Output file already exists\n\n"
+            f"{output_file}\n\n"
+            f"Use [bold]--force[/bold] to overwrite."
+        )
+        raise FileExistsError(str(output_file))
+
+    if reject_file.exists():
+        reject_file.unlink()
+
+    return actual_output_file, reject_file, temp_utf8_file
+
+
+def _download_for_mojibake_if_needed(
+    input_file: str,
+    input_path: Union[str, Path],
+    is_remote: bool,
+    fix_mojibake_sample: Optional[int],
+    temp_dir: Path,
+    temp_files: list[Path],
+) -> tuple[Union[str, Path], bool]:
+    """Download remote file if mojibake repair is requested."""
+    if not (is_remote and fix_mojibake_sample is not None):
+        return input_path, is_remote
+
+    try:
+        download_path = temp_dir / "remote_download.csv"
+        download_url_to_file(input_file, download_path)
+    except (OSError, urllib.error.URLError) as e:
+        show_error_panel(f"Failed to download remote file\n{e}")
+        raise
+
+    temp_files.append(download_path)
+    return download_path, False
+
+
+def _handle_local_encoding(
+    file_input_path: Path,
+    temp_utf8_file: Path,
+    progress: Progress,
+    task: TaskID,
+    temp_files: list[Path],
+) -> tuple[Union[str, Path], str]:
+    """Detect encoding and convert to UTF-8 if needed."""
+    progress.update(task, description="[cyan]Detecting encoding...")
+    encoding = detect_encoding(file_input_path)
+    logger.debug(f"Detected encoding: {encoding}")
+    progress.update(
+        task, description=f"[green]✓[/green] Detected encoding: {encoding}"
+    )
+
+    working_file: Union[str, Path] = file_input_path
+    if needs_conversion(encoding):
+        progress.update(
+            task,
+            description=f"[cyan]Converting from {encoding} to UTF-8...",
+        )
+        convert_to_utf8(file_input_path, temp_utf8_file, encoding)
+        working_file = temp_utf8_file
+        temp_files.append(temp_utf8_file)
+        progress.update(task, description="[green]✓[/green] Converted to UTF-8")
+    else:
+        note = (
+            "ASCII is UTF-8 compatible; no conversion needed"
+            if encoding == "ascii"
+            else "UTF-8; no conversion needed"
+        )
+        progress.update(
+            task,
+            description=f"[green]✓[/green] Encoding: {encoding} ({note})",
+        )
+
+    return working_file, encoding
+
+
+def _handle_mojibake_if_needed(
+    working_file: Union[str, Path],
+    temp_dir: Path,
+    fix_mojibake_sample: Optional[int],
+    progress: Progress,
+    task: TaskID,
+    temp_files: list[Path],
+) -> tuple[bool, Union[str, Path]]:
+    """Optionally repair mojibake in local files."""
+    if fix_mojibake_sample is None:
+        return False, working_file
+
+    if not isinstance(working_file, Path):
+        logger.debug("Skipping mojibake check for non-local input.")
+        return False, working_file
+
+    progress.update(task, description="[cyan]Checking mojibake...")
+    sample_size = fix_mojibake_sample
+    repaired_path = temp_dir / "mojibake_fixed.csv"
+    mojibake_repaired, working_file = repair_file(
+        working_file, repaired_path, sample_size
+    )
+    if mojibake_repaired:
+        temp_files.append(repaired_path)
+        progress.update(
+            task, description="[green]✓[/green] Mojibake repaired (ftfy)"
+        )
+    else:
+        progress.update(task, description="[green]✓[/green] Mojibake check: clean")
+
+    return mojibake_repaired, working_file
+
+
+def _validate_csv_with_http_handling(
+    working_file: Union[str, Path],
+    reject_file: Path,
+    is_remote: bool,
+    skip_rows: int,
+    input_file: str,
+    progress: Progress,
+    task: TaskID,
+) -> tuple[int, list[str], Optional[dict[str, Union[str, int]]]]:
+    """Run validation with HTTP error handling."""
+    progress.update(task, description="[cyan]Validating CSV...")
+    logger.debug("Validating CSV with DuckDB...")
+
+    try:
+        return validate_csv(
+            working_file, reject_file, is_remote=is_remote, skip_rows=skip_rows
+        )
+    except duckdb.Error as e:
+        progress.stop()
+        error_msg = str(e)
+
+        if "HTTP Error" in error_msg or "HTTPException" in error_msg:
+            if "404" in error_msg:
+                show_error_panel(
+                    "Remote CSV file not found (HTTP 404)\n\n"
+                    f"URL: [cyan]{input_file}[/cyan]\n\n"
+                    "Please check the URL is correct."
+                )
+            elif "401" in error_msg or "403" in error_msg:
+                show_error_panel(
+                    "Authentication required (HTTP 401/403)\n\n"
+                    f"URL: [cyan]{input_file}[/cyan]\n\n"
+                    "This tool only supports public URLs without authentication.\n"
+                    "Please download the file manually first."
+                )
+            elif (
+                "timeout" in error_msg.lower() or "timed out" in error_msg.lower()
+            ):
+                show_error_panel(
+                    "HTTP request timeout (30 seconds)\n\n"
+                    f"URL: [cyan]{input_file}[/cyan]\n\n"
+                    "The remote server took too long to respond.\n"
+                    "Try again later or download the file manually."
+                )
+            else:
+                show_error_panel(f"HTTP request failed\n\n{error_msg}")
+            raise
+
+        raise
+
+
+def _normalize_and_refresh_errors(
+    working_file: Union[str, Path],
+    actual_output_file: Path,
+    delimiter: str,
+    keep_names: bool,
+    is_remote: bool,
+    skip_rows: int,
+    fallback_config: Optional[dict[str, Union[str, int]]],
+    reject_file: Path,
+    reject_count: int,
+    error_types: list[str],
+) -> tuple[Optional[dict[str, Union[str, int]]], int, list[str], bool]:
+    """Normalize CSV and update reject counts if fallback differs."""
+    used_fallback = normalize_csv(
+        input_path=working_file,
+        output_path=actual_output_file,
+        delimiter=delimiter,
+        normalize_names=not keep_names,
+        is_remote=is_remote,
+        skip_rows=skip_rows,
+        fallback_config=fallback_config,
+        reject_file=reject_file,
+    )
+
+    has_validation_errors = reject_count > 1
+    if used_fallback and used_fallback != fallback_config:
+        reject_count = sum(1 for _ in open(reject_file)) if reject_file.exists() else 0
+        has_validation_errors = reject_count > 1
+        if has_validation_errors:
+            from csvnorm.validation import _get_error_types
+
+            error_types = _get_error_types(reject_file)
+
+    return used_fallback, reject_count, error_types, has_validation_errors
+
+
+def _emit_stdout_output(
+    actual_output_file: Path,
+    has_validation_errors: bool,
+    reject_count: int,
+    reject_file: Path,
+) -> int:
+    """Write output to stdout and emit validation warnings if needed."""
+    try:
+        with open(actual_output_file, "r") as f:
+            sys.stdout.write(f.read())
+    except BrokenPipeError:
+        return 0
+
+    if has_validation_errors:
+        stderr_console = Console(stderr=True)
+        stderr_console.print()
+        stderr_console.print(
+            f"[yellow]Warning:[/yellow] {reject_count - 1} rows rejected during validation",
+            style="yellow",
+        )
+        stderr_console.print(f"Reject file saved to: {reject_file}", style="dim")
+        stderr_console.print()
+        return 1
+
+    return 0
+
+
+def _cleanup_temp_artifacts(
+    use_stdout: bool, reject_file: Path, temp_files: list[Path]
+) -> None:
+    """Cleanup temp files and prune empty reject files."""
+    import shutil
+
+    if use_stdout and reject_file.exists():
+        with open(reject_file, "r") as f:
+            line_count = sum(1 for _ in f)
+        if line_count <= 1:
+            reject_file.unlink()
+
+    for temp_path in temp_files:
+        if temp_path.exists():
+            logger.debug(f"Removing temp path: {temp_path}")
+            if temp_path.is_dir():
+                if use_stdout and reject_file.exists() and reject_file.parent == temp_path:
+                    for item in temp_path.iterdir():
+                        if item != reject_file:
+                            if item.is_dir():
+                                shutil.rmtree(item)
+                            else:
+                                item.unlink()
+                else:
+                    shutil.rmtree(temp_path)
+            else:
+                temp_path.unlink()
+
+    if not use_stdout and reject_file.exists():
+        with open(reject_file, "r") as f:
+            line_count = sum(1 for _ in f)
+        if line_count <= 1:
+            logger.debug(f"Removing empty reject file: {reject_file}")
+            reject_file.unlink()
 
 
 def process_csv(
@@ -63,43 +379,10 @@ def process_csv(
         show_error_panel("--fix-mojibake must be non-negative (use 0 to force repair)")
         return 1
 
-    # Detect if input is URL or file
-    is_remote = is_url(input_file)
-
-    input_path: Union[str, Path]
-    if is_remote:
-        # Validate URL
-        try:
-            validate_url(input_file)
-        except ValueError as e:
-            show_error_panel(str(e))
-            return 1
-        input_path = input_file  # Keep as string for DuckDB
-    else:
-        # Validate local file
-        file_path = Path(input_file)
-        if not file_path.exists():
-            show_error_panel(f"Input file not found\n{file_path}")
-            return 1
-
-        if not file_path.is_file():
-            show_error_panel(f"Not a file\n{file_path}")
-            return 1
-
-        input_path = file_path
-
-        # Prevent input file overwrite (never allow, even with --force)
-        if output_file is not None:
-            input_absolute = file_path.resolve()
-            output_absolute = output_file.resolve()
-            if input_absolute == output_absolute:
-                show_error_panel(
-                    "Cannot overwrite input file\n\n"
-                    f"Input:  {input_file}\n"
-                    f"Output: {output_file}\n\n"
-                    "Use -o to specify a different output path."
-                )
-                return 1
+    try:
+        input_path, is_remote = _resolve_input_path(input_file, output_file)
+    except (ValueError, FileNotFoundError, IsADirectoryError):
+        return 1
 
     try:
         validate_delimiter(delimiter)
@@ -110,46 +393,27 @@ def process_csv(
     # Setup paths
     temp_dir = Path(tempfile.mkdtemp(prefix="csvnorm_"))
 
-    if use_stdout:
-        # For stdout mode: create temp files
-        actual_output_file = temp_dir / "output.csv"
-        reject_file = temp_dir / "reject_errors.csv"
-        temp_utf8_file = temp_dir / "utf8.csv"
-    else:
-        # For file mode: use specified output path
-        assert output_file is not None  # Type narrowing
-        output_dir = output_file.parent
-        actual_output_file = output_file
-        reject_file = output_dir / f"{output_file.stem}_reject_errors.csv"
-        temp_utf8_file = temp_dir / f"{output_file.stem}_utf8.csv"
-
-        # Check if output exists
-        if output_file.exists() and not force:
-            show_warning_panel(
-                f"Output file already exists\n\n"
-                f"{output_file}\n\n"
-                f"Use [bold]--force[/bold] to overwrite."
-            )
-            return 1
-
-        # Clean up previous reject file (always overwrite)
-        if reject_file.exists():
-            reject_file.unlink()
+    try:
+        actual_output_file, reject_file, temp_utf8_file = _setup_output_paths(
+            output_file, force, temp_dir
+        )
+    except FileExistsError:
+        return 1
 
     # Track files to clean up
     temp_files: list[Path] = [temp_dir]
 
-    # If mojibake repair is enabled for a remote URL, download first
-    if is_remote and fix_mojibake_sample is not None:
-        try:
-            download_path = temp_dir / "remote_download.csv"
-            download_url_to_file(input_file, download_path)
-        except Exception as e:
-            show_error_panel(f"Failed to download remote file\n{e}")
-            return 1
-        input_path = download_path
-        temp_files.append(download_path)
-        is_remote = False
+    try:
+        input_path, is_remote = _download_for_mojibake_if_needed(
+            input_file,
+            input_path,
+            is_remote,
+            fix_mojibake_sample,
+            temp_dir,
+            temp_files,
+        )
+    except (OSError, urllib.error.URLError):
+        return 1
 
     # Use stderr console for progress when writing to stdout
     progress_console = Console(stderr=True) if use_stdout else console
@@ -173,121 +437,56 @@ def process_csv(
                 working_file = input_path  # Keep URL as string
                 encoding = "remote"
             else:
-                # Step 1: Detect encoding (local files only)
-                # input_path is Path here (set in else block above)
-                file_input_path = input_path  # Type narrowing for mypy
+                file_input_path = input_path
                 assert isinstance(file_input_path, Path)
 
-                progress.update(task, description="[cyan]Detecting encoding...")
                 try:
-                    encoding = detect_encoding(file_input_path)
+                    working_file, encoding = _handle_local_encoding(
+                        file_input_path,
+                        temp_utf8_file,
+                        progress,
+                        task,
+                        temp_files,
+                    )
                 except ValueError as e:
                     progress.stop()
                     show_error_panel(str(e))
                     return 1
+                except (UnicodeDecodeError, LookupError) as e:
+                    progress.stop()
+                    show_error_panel(f"Encoding conversion failed\n{e}")
+                    return 1
 
-                logger.debug(f"Detected encoding: {encoding}")
-                progress.update(
-                    task, description=f"[green]✓[/green] Detected encoding: {encoding}"
-                )
-
-                # Step 2: Convert to UTF-8 if needed
-                working_file = file_input_path
-                if needs_conversion(encoding):
-                    progress.update(
+                try:
+                    mojibake_repaired, working_file = _handle_mojibake_if_needed(
+                        working_file,
+                        temp_dir,
+                        fix_mojibake_sample,
+                        progress,
                         task,
-                        description=f"[cyan]Converting from {encoding} to UTF-8...",
+                        temp_files,
                     )
-                    try:
-                        convert_to_utf8(file_input_path, temp_utf8_file, encoding)
-                        working_file = temp_utf8_file
-                        temp_files.append(temp_utf8_file)
-                        progress.update(
-                            task, description="[green]✓[/green] Converted to UTF-8"
-                        )
-                    except (UnicodeDecodeError, LookupError) as e:
-                        progress.stop()
-                        show_error_panel(f"Encoding conversion failed\n{e}")
-                        return 1
-                else:
-                    if encoding == "ascii":
-                        note = "ASCII is UTF-8 compatible; no conversion needed"
-                    else:
-                        note = "UTF-8; no conversion needed"
-                    progress.update(
-                        task,
-                        description=f"[green]✓[/green] Encoding: {encoding} ({note})",
-                    )
-
-                # Step 2b: Optional mojibake repair (local files only)
-                if fix_mojibake_sample is not None:
-                    sample_size = fix_mojibake_sample
-                    progress.update(task, description="[cyan]Checking mojibake...")
-                    try:
-                        repaired_path = temp_dir / "mojibake_fixed.csv"
-                        mojibake_repaired, working_file = repair_file(
-                            working_file, repaired_path, sample_size
-                        )
-                        if mojibake_repaired:
-                            temp_files.append(repaired_path)
-                            progress.update(
-                                task,
-                                description="[green]✓[/green] Mojibake repaired (ftfy)",
-                            )
-                        else:
-                            progress.update(
-                                task,
-                                description="[green]✓[/green] Mojibake check: clean",
-                            )
-                    except Exception as e:
-                        progress.stop()
-                        show_error_panel(f"Mojibake repair failed\n{e}")
-                        return 1
-                else:
-                    mojibake_repaired = False
+                except (OSError, UnicodeDecodeError, ValueError) as e:
+                    progress.stop()
+                    show_error_panel(f"Mojibake repair failed\n{e}")
+                    return 1
 
             # Step 3: Validate CSV
-            progress.update(task, description="[cyan]Validating CSV...")
-            logger.debug("Validating CSV with DuckDB...")
-
             try:
-                reject_count, error_types, fallback_config = validate_csv(
-                    working_file, reject_file, is_remote=is_remote, skip_rows=skip_rows
+                (
+                    reject_count,
+                    error_types,
+                    fallback_config,
+                ) = _validate_csv_with_http_handling(
+                    working_file,
+                    reject_file,
+                    is_remote,
+                    skip_rows,
+                    input_file,
+                    progress,
+                    task,
                 )
-            except Exception as e:
-                progress.stop()
-                error_msg = str(e)
-
-                # Check for common HTTP errors
-                if "HTTP Error" in error_msg or "HTTPException" in error_msg:
-                    if "404" in error_msg:
-                        show_error_panel(
-                            f"Remote CSV file not found (HTTP 404)\n\n"
-                            f"URL: [cyan]{input_file}[/cyan]\n\n"
-                            "Please check the URL is correct."
-                        )
-                    elif "401" in error_msg or "403" in error_msg:
-                        show_error_panel(
-                            f"Authentication required (HTTP 401/403)\n\n"
-                            f"URL: [cyan]{input_file}[/cyan]\n\n"
-                            "This tool only supports public URLs without authentication.\n"
-                            "Please download the file manually first."
-                        )
-                    elif (
-                        "timeout" in error_msg.lower()
-                        or "timed out" in error_msg.lower()
-                    ):
-                        show_error_panel(
-                            f"HTTP request timeout (30 seconds)\n\n"
-                            f"URL: [cyan]{input_file}[/cyan]\n\n"
-                            "The remote server took too long to respond.\n"
-                            "Try again later or download the file manually."
-                        )
-                    else:
-                        show_error_panel(f"HTTP request failed\n\n{error_msg}")
-                else:
-                    # Re-raise non-HTTP errors
-                    raise
+            except duckdb.Error:
                 return 1
 
             has_validation_errors = reject_count > 1
@@ -299,54 +498,32 @@ def process_csv(
             # Step 4: Normalize and write output
             progress.update(task, description="[cyan]Normalizing and writing output...")
             logger.debug("Normalizing CSV...")
-            used_fallback = normalize_csv(
-                input_path=working_file,
-                output_path=actual_output_file,
-                delimiter=delimiter,
-                normalize_names=not keep_names,
-                is_remote=is_remote,
-                skip_rows=skip_rows,
-                fallback_config=fallback_config,
-                reject_file=reject_file,
+            (
+                used_fallback,
+                reject_count,
+                error_types,
+                has_validation_errors,
+            ) = _normalize_and_refresh_errors(
+                working_file,
+                actual_output_file,
+                delimiter,
+                keep_names,
+                is_remote,
+                skip_rows,
+                fallback_config,
+                reject_file,
+                reject_count,
+                error_types,
             )
-
-            # If normalize used a different fallback config, update reject_count
-            if used_fallback and used_fallback != fallback_config:
-                # Normalize used fallback and exported reject_errors
-                # Recount reject file lines
-                reject_count = sum(1 for _ in open(reject_file)) if reject_file.exists() else 0
-                has_validation_errors = reject_count > 1
-                if has_validation_errors:
-                    # Re-extract error types
-                    from csvnorm.validation import _get_error_types
-                    error_types = _get_error_types(reject_file)
 
             logger.debug(f"Output written to: {actual_output_file}")
             progress.update(task, description="[green]✓[/green] Complete")
 
         # Handle output based on mode
         if use_stdout:
-            # Write to stdout
-            try:
-                with open(actual_output_file, "r") as f:
-                    sys.stdout.write(f.read())
-            except BrokenPipeError:
-                # Downstream pipe closed early (e.g., `| head`); exit cleanly.
-                return 0
-
-            # Show validation errors on stderr if any
-            if has_validation_errors:
-                stderr_console = Console(stderr=True)
-                stderr_console.print()
-                stderr_console.print(
-                    f"[yellow]Warning:[/yellow] {reject_count - 1} rows rejected during validation",
-                    style="yellow",
-                )
-                stderr_console.print(
-                    f"Reject file saved to: {reject_file}", style="dim"
-                )
-                stderr_console.print()
-                return 1
+            return _emit_stdout_output(
+                actual_output_file, has_validation_errors, reject_count, reject_file
+            )
         else:
             # File mode: show success table
             input_size = (
@@ -377,44 +554,6 @@ def process_csv(
                 return 1
 
     finally:
-        # Cleanup temp directory
-        import shutil
-
-        # In stdout mode, preserve reject file if it has errors
-        # In file mode, keep reject file in output directory
-        if use_stdout and reject_file.exists():
-            # Check if reject file has actual errors (more than just header)
-            with open(reject_file, "r") as f:
-                line_count = sum(1 for _ in f)
-            if line_count <= 1:
-                # Empty reject file, remove it
-                reject_file.unlink()
-            # If has errors, it's already been mentioned in stderr output above
-
-        for temp_path in temp_files:
-            if temp_path.exists():
-                logger.debug(f"Removing temp path: {temp_path}")
-                if temp_path.is_dir():
-                    # Skip temp_dir removal if reject file is inside and should be preserved
-                    if use_stdout and reject_file.exists() and reject_file.parent == temp_path:
-                        # Remove everything except reject_file
-                        for item in temp_path.iterdir():
-                            if item != reject_file:
-                                if item.is_dir():
-                                    shutil.rmtree(item)
-                                else:
-                                    item.unlink()
-                    else:
-                        shutil.rmtree(temp_path)
-                else:
-                    temp_path.unlink()
-
-        # Remove reject file if empty (only header) in file mode
-        if not use_stdout and reject_file.exists():
-            with open(reject_file, "r") as f:
-                line_count = sum(1 for _ in f)
-            if line_count <= 1:
-                logger.debug(f"Removing empty reject file: {reject_file}")
-                reject_file.unlink()
+        _cleanup_temp_artifacts(use_stdout, reject_file, temp_files)
 
     return 0

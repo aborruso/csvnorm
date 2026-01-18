@@ -26,7 +26,13 @@ def show_banner() -> None:
 class VersionAction(argparse.Action):
     """Custom action to show banner with version."""
 
-    def __call__(self, parser, _namespace, _values, _option_string=None):
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: object,
+        option_string: Optional[str] = None,
+    ) -> None:
         show_banner()
         console.print(f"csvnorm {version('csvnorm')}", style="bold")
         console.print()
