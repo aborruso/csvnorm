@@ -51,108 +51,167 @@ uv pip install -e ".[dev]"          # Editable install with dev dependencies
 ```bash
 pytest tests/ -v                    # Run all tests
 pytest tests/test_utils.py -v       # Run specific test file
+pytest tests/test_cli.py::TestMainFunction::test_skip_rows_metadata -v  # Single test
+pytest tests/ -v --cov=csvnorm --cov-report=term  # With coverage
 ```
 
 ### Development
 ```bash
-csvnorm test/utf8_basic.csv              # Basic test
-csvnorm test/latin1_semicolon.csv -d ';' # Non-UTF8 + delimiter
-csvnorm input.csv -f -v                  # Force + verbose
-csvnorm input.csv -n                     # Keep original names
-csvnorm input.csv -o ./output            # Custom output dir
+csvnorm test/utf8_basic.csv              # Basic test (stdout)
+csvnorm test/utf8_basic.csv -o out.csv   # Write to file
+csvnorm test/latin1_semicolon.csv -V     # Verbose mode
+csvnorm input.csv -s 2 -o output.csv     # Skip first 2 rows
+csvnorm input.csv --fix-mojibake -o out.csv  # Fix mojibake
 ```
 
 ## Architecture
 
 ### Package Structure
 ```
-src/csvnormr/
+src/csvnorm/
 ├── __init__.py      # Version and exports
 ├── __main__.py      # python -m support
-├── cli.py           # argparse CLI
+├── cli.py           # argparse CLI with rich formatting
 ├── core.py          # Main processing pipeline
 ├── encoding.py      # charset_normalizer integration
-├── validation.py    # DuckDB validation/normalization
-└── utils.py         # snake_case, logging helpers
+├── validation.py    # DuckDB validation/normalization with fallback configs
+├── mojibake.py      # ftfy-based mojibake detection/repair
+├── ui.py            # Rich panels and tables
+└── utils.py         # Helper functions
 ```
 
 ### Processing Flow
-1. **Encoding detection**: `charset_normalizer.from_path()` library call
-2. **Encoding conversion**: Python codecs (only if encoding ≠ utf-8/ascii/utf-8-sig)
-3. **Validation**: DuckDB `read_csv(store_rejects=true, sample_size=-1, all_varchar=true)`
-4. **Normalization**: DuckDB `COPY` with `normalize_names=true` (unless `--keep-names`)
-5. **Output**: UTF-8 CSV to `<output_dir>/<snake_cased_name>.csv`
+
+**Stdout mode** (default, `csvnorm input.csv`):
+1. Encoding detection → UTF-8 conversion (if needed)
+2. Optional mojibake repair (if `--fix-mojibake`)
+3. Validation → temp reject file
+4. Normalization → stdout
+5. Progress/errors → stderr
+
+**File mode** (with `-o`, `csvnorm input.csv -o output.csv`):
+1. Encoding detection → UTF-8 conversion (if needed)
+2. Optional mojibake repair (if `--fix-mojibake`)
+3. Validation → reject file in output dir
+4. Normalization → output file
+5. Success table → stdout
+
+**Remote URLs** (`csvnorm https://example.com/data.csv`):
+- DuckDB reads directly via httpfs (30s timeout)
+- If `--fix-mojibake`: downloads to temp first, then processes
 
 ### Key Modules
 
-**encoding.py**:
-- `detect_encoding(path)` - Uses charset_normalizer library
-- `convert_to_utf8(input, output, encoding)` - Python codec conversion
-- `needs_conversion(encoding)` - Check if UTF-8 conversion needed
+**core.py** (`process_csv`):
+- Main orchestration of the 4-step pipeline
+- Handles stdout vs file mode logic
+- Manages temp files and cleanup
+- Remote URL detection and download
 
 **validation.py**:
-- `validate_csv(path, reject_file)` - DuckDB validation with store_rejects
-- `normalize_csv(input, output, delimiter, normalize_names)` - DuckDB normalization
+- `validate_csv()` - DuckDB validation with `store_rejects=true`
+  - **Early detection**: Pre-checks first 5 lines for header anomalies (local files only)
+  - **Fallback mechanism**: Tries common delimiter/skip combinations if auto-detection fails
+  - Returns: (reject_count, error_types, fallback_config)
+- `normalize_csv()` - DuckDB COPY with `normalize_names=true` (unless `--keep-names`)
+  - Uses fallback_config from validation if provided
+  - Exports to CSV with specified delimiter
 
-**core.py**:
-- `process_csv()` - Main pipeline orchestrating all steps
+**Fallback mechanism**:
+When DuckDB's automatic dialect detection fails, tries these configs in order:
+```python
+FALLBACK_CONFIGS = [
+    {"delim": ";", "skip": 1},
+    {"delim": ";", "skip": 2},
+    {"delim": "|", "skip": 1},
+    {"delim": "|", "skip": 2},
+    {"delim": "\t", "skip": 1},
+    {"delim": "\t", "skip": 2},
+]
+```
+
+**encoding.py**:
+- `detect_encoding(path)` - charset_normalizer library
+- `convert_to_utf8(input, output, encoding)` - Python codecs
+- `needs_conversion(encoding)` - Check if encoding ∈ {utf-8, ascii, utf-8-sig}
+
+**mojibake.py**:
+- `detect_mojibake(text, sample_size)` - ftfy badness heuristic
+- `repair_file(input, output, sample_size)` - Fix mojibake if detected
+
+**ui.py**:
+- `show_success_table()` - Rich table with stats (file mode only)
+- `show_error_panel()` - Red-bordered error messages
+- `show_validation_error_panel()` - Validation error summary with reject count
+- `show_warning_panel()` - Yellow-bordered warnings
 
 **utils.py**:
 - `to_snake_case(name)` - Filename normalization
-- `setup_logger(verbose)` - Logging configuration
+- `is_url()`, `validate_url()`, `download_url_to_file()` - URL handling
+- `get_row_count()`, `get_column_count()` - DuckDB metadata queries
 
 ## Dependencies
 
 **Runtime** (in pyproject.toml):
 - `charset-normalizer>=3.0.0` - Encoding detection
 - `duckdb>=0.9.0` - CSV validation and normalization
+- `ftfy>=6.3.1` - Mojibake repair
+- `rich>=13.0.0` - Terminal output formatting
+- `rich-argparse>=1.0.0` - Enhanced CLI help
+- `pyfiglet>=0.8.post1,<1.0.0` - ASCII art banner
 
 **Development**:
 - `pytest>=7.0.0` - Testing
+- `pytest-cov>=4.0.0` - Coverage
 - `ruff>=0.1.0` - Linting
 
 ## Testing
 
-Run tests:
-```bash
-pytest tests/ -v
-```
-
 Test fixtures in `test/`:
 - `utf8_basic.csv` - Basic UTF-8 file
 - `latin1_semicolon.csv` - Non-UTF8 encoding
-- `pipe_mixed_headers.csv` - Header normalization test
-- `malformed_rows.csv` - Error reporting test
+- `pipe_mixed_headers.csv` - Header normalization
+- `malformed_rows.csv` - Error reporting
+- `metadata_skip_rows.csv` - Skip rows with metadata
+- `title_row_skip.csv` - Skip title row
 
 ## Critical Constraints
 
 1. **Cross-platform**: Pure Python, no shell dependencies
 
-2. **Exit codes**:
-   - 0: Success
-   - 1: Error (validation failed, file not found, etc.)
+2. **Output modes**:
+   - Default: stdout (for Unix pipes)
+   - With `-o`: file (with rich output)
 
-3. **Error handling**:
-   - Non-UTF-8 encodings
-   - DuckDB rejects (malformed rows)
-   - Pre-existing outputs (respect `--force` flag)
+3. **Exit codes**:
+   - 0: Success (even with validation errors in file mode)
+   - 1: Fatal error (file not found, invalid args, etc.)
 
-4. **Simplicity**: Maintain minimal complexity
+4. **Error handling**:
+   - Non-UTF-8 encodings → automatic conversion
+   - DuckDB rejects → captured in reject_errors.csv
+   - Pre-existing outputs → respect `--force` flag
+   - Input file protection → never overwrite input
+
+5. **Simplicity**: Maintain minimal complexity, avoid over-engineering
 
 ## File Contract
 
-**Input**: Arbitrary CSV (any encoding, any delimiter)
+**Input**: Arbitrary CSV (any encoding, any delimiter, local or HTTP/HTTPS URL)
 
 **Output**:
-- `<output_dir>/<clean_name>.csv` (UTF-8, comma-delimited by default)
-- `<output_dir>/<clean_name>_reject_errors.csv` (if DuckDB finds invalid rows)
+- Stdout mode: normalized CSV to stdout, reject errors to temp file
+- File mode: `<output_path>` + `<output_name>_reject_errors.csv` (if errors exist)
+- Always UTF-8, comma-delimited (unless `-d` specified)
+- Headers normalized to snake_case (unless `-k/--keep-names`)
 
 ## Key Files
 
-- `src/csvnormr/` - Python package
-- `tests/` - Test suite
+- `src/csvnorm/` - Python package
+- `tests/` - Test suite (105 tests)
 - `test/` - CSV fixtures
 - `pyproject.toml` - Package configuration
 - `PRD.md` - Product requirements
 - `README.md` - User documentation
 - `LOG.md` - Changelog
+- `DEPLOYMENT.md` - Release procedures
