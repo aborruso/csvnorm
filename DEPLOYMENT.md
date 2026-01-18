@@ -39,6 +39,12 @@ Also align the version in `src/csvnorm/__init__.py`:
 
 ```python
 __version__ = "0.3.0"  # <- update here
+
+**Sanity check (must match before tagging):**
+
+```bash
+rg '^version = "|^__version__ = "' -n pyproject.toml src/csvnorm/__init__.py
+```
 ```
 
 ### 2. Local tests
