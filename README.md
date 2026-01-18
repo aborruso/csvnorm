@@ -226,7 +226,6 @@ The tool provides modern terminal output (shown only when using `-o` to write to
   - `ftfy>=6.3.1` - Mojibake repair
   - `rich>=13.0.0` - Modern terminal output formatting
   - `rich-argparse>=1.0.0` - Enhanced CLI help formatting
-  - `pyfiglet>=0.8.post1,<1.0.0` - ASCII art banner
 
 Optional extras:
 - `[dev]` - Development dependencies (`pytest>=7.0.0`, `pytest-cov>=4.0.0`, `ruff>=0.1.0`)
