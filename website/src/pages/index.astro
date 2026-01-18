@@ -135,6 +135,58 @@ Madrid,3300000,2023</code></pre>
     </div>
   </section>
 
+  <section class="mx-auto max-w-6xl px-6 py-16">
+    <h2 class="section-title">Error tracking</h2>
+    <p class="mt-4 text-lg text-ink/80">When csvnorm finds malformed rows, it captures them in a detailed reject file using DuckDB's validation engine. Each error is documented with file, line, column, and error type.</p>
+    <div class="mt-10 glass rounded-3xl p-6">
+      <div class="flex items-center justify-between">
+        <p class="text-xs uppercase tracking-[0.3em] text-dusk">Example: output_reject_errors.csv</p>
+        <span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">Auto-generated</span>
+      </div>
+      <div class="mt-4 overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead class="border-b border-ink/10">
+            <tr class="text-dusk">
+              <th class="pb-2 pr-4 font-medium">line</th>
+              <th class="pb-2 pr-4 font-medium">column_idx</th>
+              <th class="pb-2 pr-4 font-medium">column_name</th>
+              <th class="pb-2 pr-4 font-medium">value</th>
+              <th class="pb-2 font-medium">error_type</th>
+            </tr>
+          </thead>
+          <tbody class="font-mono text-ink/80">
+            <tr class="border-b border-ink/5">
+              <td class="py-2 pr-4">45</td>
+              <td class="py-2 pr-4">2</td>
+              <td class="py-2 pr-4">total_population</td>
+              <td class="py-2 pr-4">N/A</td>
+              <td class="py-2">MISSING_COLUMNS</td>
+            </tr>
+            <tr class="border-b border-ink/5">
+              <td class="py-2 pr-4">67</td>
+              <td class="py-2 pr-4">1</td>
+              <td class="py-2 pr-4">city_name</td>
+              <td class="py-2 pr-4">Paris"extraquote</td>
+              <td class="py-2">UNQUOTED_VALUE</td>
+            </tr>
+            <tr class="border-b border-ink/5">
+              <td class="py-2 pr-4">103</td>
+              <td class="py-2 pr-4">0</td>
+              <td class="py-2 pr-4">city_name</td>
+              <td class="py-2 pr-4">Rome;Milan;Turin</td>
+              <td class="py-2">TOO_MANY_COLUMNS</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="mt-6 space-y-3 text-sm text-ink/70">
+        <p>✓ Each malformed row documented with line number</p>
+        <p>✓ Error type classified by DuckDB validation</p>
+        <p>✓ Original problematic value preserved for review</p>
+      </div>
+    </div>
+  </section>
+
   <section id="why" class="mx-auto max-w-6xl px-6 py-16">
     <div class="grid gap-10 md:grid-cols-[1fr_0.8fr]">
       <div class="space-y-6">

@@ -8,11 +8,18 @@
 - Visual example showing CSV transformation (input → output)
 - Side-by-side display with raw CSV text in monospace font
 - Demonstrates three key transformations:
-  - Encoding: Latin-1 mojibake ("CittÃ ") → UTF-8 ("citta")
+  - Encoding: Latin-1 mojibake ("ZÃ¼rich") → UTF-8 ("Zürich")
   - Delimiter: semicolon (`;`) → comma (`,`)
   - Headers: mixed case with spaces → snake_case
 - Badge indicators: "Messy" (red) vs "Clean" (green)
 - Section placed after "What" section for immediate visual impact
+
+**Added error tracking section** to website/src/pages/index.astro:
+- Example table showing DuckDB reject_errors.csv format
+- Demonstrates three common error types: MISSING_COLUMNS, UNQUOTED_VALUE, TOO_MANY_COLUMNS
+- Shows line number, column index, column name, value, and error type
+- Explains DuckDB's validation engine role
+- Badge indicator: "Auto-generated" (amber)
 
 ## 2026-01-18
 
