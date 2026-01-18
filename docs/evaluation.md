@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-csvnorm is a mature, production-ready Python CLI tool for CSV validation and normalization. The codebase demonstrates professional software engineering practices with 75% test coverage across 107 tests, clean architecture, and zero linting issues. The project successfully navigated a complete Bash-to-Python rewrite, maintains comprehensive documentation, and shows active development with 179 commits since Jan 2025. Key strengths include robust error handling, modular design, and Unix-composable stdout mode. Primary improvement opportunities lie in increasing test coverage for edge cases (validation.py at 59%, core.py at 73%) and enhancing type safety.
+csvnorm is a mature, production-ready Python CLI tool for CSV validation and normalization. The codebase demonstrates professional software engineering practices with 84% test coverage across 120 tests, clean architecture, and zero linting issues. The project successfully navigated a complete Bash-to-Python rewrite, maintains comprehensive documentation, and shows active development with 179 commits since Jan 2025. Key strengths include robust error handling, modular design, and Unix-composable stdout mode. Primary improvement opportunities now center on further raising coverage in core orchestration and UI paths.
 
 **Overall Health Score: 82/100**
 
@@ -23,8 +23,7 @@ Evidence supporting:
 - No TODO/FIXME/HACK comments found in source code
 
 Evidence limiting:
-- Test coverage gaps in critical paths (validation.py 59%, core.py 73%)
-- Some broad exception catching (e.g., `except Exception:` in 5 locations)
+- Test coverage gaps in orchestration/UI paths (core.py 76%, ui.py 74%)
 - Missing type annotations in some test files
 
 **Verdict:** Code quality is professional-grade with minor gaps in defensive programming.
@@ -49,18 +48,16 @@ Counter-evidence:
 **Final Confidence: MEDIUM (65%)**
 
 Evidence supporting:
-- 107 tests across 6 test files (test_cli.py, test_encoding.py, test_integration.py, test_mojibake.py, test_utils.py, test_validation.py)
-- 75% overall coverage (679 statements, 172 missed)
+- 120 tests across 6 test files (test_cli.py, test_encoding.py, test_integration.py, test_mojibake.py, test_utils.py, test_validation.py)
+- 84% overall coverage (718 statements, 115 missed)
 - Mix of unit tests (encoding, utils, validation helpers) and integration tests
 - Edge cases tested: empty files, binary files, HTTP errors, mojibake
 - 100% coverage in: encoding.py, __init__.py, __main__.py
 
 Evidence limiting:
-- validation.py at 59% coverage (90 of 220 statements missed) - core business logic
-- core.py at 73% coverage (53 of 198 statements missed) - orchestration layer
-- ui.py at 74% coverage (13 of 50 statements missed)
+- core.py at 76% coverage (58 missed) - orchestration layer
+- ui.py at 74% coverage (13 missed)
 - No performance tests or large file stress tests
-- Fallback configuration testing appears limited
 
 **Verdict:** Testing is solid for happy paths but has significant gaps in error handling and edge case coverage for validation/normalization logic.
 
@@ -137,74 +134,45 @@ Areas for improvement:
 
 ## Weaknesses
 
-### 1. Test Coverage Gaps in Critical Paths (59% in validation.py)
+### 1. Test Coverage Gaps in Critical Paths (core/ui focus)
 
 **Evidence:**
 
 ```
-validation.py: 220 statements, 90 missed (59% coverage)
-core.py: 198 statements, 53 missed (73% coverage)
+validation.py: 218 statements, 28 missed (87% coverage)
+core.py: 239 statements, 58 missed (76% coverage)
+ui.py: 50 statements, 13 missed (74% coverage)
 ```
 
 **Impact:**
-- Fallback configuration logic (FALLBACK_CONFIGS) undertested
-- _detect_header_anomaly likely has uncovered edge cases
-- HTTP error paths in core.py may have untested branches
-- normalize_csv fallback scenarios not fully exercised
+- Core orchestration paths and UI rendering still have uncovered branches
+- Temp file cleanup and non-happy-path UX behavior remain lightly exercised
 
 **Lines with likely gaps:**
-- validation.py:114-160 (fallback iteration logic)
-- validation.py:260-306 (normalization fallback)
-- core.py:142-153 (remote URL mojibake path)
+- core.py:45-47, 56-57, 100, 117-125 (input/arg validation and early exits)
 - core.py:375-415 (temp file cleanup logic)
 
 ### 2. Overly Broad Exception Handling
 
-**Evidence:**
+**Status:** ✅ Resolved (no `except Exception:` in `src/csvnorm`)
 
-```python
-# validation.py:481-484
-except Exception as e:
-    logger.debug(f"Header anomaly detection failed: {e}")
-    return None
+### 3. Complex core.py Function (resolved via helpers)
 
-# utils.py:87-88
-except Exception:
-    return False
-```
-
-**Impact:**
-- Masks specific errors that should be handled differently
-- Makes debugging harder when unexpected errors occur
-- Could hide programming errors (AttributeError, TypeError)
-
-**Specific occurrences:** 5 locations across utils.py, validation.py
-
-### 3. Complex core.py Function (416 lines, process_csv)
+**Status:** ✅ Resolved (processing flow decomposed into helpers)
 
 **Evidence:**
-- process_csv: 374 lines of processing logic (lines 34-416)
-- Multiple responsibilities: temp file mgmt, encoding, validation, normalization, cleanup
-- Deep nesting with try/finally and conditional cleanup logic
+- process flow split across helper functions (e.g., `_resolve_input_path`, `_handle_local_encoding`,
+  `_validate_csv_with_http_handling`, `_normalize_and_refresh_errors`, `_cleanup_temp_files`)
 
-**Impact:**
-- Difficult to test all code paths
-- High cognitive load for maintenance
-- Contributes to 73% coverage (53 lines missed)
+**Remaining impact:**
+- Some orchestration branches still uncovered (core.py at 76% coverage)
 
-**Recommendation:** Extract subprocess functions for encoding, validation, normalization steps.
+### 4. Limited Type Safety (mypy configured)
 
-### 4. Limited Type Safety (mypy not configured)
+**Status:** ✅ Resolved (strict mypy config in place)
 
 **Evidence:**
-- No mypy in dev dependencies
-- Union[Path, str] used in multiple functions (validation.py:27, utils.py:165)
-- Type narrowing with isinstance checks and assertions
-
-**Impact:**
-- Runtime type errors possible
-- Type hints not verified during development
-- IDE autocomplete less reliable
+- `mypy.ini` with `strict = True` and `files = src`
 
 ### 5. Performance Testing Absent
 
@@ -259,9 +227,9 @@ Input → Encoding Detection → UTF-8 Conversion → Mojibake Repair (optional)
 
 ### Technical Debt Items
 
-1. **core.py complexity** - 198 statements, 73% coverage, needs decomposition
+1. **core.py complexity** - decomposed into helpers; remaining coverage gaps in orchestration paths
 2. **validation.py dual responsibility** - both validates AND normalizes (should split)
-3. **Exception hierarchy** - generic Exception catching instead of specific types
+3. **Exception hierarchy** - ✅ resolved (no broad Exception catching)
 4. **Temp file cleanup** - complex logic in finally block (lines 375-415)
 
 ## Code Quality Metrics
@@ -269,9 +237,9 @@ Input → Encoding Detection → UTF-8 Conversion → Mojibake Repair (optional)
 | Metric | Value | Target | Status |
 |--------|-------|--------|--------|
 | Total LOC (src) | 1,676 | N/A | ✓ |
-| Test Coverage | 75% | 80% | ⚠ |
+| Test Coverage | 84% | 80% | ✓ |
 | Linting Issues | 0 | 0 | ✓ |
-| Total Tests | 107 | N/A | ✓ |
+| Total Tests | 120 | N/A | ✓ |
 | Modules | 9 | N/A | ✓ |
 | Functions | ~50 | N/A | ✓ |
 | Dependencies | 6 runtime | <10 | ✓ |
@@ -279,15 +247,34 @@ Input → Encoding Detection → UTF-8 Conversion → Mojibake Repair (optional)
 
 **Coverage Breakdown:**
 - ✓ Excellent (90-100%): encoding.py (100%), __init__.py (100%), __main__.py (100%), cli.py (98%), mojibake.py (97%)
-- ⚠ Good (70-89%): utils.py (82%), ui.py (74%), core.py (73%)
-- ❌ Needs Work (<70%): validation.py (59%)
+- ⚠ Good (70-89%): utils.py (82%), ui.py (74%), core.py (76%), validation.py (87%)
+- ❌ Needs Work (<70%): None
+
+**Latest coverage output (`pytest --cov=csvnorm --cov-report=term-missing`, 2026-01-18):**
+
+```
+Name                        Stmts   Miss  Cover   Missing
+---------------------------------------------------------
+src/csvnorm/__init__.py         4      0   100%
+src/csvnorm/__main__.py         3      0   100%
+src/csvnorm/cli.py             56      1    98%   197
+src/csvnorm/core.py           239     58    76%   45-47, 56-57, 100, 117-125, 180-181, 248, 277-282, 297-298, 301-309, 331-336, 340, 379-380, 389-391, 415-416, 451-458, 469-472, 494, 553-554
+src/csvnorm/encoding.py        40      0   100%
+src/csvnorm/mojibake.py        29      1    97%   73
+src/csvnorm/ui.py              50     13    74%   111-126
+src/csvnorm/utils.py           79     14    82%   74, 89-90, 148, 162-165, 178, 185-186, 200, 211-212
+src/csvnorm/validation.py     218     28    87%   59, 68-88, 121, 158, 176, 230-231, 237-241, 282, 285, 306-308, 400-401, 441, 462
+---------------------------------------------------------
+TOTAL                         718    115    84%
+```
 
 ## Recommendations
 
 ### High Priority (Critical for Production Robustness)
 
 #### P1: Increase validation.py Test Coverage to 80%+
-**Current:** 59% (90/220 statements missed)
+**Status:** ✅ Completed (2026-01-18)
+**Current:** 87% (28/218 statements missed)
 **Target:** 80%+ coverage
 **Effort:** 4-6 hours
 
@@ -304,7 +291,8 @@ Test cases to add:
 - CSV with all tested delimiters (`,`, `;`, `|`, `\t`)
 
 #### P2: Refactor Broad Exception Handlers
-**Current:** 5 locations with `except Exception:`
+**Status:** ✅ Completed (2026-01-18)
+**Current:** No `except Exception:` in `src/csvnorm`
 **Target:** Specific exception types
 **Effort:** 2-3 hours
 
@@ -315,7 +303,8 @@ Replace with specific exceptions:
 - `utils.py:210` → `except (duckdb.Error, IOError)`
 
 #### P3: Add mypy Type Checking
-**Current:** No static type checking
+**Status:** ✅ Completed (2026-01-18)
+**Current:** `mypy.ini` present with `strict = True` and `files = src`
 **Target:** mypy passing with strict mode
 **Effort:** 3-4 hours
 
@@ -328,7 +317,9 @@ Steps:
 ### Medium Priority (Code Maintainability)
 
 #### P4: Decompose core.process_csv Function
-**Current:** 374-line function with multiple responsibilities
+**Status:** ✅ Completed (2026-01-18)
+**Current:** Process flow extracted into helpers (e.g., `_resolve_input_path`, `_handle_local_encoding`,
+`_validate_csv_with_http_handling`, `_normalize_and_refresh_errors`, `_cleanup_temp_files`)
 **Target:** <100 lines, extracted helpers
 **Effort:** 4-5 hours
 
