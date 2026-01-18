@@ -272,7 +272,7 @@ class TestMainFunction:
 
         output_file = tmp_path / "output.csv"
 
-        # Skip title row and use semicolon input
+        # Skip title row with auto-detected semicolon input, output as comma
         exit_code = main(
             [str(test_csv), "-o", str(output_file), "--skip-rows", "1", "-d", ",", "-f"]
         )

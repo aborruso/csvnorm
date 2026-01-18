@@ -220,6 +220,16 @@ def normalize_csv(
         if skip_rows > 0:
             read_opts += f", skip={skip_rows}"
             logger.debug(f"Using user-provided skip_rows: {skip_rows}")
+            # If validation discovered a non-comma delimiter via fallback_config,
+            # preserve that delimiter while still honoring the user-provided skip_rows.
+            if fallback_config:
+                delim = fallback_config.get("delim")
+                if delim and delim != ",":
+                    read_opts += f", delim='{delim}'"
+                    logger.debug(
+                        "Using fallback delimiter with user-provided skip_rows: %s",
+                        delim,
+                    )
         # Add fallback config options if available and skip_rows not provided
         elif fallback_config:
             delim = fallback_config["delim"]
