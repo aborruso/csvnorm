@@ -5,13 +5,13 @@ const title = 'csvnorm — Clean CSV for fast exploration';
 const description = 'csvnorm is a CLI that validates and normalizes CSV files: UTF-8 encoding, consistent delimiters, tidy headers, and clear error reports.';
 ---
 <BaseLayout title={title} description={description}>
-  <header class="mx-auto flex max-w-6xl flex-col gap-6 px-6 pb-10 pt-16 md:flex-row md:items-center md:justify-between">
+  <header class="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pb-10 pt-16 md:flex-row md:items-center md:justify-between md:px-6">
     <div class="flex items-center gap-3">
       <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-ink text-bone shadow-glow">
         <span aria-hidden="true" class="text-2xl">⧉</span>
       </div>
       <div>
-        <p class="text-sm uppercase tracking-[0.35em] text-dusk">csvnorm</p>
+        <p class="text-sm uppercase tracking-[0.25em] text-dusk">csvnorm</p>
         <p class="text-base font-semibold">Normalize first, explore faster</p>
       </div>
     </div>
@@ -23,31 +23,32 @@ const description = 'csvnorm is a CLI that validates and normalizes CSV files: U
     </nav>
   </header>
 
-  <section class="mx-auto grid max-w-6xl gap-12 px-6 pb-20 pt-6 md:grid-cols-[1.2fr_0.8fr]">
-    <div class="flex flex-col gap-8">
-      <span class="data-chip">Csv | Clean | Ready</span>
-      <h1 class="hero-title">
-        csvnorm prepares CSV files for a first-pass exploration without surprises.
-      </h1>
-      <p class="text-lg text-ink/80">
-        A CLI built for messy CSVs: uncertain encodings, uneven columns, broken rows. In one command you get a coherent,
-        validated output ready for quick analysis or the next step in your pipeline.
-      </p>
-      <div class="flex flex-wrap gap-4">
-        <a
-          href="#quick-install"
-          class="rounded-full bg-ink px-6 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-bone shadow-glow"
-        >
-          Install
-        </a>
-        <a
-          href="https://github.com/aborruso/csvnorm"
-          class="rounded-full border border-ink/20 bg-white/70 px-6 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-ink"
-        >
-          View code
-        </a>
-      </div>
-      <div class="grid gap-4 md:grid-cols-3">
+  <section class="mx-auto w-full max-w-6xl px-4 pb-20 pt-6 md:px-6">
+    <div class="grid grid-cols-1 gap-8 md:grid-cols-[1.2fr_0.8fr] md:gap-12">
+      <div class="flex flex-col gap-6 md:gap-8">
+        <span class="data-chip">Csv | Clean | Ready</span>
+        <h1 class="hero-title">
+          csvnorm prepares CSV files for a first-pass exploration without surprises.
+        </h1>
+        <p class="text-base text-ink/80 md:text-lg">
+          A CLI built for messy CSVs: uncertain encodings, uneven columns, broken rows. In one command you get a coherent,
+          validated output ready for quick analysis or the next step in your pipeline.
+        </p>
+        <div class="flex flex-wrap gap-3 md:gap-4">
+          <a
+            href="#quick-install"
+            class="rounded-full bg-ink px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.2em] text-bone shadow-glow md:px-6 md:py-3 md:text-sm"
+          >
+            Install
+          </a>
+          <a
+            href="https://github.com/aborruso/csvnorm"
+            class="rounded-full border border-ink/20 bg-white/70 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.2em] text-ink md:px-6 md:py-3 md:text-sm"
+          >
+            View code
+          </a>
+        </div>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 md:gap-4">
         <div class="glass rounded-2xl p-4">
           <p class="text-xs uppercase tracking-[0.3em] text-dusk">Output</p>
           <p class="text-xl font-semibold">Clean UTF-8</p>
@@ -60,27 +61,26 @@ const description = 'csvnorm is a CLI that validates and normalizes CSV files: U
           <p class="text-xs uppercase tracking-[0.3em] text-dusk">Report</p>
           <p class="text-xl font-semibold">Clear errors</p>
         </div>
+        </div>
       </div>
-    </div>
-    <div class="glass rounded-3xl p-6 shadow-lg">
-      <p class="text-xs uppercase tracking-[0.3em] text-dusk">Quick example</p>
-      <pre class="mt-4 rounded-2xl bg-ink px-5 py-4 text-sm text-bone">
-<code>csvnorm data.csv \
+      <div class="glass rounded-2xl p-5 shadow-lg md:rounded-3xl md:p-6">
+        <p class="text-xs uppercase tracking-[0.25em] text-dusk md:tracking-[0.3em]">Quick example</p>
+        <pre class="mt-4 overflow-x-auto rounded-2xl bg-ink px-4 py-3 text-xs text-bone md:px-5 md:py-4 md:text-sm"><code>csvnorm data.csv \
   | head -20
 
 csvnorm data.csv -o output.csv
-csvnorm "https://.../dataset.csv" -o output.csv</code>
-      </pre>
-      <div class="mt-6 space-y-3 text-sm text-ink/80">
-        <p>✓ Normalize delimiters to comma</p>
-        <p>✓ Snake_case headers</p>
-        <p>✓ Convert encoding to UTF-8</p>
-        <p>✓ Rejected-row report</p>
+csvnorm "https://.../dataset.csv" -o output.csv</code></pre>
+        <div class="mt-5 space-y-2 text-xs text-ink/80 md:mt-6 md:space-y-3 md:text-sm">
+          <p>✓ Normalize delimiters to comma</p>
+          <p>✓ Snake_case headers</p>
+          <p>✓ Convert encoding to UTF-8</p>
+          <p>✓ Rejected-row report</p>
+        </div>
       </div>
     </div>
   </section>
 
-  <section id="what" class="mx-auto max-w-6xl px-6 py-16">
+  <section id="what" class="mx-auto w-full max-w-6xl px-4 py-16 md:px-6">
     <div class="grid gap-10 md:grid-cols-[0.6fr_1fr]">
       <h2 class="section-title">What is csvnorm</h2>
       <div class="space-y-6 text-lg text-ink/80">
@@ -96,90 +96,86 @@ csvnorm "https://.../dataset.csv" -o output.csv</code>
     </div>
   </section>
 
-  <section class="mx-auto max-w-6xl px-6 py-16">
+  <section class="mx-auto max-w-6xl px-4 py-16 md:px-6">
     <h2 class="section-title">Before and after</h2>
-    <p class="mt-4 text-lg text-ink/80">See the transformation in action. Raw CSV on the left, normalized on the right.</p>
-    <div class="mt-10 grid gap-6 md:grid-cols-2">
-      <div class="glass rounded-3xl p-6">
-        <div class="flex items-center justify-between">
-          <p class="text-xs uppercase tracking-[0.3em] text-dusk">Input file</p>
-          <span class="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700">Messy</span>
+    <p class="mt-4 text-base text-ink/80 md:text-lg">See the transformation in action. Raw CSV on the left, normalized on the right.</p>
+    <div class="mt-10 grid gap-4 md:grid-cols-2 md:gap-6">
+      <div class="glass rounded-2xl p-4 md:rounded-3xl md:p-6">
+        <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p class="text-xs uppercase tracking-[0.2em] text-dusk sm:tracking-[0.3em]">Input file</p>
+          <span class="w-fit rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-medium text-red-700">Messy</span>
         </div>
-        <pre class="mt-4 overflow-x-auto rounded-2xl bg-ink/5 px-4 py-3 text-xs font-mono text-ink"><code>City Name;Total Population;Year
+        <pre class="overflow-x-auto rounded-2xl bg-ink/5 px-3 py-2.5 text-[11px] font-mono leading-relaxed text-ink md:px-4 md:py-3 md:text-xs"><code>City Name;Total Population;Year
 London;8900000;2023
 Berlin;3700000;2023
 ZÃ¼rich;421000;2023
 Madrid;3300000;2023</code></pre>
-        <div class="mt-4 space-y-2 text-sm text-ink/70">
-          <p>✗ Delimiter: <code class="rounded bg-ink/10 px-2 py-0.5">;</code></p>
-          <p>✗ Encoding: <code class="rounded bg-ink/10 px-2 py-0.5">Latin-1</code> (mojibake: "ZÃ¼rich")</p>
+        <div class="mt-4 space-y-1.5 text-xs text-ink/70 md:text-sm">
+          <p>✗ Delimiter: <code class="rounded bg-ink/10 px-1.5 py-0.5 text-[11px]">;</code></p>
+          <p>✗ Encoding: <code class="rounded bg-ink/10 px-1.5 py-0.5 text-[11px]">Latin-1</code> (mojibake)</p>
           <p>✗ Headers: mixed case, spaces</p>
         </div>
       </div>
-      <div class="glass rounded-3xl p-6">
-        <div class="flex items-center justify-between">
-          <p class="text-xs uppercase tracking-[0.3em] text-dusk">Output file</p>
-          <span class="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">Clean</span>
+      <div class="glass rounded-2xl p-4 md:rounded-3xl md:p-6">
+        <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p class="text-xs uppercase tracking-[0.2em] text-dusk sm:tracking-[0.3em]">Output file</p>
+          <span class="w-fit rounded-full bg-green-100 px-2.5 py-1 text-[11px] font-medium text-green-700">Clean</span>
         </div>
-        <pre class="mt-4 overflow-x-auto rounded-2xl bg-ink/5 px-4 py-3 text-xs font-mono text-ink"><code>city_name,total_population,year
+        <pre class="overflow-x-auto rounded-2xl bg-ink/5 px-3 py-2.5 text-[11px] font-mono leading-relaxed text-ink md:px-4 md:py-3 md:text-xs"><code>city_name,total_population,year
 London,8900000,2023
 Berlin,3700000,2023
 Zürich,421000,2023
 Madrid,3300000,2023</code></pre>
-        <div class="mt-4 space-y-2 text-sm text-ink/70">
-          <p>✓ Delimiter: <code class="rounded bg-ink/10 px-2 py-0.5">,</code></p>
-          <p>✓ Encoding: <code class="rounded bg-ink/10 px-2 py-0.5">UTF-8</code> (readable: "Zürich")</p>
+        <div class="mt-4 space-y-1.5 text-xs text-ink/70 md:text-sm">
+          <p>✓ Delimiter: <code class="rounded bg-ink/10 px-1.5 py-0.5 text-[11px]">,</code></p>
+          <p>✓ Encoding: <code class="rounded bg-ink/10 px-1.5 py-0.5 text-[11px]">UTF-8</code> (readable)</p>
           <p>✓ Headers: snake_case</p>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="mx-auto max-w-6xl px-6 py-16">
+  <section class="mx-auto max-w-6xl px-4 py-16 md:px-6">
     <h2 class="section-title">Error tracking</h2>
-    <p class="mt-4 text-lg text-ink/80">When csvnorm finds malformed rows, it captures them in a detailed reject file using DuckDB's validation engine. Each error is documented with file, line, column, and error type.</p>
-    <div class="mt-10 glass rounded-3xl p-6">
-      <div class="flex items-center justify-between">
-        <p class="text-xs uppercase tracking-[0.3em] text-dusk">Example: output_reject_errors.csv</p>
-        <span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">Auto-generated</span>
+    <p class="mt-4 text-base text-ink/80 md:text-lg">When csvnorm finds malformed rows, it captures them in a detailed reject file using DuckDB's validation engine. Each error is documented with file, line, column, and error type.</p>
+    <div class="mt-10 glass rounded-2xl p-4 md:rounded-3xl md:p-6">
+      <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p class="text-xs uppercase tracking-[0.2em] text-dusk sm:tracking-[0.3em]">Example: output_reject_errors.csv</p>
+        <span class="w-fit rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-medium text-amber-700">Auto-generated</span>
       </div>
-      <div class="mt-4 overflow-x-auto">
-        <table class="w-full text-left text-xs">
+      <div class="mt-4 -mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+        <table class="w-full text-left text-[10px] md:text-xs">
           <thead class="border-b border-ink/10">
             <tr class="text-dusk">
-              <th class="pb-2 pr-4 font-medium">line</th>
-              <th class="pb-2 pr-4 font-medium">column_idx</th>
-              <th class="pb-2 pr-4 font-medium">column_name</th>
-              <th class="pb-2 pr-4 font-medium">value</th>
-              <th class="pb-2 font-medium">error_type</th>
+              <th class="whitespace-nowrap pb-2 pr-2 font-medium md:pr-4">line</th>
+              <th class="whitespace-nowrap pb-2 pr-2 font-medium md:pr-4">column_name</th>
+              <th class="whitespace-nowrap pb-2 pr-2 font-medium md:pr-4">value</th>
+              <th class="whitespace-nowrap pb-2 font-medium">error_type</th>
             </tr>
           </thead>
           <tbody class="font-mono text-ink/80">
             <tr class="border-b border-ink/5">
-              <td class="py-2 pr-4">45</td>
-              <td class="py-2 pr-4">2</td>
-              <td class="py-2 pr-4">total_population</td>
-              <td class="py-2 pr-4">N/A</td>
+              <td class="py-2 pr-2 md:pr-4">45</td>
+              <td class="py-2 pr-2 md:pr-4">total_population</td>
+              <td class="py-2 pr-2 md:pr-4">N/A</td>
               <td class="py-2">MISSING_COLUMNS</td>
             </tr>
             <tr class="border-b border-ink/5">
-              <td class="py-2 pr-4">67</td>
-              <td class="py-2 pr-4">1</td>
-              <td class="py-2 pr-4">city_name</td>
-              <td class="py-2 pr-4">Paris"extraquote</td>
+              <td class="py-2 pr-2 md:pr-4">67</td>
+              <td class="py-2 pr-2 md:pr-4">city_name</td>
+              <td class="py-2 pr-2 md:pr-4">Paris"extra</td>
               <td class="py-2">UNQUOTED_VALUE</td>
             </tr>
             <tr class="border-b border-ink/5">
-              <td class="py-2 pr-4">103</td>
-              <td class="py-2 pr-4">0</td>
-              <td class="py-2 pr-4">city_name</td>
-              <td class="py-2 pr-4">Rome;Milan;Turin</td>
+              <td class="py-2 pr-2 md:pr-4">103</td>
+              <td class="py-2 pr-2 md:pr-4">city_name</td>
+              <td class="py-2 pr-2 md:pr-4">Rome;Milan</td>
               <td class="py-2">TOO_MANY_COLUMNS</td>
             </tr>
           </tbody>
         </table>
       </div>
-      <div class="mt-6 space-y-3 text-sm text-ink/70">
+      <div class="mt-6 space-y-2 text-xs text-ink/70 md:space-y-3 md:text-sm">
         <p>✓ Each malformed row documented with line number</p>
         <p>✓ Error type classified by DuckDB validation</p>
         <p>✓ Original problematic value preserved for review</p>
@@ -187,7 +183,7 @@ Madrid,3300000,2023</code></pre>
     </div>
   </section>
 
-  <section id="why" class="mx-auto max-w-6xl px-6 py-16">
+  <section id="why" class="mx-auto w-full max-w-6xl px-4 py-16 md:px-6">
     <div class="grid gap-10 md:grid-cols-[1fr_0.8fr]">
       <div class="space-y-6">
         <h2 class="section-title">Why use it</h2>
@@ -226,7 +222,7 @@ Madrid,3300000,2023</code></pre>
     </div>
   </section>
 
-  <section id="how" class="mx-auto max-w-6xl px-6 py-16">
+  <section id="how" class="mx-auto w-full max-w-6xl px-4 py-16 md:px-6">
     <h2 class="section-title">How it works</h2>
     <div class="mt-10 grid gap-6 md:grid-cols-3">
       <article class="glass rounded-2xl p-6">
@@ -253,37 +249,31 @@ Madrid,3300000,2023</code></pre>
     </div>
   </section>
 
-  <section id="use" class="mx-auto max-w-6xl px-6 py-16">
+  <section id="use" class="mx-auto w-full max-w-6xl px-4 py-16 md:px-6">
     <div class="grid gap-10 md:grid-cols-[1fr_0.9fr]">
       <div class="space-y-6">
         <h2 class="section-title">Use it now</h2>
         <p class="text-lg text-ink/80">
           csvnorm writes to stdout by default, so it plugs into other tools. If you want a file, just set the output path.
         </p>
-        <div class="rounded-3xl bg-ink px-6 py-5 text-bone">
-          <pre class="text-sm">
-<code>csvnorm input.csv
+        <div class="rounded-2xl bg-ink px-4 py-4 text-bone md:rounded-3xl md:px-6 md:py-5">
+          <pre class="overflow-x-auto text-xs md:text-sm"><code>csvnorm input.csv
 csvnorm input.csv -o output.csv
 csvnorm input.csv | csvstat
-csvnorm "https://.../dataset.csv" -o output.csv</code>
-          </pre>
+csvnorm "https://.../dataset.csv" -o output.csv</code></pre>
         </div>
       </div>
       <div class="glass rounded-3xl p-6">
         <h3 id="quick-install" class="scroll-mt-24 text-xl font-semibold">Quick install</h3>
         <p class="mt-3 text-sm text-ink/70">Recommended with uv:</p>
-        <pre class="mt-3 rounded-2xl bg-white/80 px-4 py-3 text-sm text-ink">
-<code>uv tool install csvnorm</code>
-        </pre>
+        <pre class="mt-3 overflow-x-auto rounded-2xl bg-white/80 px-4 py-3 text-sm text-ink"><code>uv tool install csvnorm</code></pre>
         <p class="mt-4 text-sm text-ink/70">Or with pip:</p>
-        <pre class="mt-3 rounded-2xl bg-white/80 px-4 py-3 text-sm text-ink">
-<code>pip install csvnorm</code>
-        </pre>
+        <pre class="mt-3 overflow-x-auto rounded-2xl bg-white/80 px-4 py-3 text-sm text-ink"><code>pip install csvnorm</code></pre>
       </div>
     </div>
   </section>
 
-  <footer class="mx-auto max-w-6xl px-6 pb-16 pt-10">
+  <footer class="mx-auto w-full max-w-6xl px-4 pb-16 pt-10 md:px-6">
     <div class="glass rounded-3xl p-6 text-sm text-ink/70">
       <p class="text-base font-semibold text-ink">csvnorm is open source</p>
       <p class="mt-2">

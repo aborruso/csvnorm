@@ -17,9 +17,27 @@
 **Added error tracking section** to website/src/pages/index.astro:
 - Example table showing DuckDB reject_errors.csv format
 - Demonstrates three common error types: MISSING_COLUMNS, UNQUOTED_VALUE, TOO_MANY_COLUMNS
-- Shows line number, column index, column name, value, and error type
+- Shows line number, column name, value, and error type (removed column_idx for mobile space)
 - Explains DuckDB's validation engine role
 - Badge indicator: "Auto-generated" (amber)
+
+**Complete mobile responsive overhaul**:
+- Fixed horizontal overflow issues on mobile devices
+- Reduced padding: `px-4` on mobile → `px-6` on desktop for all sections
+- Added `overflow-x-hidden` to body to prevent page overflow
+- Fixed background decorative elements causing overflow (positioned offscreen on mobile)
+- All `<pre>` blocks now have `overflow-x-auto` for horizontal scroll
+- Hero section grid: 1 column on mobile → 2 columns (1.2fr:0.8fr) on desktop
+- Font sizes responsive: smaller on mobile, normal on desktop
+- Buttons, badges, and UI elements sized appropriately for mobile
+- Fixed missing closing div tag in hero section grid structure
+- Reduced letter-spacing on mobile to prevent text overflow
+- Tables with responsive text sizes and padding
+
+**Added custom favicon**:
+- Created SVG favicon with ⧉ icon on dark background
+- Matches header icon styling (dark ink background, light bone text)
+- Added favicon link in BaseLayout.astro
 
 ## 2026-01-18
 
