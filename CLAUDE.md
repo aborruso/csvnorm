@@ -33,7 +33,7 @@ For deployment procedures (building, tagging, publishing to PyPI), see `DEPLOYME
 
 **PRE-RELEASE CHECKLIST**:
 - NEVER release if `csvnorm -v` fails (basic smoke test)
-- Verify all runtime dependencies are in `pyproject.toml` (e.g., setuptools for pyfiglet)
+- Verify all runtime dependencies are in `pyproject.toml`
 - Test installation: `uv tool install --reinstall --force .` then `csvnorm -v`
 
 ## Common Commands
@@ -158,7 +158,6 @@ FALLBACK_CONFIGS = [
 - `ftfy>=6.3.1` - Mojibake repair
 - `rich>=13.0.0` - Terminal output formatting
 - `rich-argparse>=1.0.0` - Enhanced CLI help
-- `pyfiglet>=0.8.post1,<1.0.0` - ASCII art banner
 
 **Development**:
 - `pytest>=7.0.0` - Testing
