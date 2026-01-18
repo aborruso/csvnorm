@@ -79,7 +79,7 @@ csvnorm input.csv [options]
 | `-k, --keep-names` | Keep original column names (disable snake_case) |
 | `-d, --delimiter CHAR` | Set custom output delimiter (default: `,`) |
 | `-s, --skip-rows N` | Skip first N rows of input file (useful for metadata/comments) |
-| `--fix-mojibake [N]` | Fix mojibake using ftfy (optional sample size `N`) |
+| `--fix-mojibake [N]` | Fix mojibake using ftfy (optional sample size `N`; use `0` to force repair) |
 | `-V, --verbose` | Enable verbose output for debugging |
 | `-v, --version` | Show version number |
 | `-h, --help` | Show help message |
@@ -122,6 +122,9 @@ csvnorm data.csv --fix-mojibake -o fixed.csv
 
 # Fix mojibake with custom sample size
 csvnorm data.csv --fix-mojibake 4000 -o fixed.csv
+
+# Force mojibake repair even with low badness score
+csvnorm data.csv --fix-mojibake 0 -o fixed.csv
 ```
 
 ### Output
@@ -155,7 +158,9 @@ csvnorm data.csv --fix-mojibake 4000 -o fixed.csv
 - Mojibake is garbled text produced by decoding bytes with the wrong character encoding (e.g., `CittÃ ` instead of `Città`).
 - Enables optional mojibake repair using ftfy (for already-misdecoded text).
 - `N` is the sample size (number of characters) used by the detector; default is 5000.
-- The repair runs only when ftfy’s badness heuristic flags the sample as “bad.”
+- The repair runs only when ftfy's badness heuristic flags the sample as "bad."
+- Use `N=0` to force repair without detection (useful for files with low badness scores but visible mojibake).
+- **Note**: ftfy cannot recover bytes that were irreversibly lost in the original encoding. Replacement characters (`�`) may remain where data was corrupted beyond repair.
 - HTTP timeout is set to 30 seconds
 - Only public URLs are supported (no authentication)
 

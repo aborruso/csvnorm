@@ -25,8 +25,16 @@ def test_detect_mojibake_negative():
 
 
 def test_detect_mojibake_invalid_sample():
-    with pytest.raises(ValueError, match="sample_size must be a positive integer"):
-        detect_mojibake("test", sample_size=0)
+    with pytest.raises(ValueError, match="sample_size must be non-negative"):
+        detect_mojibake("test", sample_size=-1)
+
+
+def test_detect_mojibake_force_mode():
+    """Test that sample_size=0 forces repair without detection."""
+    text = "Clean text with no mojibake"
+    is_bad, score = detect_mojibake(text, sample_size=0)
+    assert is_bad is True  # Force mode always returns True
+    assert score == 0.0
 
 
 def test_repair_text_changes():
@@ -67,3 +75,27 @@ def test_fix_mojibake_fixture(tmp_path):
     assert exit_code == 0
     fixed_text = output_path.read_text(encoding="utf-8", errors="replace")
     assert not any(pat in fixed_text for pat in patterns)
+
+
+def test_fix_mojibake_force_mode(tmp_path):
+    """Test that --fix-mojibake 0 forces repair even when badness is low."""
+    input_path = tmp_path / "input.csv"
+    output_path = tmp_path / "output.csv"
+
+    # Create file with subtle mojibake (low badness score)
+    input_path.write_text("Nome,Descrizione\nTest,â€œQuotedâ€�\n", encoding="utf-8")
+
+    # Verify it has the mojibake pattern
+    text = input_path.read_text(encoding="utf-8")
+    assert "â€œ" in text or "â€�" in text
+
+    # Use force mode (sample_size=0)
+    exit_code = main(
+        [str(input_path), "--fix-mojibake", "0", "-o", str(output_path), "-f"]
+    )
+    assert exit_code == 0
+
+    # Verify repair happened
+    fixed_text = output_path.read_text(encoding="utf-8")
+    assert "â€œ" not in fixed_text
+    assert "â€�" not in fixed_text

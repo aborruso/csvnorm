@@ -59,8 +59,8 @@ def process_csv(
     # Determine if output mode is stdout or file
     use_stdout = output_file is None
 
-    if fix_mojibake_sample is not None and fix_mojibake_sample <= 0:
-        show_error_panel("--fix-mojibake must be a positive integer")
+    if fix_mojibake_sample is not None and fix_mojibake_sample < 0:
+        show_error_panel("--fix-mojibake must be non-negative (use 0 to force repair)")
         return 1
 
     # Detect if input is URL or file

@@ -1,6 +1,6 @@
 """csvnorm - Validate and normalize CSV files."""
 
-__version__ = "1.1.3"
+__version__ = "1.1.5"
 __all__ = ["normalize_csv", "detect_encoding", "process_csv"]
 
 from csvnorm.core import process_csv

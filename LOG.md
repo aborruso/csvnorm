@@ -1,5 +1,65 @@
 # Changelog
 
+## 2026-01-18
+
+### Bug Fixes
+
+**Issue #21: Force mojibake repair and triple-quote bug**:
+- Added `--fix-mojibake 0` force mode to skip badness detection
+- Fixed triple-quote issue in CSV output after mojibake repair
+- ftfy now uses `uncurl_quotes=False` to preserve curly quotes (" "), preventing CSV quote escaping conflicts
+- Updated README to document force mode and replacement character limitations
+
+### Documentation Updates
+
+**Updated CLAUDE.md**:
+- Added single test command example
+- Added coverage command
+- Documented stdout vs file mode processing flow
+- Added fallback mechanism details (FALLBACK_CONFIGS)
+- Added early detection explanation
+- Documented mojibake.py module
+- Clarified output modes and temp file cleanup
+- Added more development examples (skip-rows, mojibake)
+
+**Updated .github/copilot-instructions.md**:
+- Replaced obsolete Bash references with Python
+- Updated to reflect current architecture (charset_normalizer, ftfy, DuckDB Python lib)
+- Added early detection and fallback mechanism documentation
+- Documented stdout vs file modes
+- Added pytest commands and smoke tests
+- Updated dependencies and integration points
+
+### Post-PR #22 Review Fixes
+
+**Applied fixes** from Copilot PR #22 review:
+1. ✅ Fixed validation.py:220-232 - Preserve fallback delimiter when user provides skip_rows
+   - Added logic to check fallback_config for non-comma delimiter
+   - Delimiter now correctly passed to DuckDB even with user-provided skip_rows
+   - Prevents potential edge case where delimiter detection fails but skip_rows provided
+2. ✅ Fixed test_cli.py:275 - Clarified misleading comment
+   - Changed "use semicolon input" → "auto-detected semicolon input, output as comma"
+   - Accurately describes that -d specifies output delimiter, not input
+
+**Verified**: All 105 tests passing, no regressions
+
+### Post-PR #22 Verification
+
+**Verified**: --skip-rows feature working correctly
+- ✅ All 105 tests pass
+- ✅ csvnorm -v smoke test passes
+- ✅ Manual testing with metadata_skip_rows.csv and title_row_skip.csv successful
+
+**Review findings** (from Copilot PR reviewer):
+1. **Bug identified** (validation.py:220-222): When user provides skip_rows > 0 and fallback_config contains non-comma delimiter, the delimiter is ignored in normalize_csv
+   - Impact: Low/theoretical - DuckDB auto-detection usually works
+   - Scenario: User runs `--skip-rows N` on file with non-comma delimiter that requires fallback config
+   - Current behavior: Works in practice due to DuckDB's robust auto-detection
+   - Suggested fix: Preserve fallback delimiter when skip_rows > 0
+2. **Misleading comment** (tests/test_cli.py:275): Comment says "use semicolon input" but -d flag specifies output delimiter, not input
+   - Impact: Documentation only
+   - Suggested fix: Clarify comment to "auto-detected semicolon input, output as comma"
+
 ## 2026-01-17
 
 ### v1.1.3: Help text for --fix-mojibake

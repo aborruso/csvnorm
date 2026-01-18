@@ -117,7 +117,8 @@ Examples:
         type=int,
         help=(
             "Fix mojibake using ftfy. Optionally pass sample size "
-            "(chars to sample, default 5000). Example: --fix-mojibake 4000."
+            "(chars to sample, default 5000). Use 0 to force repair "
+            "without detection. Example: --fix-mojibake 4000 or --fix-mojibake 0."
         ),
     )
 
