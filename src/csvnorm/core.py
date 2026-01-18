@@ -37,6 +37,7 @@ def process_csv(
     force: bool = False,
     keep_names: bool = False,
     delimiter: str = ",",
+    skip_rows: int = 0,
     verbose: bool = False,
     fix_mojibake_sample: Optional[int] = None,
 ) -> int:
@@ -48,7 +49,9 @@ def process_csv(
         force: If True, overwrite existing output files (only when output_file is specified).
         keep_names: If True, keep original column names.
         delimiter: Output field delimiter.
+        skip_rows: Number of rows to skip at the beginning of the file.
         verbose: If True, enable debug logging.
+        fix_mojibake_sample: Sample size for mojibake detection, None to disable.
 
     Returns:
         Exit code: 0 for success, 1 for error.
@@ -249,7 +252,7 @@ def process_csv(
 
             try:
                 reject_count, error_types, fallback_config = validate_csv(
-                    working_file, reject_file, is_remote=is_remote
+                    working_file, reject_file, is_remote=is_remote, skip_rows=skip_rows
                 )
             except Exception as e:
                 progress.stop()
@@ -302,6 +305,7 @@ def process_csv(
                 delimiter=delimiter,
                 normalize_names=not keep_names,
                 is_remote=is_remote,
+                skip_rows=skip_rows,
                 fallback_config=fallback_config,
                 reject_file=reject_file,
             )

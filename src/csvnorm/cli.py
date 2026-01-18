@@ -56,6 +56,7 @@ Examples:
   csvnorm data.csv > output.csv             # Shell redirect
   csvnorm data.csv | head -20               # Preview with pipe
   csvnorm data.csv -d ';' -o output.csv     # Custom delimiter
+  csvnorm data.csv --skip-rows 2 -o out.csv # Skip first 2 rows
   csvnorm https://example.com/data.csv -o processed.csv
 """,
     )
@@ -89,6 +90,17 @@ Examples:
         "--delimiter",
         default=",",
         help="Set custom field delimiter (default: comma). Example: -d ';'",
+    )
+
+    parser.add_argument(
+        "-s",
+        "--skip-rows",
+        type=int,
+        default=0,
+        help=(
+            "Skip first N rows of input file. Useful for CSV files with "
+            "metadata or comments before the header row. Example: --skip-rows 2"
+        ),
     )
 
     parser.add_argument(
@@ -155,6 +167,11 @@ def main(argv: Optional[list[str]] = None) -> int:
     # Setup logging
     setup_logger(args.verbose)
 
+    # Validate skip_rows
+    if args.skip_rows < 0:
+        console.print("[red]Error:[/red] --skip-rows must be non-negative", style="red")
+        return 1
+
     # Run processing (output_file can be None for stdout)
     fix_mojibake_sample = args.fix_mojibake
     return process_csv(
@@ -163,6 +180,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         force=args.force,
         keep_names=args.keep_names,
         delimiter=args.delimiter,
+        skip_rows=args.skip_rows,
         verbose=args.verbose,
         fix_mojibake_sample=fix_mojibake_sample,
     )

@@ -24,7 +24,10 @@ COMMON_DELIMITERS = [",", ";", "|", "\t"]
 
 
 def validate_csv(
-    file_path: Union[Path, str], reject_file: Path, is_remote: bool = False
+    file_path: Union[Path, str],
+    reject_file: Path,
+    is_remote: bool = False,
+    skip_rows: int = 0,
 ) -> tuple[int, list[str], Optional[dict[str, Union[str, int]]]]:
     """Validate CSV file using DuckDB and export rejected rows.
 
@@ -32,6 +35,7 @@ def validate_csv(
         file_path: Path to CSV file to validate or URL string.
         reject_file: Path to write rejected rows.
         is_remote: True if file_path is a remote URL.
+        skip_rows: Number of rows to skip at the beginning of the file (user-provided).
 
     Returns:
         Tuple of (reject_count, error_types, fallback_config) where:
@@ -45,8 +49,9 @@ def validate_csv(
     fallback_config = None
 
     # Pre-check for header anomalies (local files only)
+    # Skip early detection if user provided skip_rows
     suggested_config = None
-    if not is_remote and isinstance(file_path, Path):
+    if skip_rows == 0 and not is_remote and isinstance(file_path, Path):
         suggested_config = _detect_header_anomaly(file_path)
         if suggested_config:
             logger.info(f"Early detection suggests config: {suggested_config}")
@@ -62,19 +67,18 @@ def validate_csv(
             try:
                 delim = suggested_config["delim"]
                 skip = suggested_config["skip"]
+                # Use COUNT(*) instead of COPY TO /dev/null to avoid locking issues
                 conn.execute(f"""
-                    COPY (
-                        FROM read_csv(
-                            '{file_path}',
-                            delim='{delim}',
-                            skip={skip},
-                            store_rejects=true,
-                            ignore_errors=true,
-                            sample_size=-1,
-                            all_varchar=true
-                        )
-                    ) TO '/dev/null'
-                """)
+                    SELECT COUNT(*) FROM read_csv(
+                        '{file_path}',
+                        delim='{delim}',
+                        skip={skip},
+                        store_rejects=true,
+                        ignore_errors=true,
+                        sample_size=-1,
+                        all_varchar=true
+                    )
+                """).fetchall()
                 fallback_config = suggested_config
                 logger.info("Early-detected config succeeded")
             except Exception as e:
@@ -86,16 +90,20 @@ def validate_csv(
             try:
                 # Read CSV with store_rejects to capture malformed rows
                 # Use all_varchar=true to avoid type inference failures
+                # Add user-provided skip_rows if specified
+                read_opts = "store_rejects=true, sample_size=-1, all_varchar=true"
+                if skip_rows > 0:
+                    read_opts += f", skip={skip_rows}"
+                    # Track that we used user-provided skip
+                    fallback_config = {"delim": ",", "skip": skip_rows}
+
+                # Use COUNT(*) instead of COPY TO /dev/null to avoid locking issues
                 conn.execute(f"""
-                    COPY (
-                        FROM read_csv(
-                            '{file_path}',
-                            store_rejects=true,
-                            sample_size=-1,
-                            all_varchar=true
-                        )
-                    ) TO '/dev/null'
-                """)
+                    SELECT COUNT(*) FROM read_csv(
+                        '{file_path}',
+                        {read_opts}
+                    )
+                """).fetchall()
                 logger.debug("Standard CSV sniffing succeeded")
 
             except Exception as e:
@@ -104,9 +112,21 @@ def validate_csv(
                 if "sniffing" in error_msg.lower() or "detect" in error_msg.lower():
                     logger.debug("Standard sniffing failed, trying fallback configurations...")
 
+                    # Create fallback configs based on user-provided skip_rows
+                    # If skip_rows > 0, use it; otherwise use predefined FALLBACK_CONFIGS
+                    if skip_rows > 0:
+                        # User provided skip_rows, try different delimiters with user's skip
+                        fallback_configs = [
+                            {"delim": delim, "skip": skip_rows}
+                            for delim in COMMON_DELIMITERS
+                        ]
+                    else:
+                        # Use predefined fallback configs
+                        fallback_configs = FALLBACK_CONFIGS
+
                     # Try each fallback configuration
                     success = False
-                    for config in FALLBACK_CONFIGS:
+                    for config in fallback_configs:
                         logger.debug(f"Trying config: {config}")
                         if _try_read_csv_with_config(conn, file_path, config):
                             logger.info(f"Fallback succeeded with config: {config}")
@@ -117,19 +137,18 @@ def validate_csv(
                             # Use both store_rejects and ignore_errors to handle malformed rows
                             delim = config["delim"]
                             skip = config["skip"]
+                            # Use COUNT(*) instead of COPY TO /dev/null to avoid locking issues
                             conn.execute(f"""
-                                COPY (
-                                    FROM read_csv(
-                                        '{file_path}',
-                                        delim='{delim}',
-                                        skip={skip},
-                                        store_rejects=true,
-                                        ignore_errors=true,
-                                        sample_size=-1,
-                                        all_varchar=true
-                                    )
-                                ) TO '/dev/null'
-                            """)
+                                SELECT COUNT(*) FROM read_csv(
+                                    '{file_path}',
+                                    delim='{delim}',
+                                    skip={skip},
+                                    store_rejects=true,
+                                    ignore_errors=true,
+                                    sample_size=-1,
+                                    all_varchar=true
+                                )
+                            """).fetchall()
                             break
 
                     if not success:
@@ -163,6 +182,7 @@ def normalize_csv(
     delimiter: str = ",",
     normalize_names: bool = True,
     is_remote: bool = False,
+    skip_rows: int = 0,
     fallback_config: Optional[dict[str, Union[str, int]]] = None,
     reject_file: Optional[Path] = None,
 ) -> Optional[dict[str, Union[str, int]]]:
@@ -174,6 +194,7 @@ def normalize_csv(
         delimiter: Output field delimiter.
         normalize_names: If True, convert column names to snake_case.
         is_remote: True if input_path is a remote URL.
+        skip_rows: Number of rows to skip at the beginning of the file (user-provided).
         fallback_config: Optional fallback configuration from validate_csv.
         reject_file: Optional path to write rejected rows (for fallback mode).
 
@@ -195,8 +216,12 @@ def normalize_csv(
         if normalize_names:
             read_opts += ", normalize_names=true"
 
-        # Add fallback config options if available
-        if fallback_config:
+        # Add user-provided skip_rows if specified (takes precedence over fallback)
+        if skip_rows > 0:
+            read_opts += f", skip={skip_rows}"
+            logger.debug(f"Using user-provided skip_rows: {skip_rows}")
+        # Add fallback config options if available and skip_rows not provided
+        elif fallback_config:
             delim = fallback_config["delim"]
             skip = fallback_config["skip"]
             # Add ignore_errors when using fallback (may have malformed rows)
@@ -222,7 +247,7 @@ def normalize_csv(
         except Exception as e:
             error_msg = str(e)
             # If not already using fallback and it's a sniffing error, try fallback
-            if not fallback_config and ("sniffing" in error_msg.lower() or "detect" in error_msg.lower()):
+            if not fallback_config and skip_rows == 0 and ("sniffing" in error_msg.lower() or "detect" in error_msg.lower()):
                 logger.debug("Normalization sniffing failed, trying fallback configurations...")
 
                 success = False
