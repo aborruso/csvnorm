@@ -1,5 +1,6 @@
 """Tests for CLI module."""
 
+import shutil
 import subprocess
 import sys
 
@@ -368,3 +369,23 @@ class TestCLISubprocess:
         assert output_file.exists()
         content = output_file.read_text()
         assert "a,b" in content.lower() or "1,2" in content
+
+    def test_pipe_to_head(self, tmp_path):
+        """Test piping to head exits cleanly without BrokenPipeError."""
+        if shutil.which("head") is None:
+            pytest.skip("head not available on this platform")
+
+        test_csv = tmp_path / "test.csv"
+        test_csv.write_text("A,B\n1,2\n3,4\n5,6\n")
+
+        result = subprocess.run(
+            f'{sys.executable} -m csvnorm "{test_csv}" | head -1',
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        assert result.returncode == 0
+        combined = (result.stdout + result.stderr).lower()
+        assert "broken pipe" not in combined

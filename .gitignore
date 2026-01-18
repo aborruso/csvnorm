@@ -15,6 +15,7 @@ dist/
 *.egg-info/
 .venv/
 .tmp/
+/tmp/
 VALUTAZIONE.md
 
 # Astro site (website/)

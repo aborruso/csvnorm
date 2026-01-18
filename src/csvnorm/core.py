@@ -327,8 +327,12 @@ def process_csv(
         # Handle output based on mode
         if use_stdout:
             # Write to stdout
-            with open(actual_output_file, "r") as f:
-                sys.stdout.write(f.read())
+            try:
+                with open(actual_output_file, "r") as f:
+                    sys.stdout.write(f.read())
+            except BrokenPipeError:
+                # Downstream pipe closed early (e.g., `| head`); exit cleanly.
+                return 0
 
             # Show validation errors on stderr if any
             if has_validation_errors:

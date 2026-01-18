@@ -319,9 +319,8 @@ def normalize_csv(
 def _fix_duckdb_keyword_prefix(file_path: Path) -> None:
     """Remove underscore prefix from DuckDB-prefixed SQL keywords in header.
 
-    DuckDB's normalize_names option prefixes SQL keywords like 'value' and 'location'
-    with an underscore to avoid conflicts. This function removes those prefixes
-    from the header row only.
+    DuckDB's normalize_names option prefixes SQL keywords with an underscore to
+    avoid conflicts. This function removes those prefixes from the header row only.
 
     Args:
         file_path: Path to CSV file to fix.
@@ -334,10 +333,8 @@ def _fix_duckdb_keyword_prefix(file_path: Path) -> None:
 
     header = lines[0]
 
-    header = re.sub(r",_value\b", ",value", header)
-    header = re.sub(r"^_value\b", "value", header)
-    header = re.sub(r",_location\b", ",location", header)
-    header = re.sub(r"^_location\b", "location", header)
+    # Remove leading underscore on any column name (start of header or after comma).
+    header = re.sub(r"(^|,)_([A-Za-z0-9]+)\b", r"\1\2", header)
 
     lines[0] = header
 

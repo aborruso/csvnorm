@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from csvnorm.validation import _count_lines, _get_error_types
+from csvnorm.validation import _count_lines, _fix_duckdb_keyword_prefix, _get_error_types
 
 
 class TestCountLines:
@@ -99,3 +99,22 @@ class TestGetErrorTypes:
             result = _get_error_types(reject_file)
             # Should return at most 3 unique errors
             assert len(result) <= 3
+
+
+class TestFixDuckdbKeywordPrefix:
+    """Tests for _fix_duckdb_keyword_prefix internal function."""
+
+    def test_removes_leading_underscore_from_header(self):
+        """Test removing underscore prefix from any header column."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_file = Path(tmpdir) / "test.csv"
+            test_file.write_text("_value,_location,_data,_foo,bar\n1,2,3,4,5\n")
+
+            _fix_duckdb_keyword_prefix(test_file)
+
+            with open(test_file, "r") as f:
+                header = f.readline().strip()
+                data = f.readline().strip()
+
+            assert header == "value,location,data,foo,bar"
+            assert data == "1,2,3,4,5"
