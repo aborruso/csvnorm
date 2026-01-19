@@ -1,6 +1,7 @@
 """UI formatting functions for csvnorm terminal output."""
 
 from pathlib import Path
+from typing import Optional
 
 from rich.console import Console
 from rich.panel import Panel
@@ -46,8 +47,8 @@ def show_success_table(
     output_size: int,
     delimiter: str,
     keep_names: bool,
-    output_display: str | None = None,
-    out_console: Console | None = None,
+    output_display: Optional[str] = None,
+    out_console: Optional[Console] = None,
 ) -> None:
     """Display success summary table with processing results.
 
