@@ -157,7 +157,8 @@ def _download_remote_if_needed(
             "Remote server does not support HTTP range requests\n\n"
             f"URL: [cyan]{input_file}[/cyan]\n\n"
             "DuckDB requires HTTP range requests to read remote CSVs.\n"
-            "Please download the file locally and run csvnorm on the file."
+            "Use [bold]--download-remote[/bold] to download the file locally "
+            "before processing."
         )
         raise ValueError("Remote server does not support range requests")
 
