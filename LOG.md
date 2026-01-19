@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-01-19
+
+### Stdout Summary Enhancement
+
+**Added success summary to stderr when outputting to stdout**:
+- Matches the rich success table shown with `-o`
+- Keeps CSV data clean in stdout for pipes
+- Shows encoding conversion status, counts, and sizes
+- Output is labeled as `stdout` in the summary
+
 ## 2026-01-18
 
 ### Website Enhancement

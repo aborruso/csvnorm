@@ -46,6 +46,8 @@ def show_success_table(
     output_size: int,
     delimiter: str,
     keep_names: bool,
+    output_display: str | None = None,
+    out_console: Console | None = None,
 ) -> None:
     """Display success summary table with processing results.
 
@@ -65,7 +67,8 @@ def show_success_table(
     table = Table(show_header=False, box=None, padding=(0, 1))
     table.add_row("[green]✓[/green] Success", "")
     table.add_row("Input:", f"[cyan]{input_file}[/cyan]")
-    table.add_row("Output:", f"[cyan]{output_file}[/cyan]")
+    output_value = output_display if output_display is not None else str(output_file)
+    table.add_row("Output:", f"[cyan]{output_value}[/cyan]")
 
     # Encoding info (only for local files)
     if not is_remote:
@@ -94,8 +97,9 @@ def show_success_table(
     if not keep_names:
         table.add_row("Headers:", "normalized to snake_case")
 
-    console.print()
-    console.print(table)
+    render_console = out_console or console
+    render_console.print()
+    render_console.print(table)
 
 
 def show_validation_error_panel(

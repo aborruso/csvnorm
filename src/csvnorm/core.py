@@ -5,7 +5,7 @@ import sys
 import tempfile
 import urllib.error
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 import duckdb
 from rich.console import Console
@@ -302,6 +302,7 @@ def _emit_stdout_output(
     has_validation_errors: bool,
     reject_count: int,
     reject_file: Path,
+    summary: Optional[dict[str, Any]] = None,
 ) -> int:
     """Write output to stdout and emit validation warnings if needed."""
     try:
@@ -309,6 +310,24 @@ def _emit_stdout_output(
             sys.stdout.write(f.read())
     except BrokenPipeError:
         return 0
+
+    if summary:
+        stderr_console = Console(stderr=True)
+        show_success_table(
+            input_file=summary["input_file"],
+            output_file=summary["output_file"],
+            encoding=summary["encoding"],
+            is_remote=summary["is_remote"],
+            mojibake_repaired=summary["mojibake_repaired"],
+            row_count=summary["row_count"],
+            column_count=summary["column_count"],
+            input_size=summary["input_size"],
+            output_size=summary["output_size"],
+            delimiter=summary["delimiter"],
+            keep_names=summary["keep_names"],
+            output_display=summary["output_display"],
+            out_console=stderr_console,
+        )
 
     if has_validation_errors:
         stderr_console = Console(stderr=True)
@@ -542,20 +561,37 @@ def process_csv(
             progress.update(task, description="[green]✓[/green] Complete")
 
         # Handle output based on mode
+        input_size = (
+            working_file.stat().st_size if isinstance(working_file, Path) else 0
+        )
+        output_size = actual_output_file.stat().st_size
+        row_count = get_row_count(actual_output_file)
+        column_count = get_column_count(actual_output_file, delimiter)
+
         if use_stdout:
+            summary = {
+                "input_file": input_file,
+                "output_file": actual_output_file,
+                "encoding": encoding,
+                "is_remote": is_remote,
+                "mojibake_repaired": mojibake_repaired,
+                "row_count": row_count,
+                "column_count": column_count,
+                "input_size": input_size,
+                "output_size": output_size,
+                "delimiter": delimiter,
+                "keep_names": keep_names,
+                "output_display": "stdout",
+            }
             return _emit_stdout_output(
-                actual_output_file, has_validation_errors, reject_count, reject_file
+                actual_output_file,
+                has_validation_errors,
+                reject_count,
+                reject_file,
+                summary,
             )
         else:
             # File mode: show success table
-            input_size = (
-                working_file.stat().st_size if isinstance(working_file, Path) else 0
-            )
-            output_size = actual_output_file.stat().st_size
-            row_count = get_row_count(actual_output_file)
-            column_count = get_column_count(actual_output_file, delimiter)
-
-            # Show success summary
             show_success_table(
                 input_file=input_file,
                 output_file=actual_output_file,
