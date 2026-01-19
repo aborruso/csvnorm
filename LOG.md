@@ -2,6 +2,10 @@
 
 ## 2026-01-19
 
+### v1.2.4 - Patch Release
+
+**Version bump only** to republish after PyPI filename reuse error.
+
 ### Stdout Summary Enhancement
 
 **Added success summary to stderr when outputting to stdout**:
