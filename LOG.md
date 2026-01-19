@@ -12,8 +12,9 @@
 
 ### Remote Download Option
 
-**Added `--download-remote` flag for non-range URLs**:
-- Downloads remote CSVs locally when HTTP range requests are unsupported
+**Added `--download-remote` flag for remote URLs**:
+- Downloads remote CSVs locally before processing when the flag is set
+- Avoids ETag mismatch errors from remote reads
 - Preserves default behavior when the flag is not used
 
 ## 2026-01-18

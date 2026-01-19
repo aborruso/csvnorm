@@ -132,8 +132,8 @@ Examples:
         "--download-remote",
         action="store_true",
         help=(
-            "Download remote CSV locally when HTTP range requests are unsupported. "
-            "Useful for servers that block range reads required by DuckDB."
+            "Download remote CSV locally before processing. "
+            "Useful for servers that block range reads or change files during reads."
         ),
     )
 

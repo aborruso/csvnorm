@@ -138,6 +138,17 @@ def _download_remote_if_needed(
     if not is_remote:
         return input_path, is_remote
 
+    if download_remote:
+        try:
+            download_path = temp_dir / "remote_download.csv"
+            download_url_to_file(input_file, download_path)
+        except (OSError, urllib.error.URLError) as e:
+            show_error_panel(f"Failed to download remote file\n{e}")
+            raise
+
+        temp_files.append(download_path)
+        return download_path, False
+
     if _check_remote_range_support(input_file):
         return input_path, is_remote
 
@@ -149,16 +160,6 @@ def _download_remote_if_needed(
             "Please download the file locally and run csvnorm on the file."
         )
         raise ValueError("Remote server does not support range requests")
-
-    try:
-        download_path = temp_dir / "remote_download.csv"
-        download_url_to_file(input_file, download_path)
-    except (OSError, urllib.error.URLError) as e:
-        show_error_panel(f"Failed to download remote file\n{e}")
-        raise
-
-    temp_files.append(download_path)
-    return download_path, False
 
 
 def _check_remote_range_support(input_file: str) -> bool:
@@ -260,6 +261,14 @@ def _validate_csv_with_http_handling(
         error_msg = str(e)
 
         if "HTTP Error" in error_msg or "HTTPException" in error_msg:
+            if "ETag on reading file" in error_msg:
+                show_error_panel(
+                    "Remote file changed during read (ETag mismatch)\n\n"
+                    f"URL: [cyan]{input_file}[/cyan]\n\n"
+                    "Try again and use [bold]--download-remote[/bold] to download "
+                    "the file locally before processing."
+                )
+                raise
             if "404" in error_msg:
                 show_error_panel(
                     "Remote CSV file not found (HTTP 404)\n\n"

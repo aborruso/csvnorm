@@ -207,6 +207,35 @@ class TestRemoteURLErrors:
         mock_download.assert_called_once()
 
     @patch("csvnorm.core.supports_http_range", return_value=True)
+    @patch("csvnorm.core.download_url_to_file")
+    @patch("csvnorm.core.normalize_csv")
+    @patch("csvnorm.core.validate_csv")
+    def test_http_range_supported_with_download(
+        self, mock_validate, mock_normalize, mock_download, _mock_range, output_dir
+    ):
+        """Test download fallback even when server supports HTTP range requests."""
+        mock_validate.return_value = (1, [], None)
+
+        def _write_download(_url, path):
+            path.write_text("name,city\nAlice,Milan\n")
+
+        def _write_output(*, output_path, **_kwargs):
+            Path(output_path).write_text("name,city\nAlice,Milan\n")
+            return None
+
+        mock_download.side_effect = _write_download
+        mock_normalize.side_effect = _write_output
+
+        output_file = output_dir / "output.csv"
+        result = process_csv(
+            input_file="https://example.com/with-range.csv",
+            output_file=output_file,
+            download_remote=True,
+        )
+        assert result == 0
+        mock_download.assert_called_once()
+
+    @patch("csvnorm.core.supports_http_range", return_value=True)
     @patch("csvnorm.validation.duckdb.connect")
     def test_http_401_unauthorized(self, mock_connect, _mock_range, output_dir):
         """Test handling of 401 authentication required."""
