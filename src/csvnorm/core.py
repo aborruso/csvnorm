@@ -126,6 +126,41 @@ def _download_for_mojibake_if_needed(
     return download_path, False
 
 
+def _download_remote_if_needed(
+    input_file: str,
+    input_path: Union[str, Path],
+    is_remote: bool,
+    download_remote: bool,
+    temp_dir: Path,
+    temp_files: list[Path],
+) -> tuple[Union[str, Path], bool]:
+    """Download remote file if range requests are unsupported and flag enabled."""
+    if not is_remote:
+        return input_path, is_remote
+
+    if _check_remote_range_support(input_file):
+        return input_path, is_remote
+
+    if not download_remote:
+        show_error_panel(
+            "Remote server does not support HTTP range requests\n\n"
+            f"URL: [cyan]{input_file}[/cyan]\n\n"
+            "DuckDB requires HTTP range requests to read remote CSVs.\n"
+            "Please download the file locally and run csvnorm on the file."
+        )
+        raise ValueError("Remote server does not support range requests")
+
+    try:
+        download_path = temp_dir / "remote_download.csv"
+        download_url_to_file(input_file, download_path)
+    except (OSError, urllib.error.URLError) as e:
+        show_error_panel(f"Failed to download remote file\n{e}")
+        raise
+
+    temp_files.append(download_path)
+    return download_path, False
+
+
 def _check_remote_range_support(input_file: str) -> bool:
     """Verify the remote server supports HTTP range requests."""
     return supports_http_range(input_file)
@@ -388,6 +423,7 @@ def process_csv(
     skip_rows: int = 0,
     verbose: bool = False,
     fix_mojibake_sample: Optional[int] = None,
+    download_remote: bool = False,
 ) -> int:
     """Main CSV processing pipeline.
 
@@ -416,15 +452,6 @@ def process_csv(
     except (ValueError, FileNotFoundError, IsADirectoryError):
         return 1
 
-    if is_remote and not _check_remote_range_support(input_file):
-        show_error_panel(
-            "Remote server does not support HTTP range requests\n\n"
-            f"URL: [cyan]{input_file}[/cyan]\n\n"
-            "DuckDB requires HTTP range requests to read remote CSVs.\n"
-            "Please download the file locally and run csvnorm on the file."
-        )
-        return 1
-
     try:
         validate_delimiter(delimiter)
     except ValueError as e:
@@ -445,6 +472,18 @@ def process_csv(
     temp_files: list[Path] = [temp_dir]
 
     try:
+        try:
+            input_path, is_remote = _download_remote_if_needed(
+                input_file,
+                input_path,
+                is_remote,
+                download_remote,
+                temp_dir,
+                temp_files,
+            )
+        except (ValueError, OSError, urllib.error.URLError):
+            return 1
+
         input_path, is_remote = _download_for_mojibake_if_needed(
             input_file,
             input_path,

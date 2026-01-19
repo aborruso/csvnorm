@@ -129,6 +129,15 @@ Examples:
     )
 
     parser.add_argument(
+        "--download-remote",
+        action="store_true",
+        help=(
+            "Download remote CSV locally when HTTP range requests are unsupported. "
+            "Useful for servers that block range reads required by DuckDB."
+        ),
+    )
+
+    parser.add_argument(
         "-V",
         "--verbose",
         action="store_true",
@@ -190,6 +199,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         skip_rows=args.skip_rows,
         verbose=args.verbose,
         fix_mojibake_sample=fix_mojibake_sample,
+        download_remote=args.download_remote,
     )
 
 
