@@ -501,7 +501,7 @@ def process_csv(
             "Remote compressed file detected\n\n"
             f"URL: [cyan]{input_file}[/cyan]\n\n"
             "Remote ZIP/GZIP inputs are not unpacked automatically.\n"
-            "Use [bold]--download-remote[/bold] to download and process locally."
+            "Use [bold]--download-remote[/bold] to download temporarily and process locally."
         )
 
     # Setup paths

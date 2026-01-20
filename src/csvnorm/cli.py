@@ -172,6 +172,12 @@ def main(argv: Optional[list[str]] = None) -> int:
         argv = sys.argv[1:]
 
     if not argv or (len(argv) == 1 and argv[0] in ["-h", "--help"]):
+        console.print()
+        console.print(
+            "csvnorm | Validate and normalize CSV files for exploratory data analysis | "
+            "https://aborruso.github.io/csvnorm/"
+        )
+        console.print()
         parser.print_help()
         return 0 if argv else 2
 
