@@ -1,7 +1,9 @@
-## MODIFIED Requirements
+## Purpose
+Define how csvnorm chooses output locations, handles default output, and manages reject and temp files.
 
+## Requirements
 ### Requirement: Output file path specification
-The system SHALL write output to the exact path specified by `-o/--output-file`, supporting both absolute and relative paths.
+The system SHALL write output to the exact path specified by `-o/--output-file`, supporting both absolute and relative paths. When no output path is provided, the system SHALL write output to stdout.
 
 #### Scenario: Absolute path output
 - **WHEN** a user runs `csvnorm data.csv -o /tmp/output.csv`
@@ -15,8 +17,8 @@ The system SHALL write output to the exact path specified by `-o/--output-file`,
 
 #### Scenario: Default output location
 - **WHEN** a user runs `csvnorm data.csv` without `-o`
-- **THEN** the output CSV is created as `data.csv` in current working directory
-- **AND THEN** reject file is placed in current working directory
+- **THEN** the output CSV is written to stdout
+- **AND THEN** no output file is created on disk
 
 #### Scenario: Custom output filename and extension
 - **WHEN** a user runs `csvnorm data.csv -o processed/output.txt`
@@ -36,13 +38,6 @@ The system SHALL create UTF-8 conversion temporary files in a system temp direct
 - **THEN** a reject file is created as `{output_dir}/{output_stem}_reject_errors.csv`
 - **AND THEN** if an existing reject file exists, it is overwritten without warning
 - **AND THEN** if empty (only header), the reject file is removed after processing
-
-## REMOVED Requirements
-
-### Requirement: Default output directory uses current working directory
-(REMOVED - replaced by Output file path specification)
-
-## MODIFIED Requirements
 
 ### Requirement: Existing output file blocks without force
 The system SHALL stop and warn the user when the output file path already exists, unless `--force` is provided.
