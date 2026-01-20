@@ -97,3 +97,43 @@ The system SHALL support only publicly accessible URLs without authentication.
 - **THEN** DuckDB fails with HTTP error
 - **AND** system shows error panel explaining authentication not supported
 
+### Requirement: Fallback when zipfs extension is unavailable
+The system SHALL fallback to local ZIP extraction when the input is a local ZIP file and DuckDB cannot load the zipfs extension.
+
+#### Scenario: Zipfs extension missing for downloaded ZIP
+- **WHEN** the input is a local ZIP file (including a remote ZIP downloaded with `--download-remote`)
+- **AND** DuckDB cannot load the zipfs extension
+- **THEN** the system extracts the ZIP locally and processes the single CSV inside
+
+#### Scenario: ZIP contains multiple CSV files
+- **WHEN** the ZIP contains more than one CSV file
+- **THEN** the system stops and reports that the user must extract the desired file and run csvnorm on it
+
+### Requirement: Download remote input when download flag is provided
+
+The system SHALL provide an explicit CLI flag to download remote CSVs locally before processing.
+
+#### Scenario: Flag is provided
+- **WHEN** user runs `csvnorm https://example.com/data.csv --download-remote`
+- **THEN** the system downloads the file to a temporary local path
+- **AND** continues processing using the local file
+- **AND** cleans up the temporary download after completion
+
+#### Scenario: Download encounters TLS/SSL handshake failure with flag provided
+- **WHEN** user runs `csvnorm https://example.com/data.csv --download-remote`
+- **AND** the initial download attempt fails with a TLS/SSL handshake error
+- **THEN** the system retries the download using a compatibility fallback
+- **AND** continues processing using the downloaded local file
+- **AND** cleans up the temporary download after completion
+
+#### Scenario: Remote server lacks range support and flag is not provided
+- **WHEN** user runs `csvnorm https://example.com/data.csv`
+- **AND** the remote server does not support HTTP range requests
+- **THEN** the system shows the existing error panel explaining the limitation
+- **AND** exits with code 1
+
+#### Scenario: Flag is not provided and range is supported
+- **WHEN** user runs `csvnorm https://example.com/data.csv`
+- **AND** the remote server supports HTTP range requests
+- **THEN** the system processes the remote URL without downloading it
+
