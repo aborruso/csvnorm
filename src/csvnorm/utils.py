@@ -3,6 +3,7 @@
 import logging
 import re
 import shutil
+import subprocess
 import ssl
 import urllib.error
 import urllib.request
@@ -172,6 +173,18 @@ def _download_with_requests(url: str, output_path: Path, timeout: int) -> Path:
     return output_path
 
 
+def _download_with_curl(url: str, output_path: Path, timeout: int) -> Path:
+    """Download a URL using curl when Python TLS fails."""
+    curl_path = shutil.which("curl")
+    if not curl_path:
+        raise FileNotFoundError("curl not found for TLS fallback")
+    subprocess.run(
+        [curl_path, "-L", "--fail", "--max-time", str(timeout), "-o", str(output_path), url],
+        check=True,
+    )
+    return output_path
+
+
 def download_url_to_file(url: str, output_path: Path, timeout: int = 30) -> Path:
     """Download a URL to a local file path.
 
@@ -190,7 +203,10 @@ def download_url_to_file(url: str, output_path: Path, timeout: int = 30) -> Path
         return output_path
     except urllib.error.URLError as error:
         if _is_ssl_handshake_error(error):
-            return _download_with_requests(url, output_path, timeout)
+            try:
+                return _download_with_requests(url, output_path, timeout)
+            except requests.exceptions.SSLError:
+                return _download_with_curl(url, output_path, timeout)
         raise
 
 

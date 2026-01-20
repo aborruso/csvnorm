@@ -4,6 +4,7 @@ import ssl
 import urllib.error
 
 import pytest
+import requests
 
 from unittest.mock import Mock, patch
 
@@ -229,3 +230,26 @@ class TestDownloadUrlToFile:
 
         assert output_path.read_bytes() == b"one,two\n"
         mock_requests_get.assert_called_once()
+
+    @patch("csvnorm.utils._download_with_curl")
+    @patch("csvnorm.utils._download_with_requests")
+    @patch("csvnorm.utils.urllib.request.urlopen")
+    def test_ssl_handshake_fallback_to_curl(
+        self, mock_urlopen, mock_requests, mock_curl, tmp_path
+    ):
+        ssl_error = ssl.SSLError("SSLV3_ALERT_HANDSHAKE_FAILURE")
+        mock_urlopen.side_effect = urllib.error.URLError(ssl_error)
+        mock_requests.side_effect = requests.exceptions.SSLError("handshake failed")
+
+        output_path = tmp_path / "download.csv"
+
+        def _write_output(*_args, **_kwargs):
+            output_path.write_bytes(b"ok\n")
+            return output_path
+
+        mock_curl.side_effect = _write_output
+
+        download_url_to_file("https://example.com/data.csv", output_path)
+
+        assert output_path.read_bytes() == b"ok\n"
+        mock_curl.assert_called_once()

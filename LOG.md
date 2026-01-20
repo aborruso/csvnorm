@@ -7,6 +7,7 @@
 **Added SSL/TLS handshake fallback for `--download-remote`**:
 - Retries remote downloads with `requests` when urllib hits handshake failures
 - Improves compatibility with servers that reject Python's default TLS handshake
+- Falls back to `curl` if the handshake still fails with requests
 
 ## 2026-01-19
 
