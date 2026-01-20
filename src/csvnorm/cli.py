@@ -23,6 +23,25 @@ def show_banner() -> None:
     console.print()
 
 
+def show_examples() -> None:
+    console.print()
+    console.print("[orange1]Examples:[/orange1]")
+    console.print("  # Base command with stdout output")
+    console.print("  [cyan]csvnorm data.csv[/cyan]")
+    console.print("  # Output to stdout")
+    console.print("  [cyan]csvnorm data.csv -o output.csv[/cyan]")
+    console.print("  # Write to file")
+    console.print("  [cyan]csvnorm data.csv > output.csv[/cyan]")
+    console.print("  # Shell redirect")
+    console.print("  [cyan]csvnorm data.csv | head -20[/cyan]")
+    console.print("  # Preview with pipe")
+    console.print("  [cyan]csvnorm data.csv -d ';' -o output.csv[/cyan]")
+    console.print("  # Custom delimiter")
+    console.print("  [cyan]csvnorm data.csv --skip-rows 2 -o out.csv[/cyan]")
+    console.print("  # Skip first 2 rows")
+    console.print("  [cyan]csvnorm https://example.com/data.csv -o processed.csv[/cyan]")
+
+
 class VersionAction(argparse.Action):
     """Custom action to show banner with version."""
 
@@ -55,16 +74,6 @@ def create_parser() -> argparse.ArgumentParser:
         prog="csvnorm",
         description="Validate and normalize CSV files for exploratory data analysis",
         formatter_class=RichHelpFormatter,
-        epilog="""\
-Examples:
-  csvnorm data.csv                          # Output to stdout
-  csvnorm data.csv -o output.csv            # Write to file
-  csvnorm data.csv > output.csv             # Shell redirect
-  csvnorm data.csv | head -20               # Preview with pipe
-  csvnorm data.csv -d ';' -o output.csv     # Custom delimiter
-  csvnorm data.csv --skip-rows 2 -o out.csv # Skip first 2 rows
-  csvnorm https://example.com/data.csv -o processed.csv
-""",
     )
 
     parser.add_argument(
@@ -179,6 +188,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         )
         console.print()
         parser.print_help()
+        show_examples()
         return 0 if argv else 2
 
     args = parser.parse_args(argv)
