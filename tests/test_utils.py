@@ -1,10 +1,14 @@
 """Tests for utils module."""
 
+import ssl
+import urllib.error
+
 import pytest
 
 from unittest.mock import Mock, patch
 
 from csvnorm.utils import (
+    download_url_to_file,
     extract_filename_from_url,
     is_url,
     supports_http_range,
@@ -202,3 +206,26 @@ class TestSupportsHttpRange:
     def test_urlopen_error(self, mock_urlopen):
         mock_urlopen.side_effect = OSError("boom")
         assert supports_http_range("https://example.com/data.csv") is False
+
+
+class TestDownloadUrlToFile:
+    """Tests for download_url_to_file function."""
+
+    @patch("csvnorm.utils.requests.get")
+    @patch("csvnorm.utils.urllib.request.urlopen")
+    def test_ssl_handshake_fallback(
+        self, mock_urlopen, mock_requests_get, tmp_path
+    ):
+        ssl_error = ssl.SSLError("SSLV3_ALERT_HANDSHAKE_FAILURE")
+        mock_urlopen.side_effect = urllib.error.URLError(ssl_error)
+
+        mock_response = Mock()
+        mock_response.iter_content.return_value = [b"one,", b"two\n"]
+        mock_response.raise_for_status.return_value = None
+        mock_requests_get.return_value = mock_response
+
+        output_path = tmp_path / "download.csv"
+        download_url_to_file("https://example.com/data.csv", output_path)
+
+        assert output_path.read_bytes() == b"one,two\n"
+        mock_requests_get.assert_called_once()

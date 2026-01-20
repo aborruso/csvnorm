@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-01-20
+
+### Remote Download Fallback
+
+**Added SSL/TLS handshake fallback for `--download-remote`**:
+- Retries remote downloads with `requests` when urllib hits handshake failures
+- Improves compatibility with servers that reject Python's default TLS handshake
+
 ## 2026-01-19
 
 ### v1.2.4 - Patch Release

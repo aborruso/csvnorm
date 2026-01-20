@@ -12,6 +12,7 @@ from csvnorm.core import process_csv
 TEST_DIR = Path(__file__).parent.parent / "test"
 # Real public URL for testing
 TEST_URL = "https://raw.githubusercontent.com/aborruso/csvnorm/refs/heads/main/test/utf8_basic.csv"
+MINISTRY_URL = "https://www.dati.salute.gov.it/sites/default/files/2026-01/IMPORTAZIONI%20animali%20vivi%202025%20luglio-dicembre.csv"
 
 
 class TestProcessCSV:
@@ -145,6 +146,18 @@ class TestProcessCSV:
             output_file=output_file,
         )
         assert result == 1
+
+    @pytest.mark.network
+    def test_remote_url_download_fallback_ministry(self, output_dir):
+        """Test remote download fallback with real public URL."""
+        output_file = output_dir / "ministry.csv"
+        result = process_csv(
+            input_file=MINISTRY_URL,
+            output_file=output_file,
+            download_remote=True,
+        )
+        assert result == 0
+        assert output_file.exists()
 
 
 class TestRemoteURLErrors:

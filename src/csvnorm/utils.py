@@ -3,12 +3,15 @@
 import logging
 import re
 import shutil
+import ssl
+import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Union
 from urllib.parse import urlparse
 
 import duckdb
+import requests
 
 from rich.logging import RichHandler
 
@@ -148,6 +151,27 @@ def format_file_size(size_bytes: int) -> str:
     return f"{size:.1f} TB"
 
 
+def _is_ssl_handshake_error(error: urllib.error.URLError) -> bool:
+    """Check if a URLError is caused by an SSL/TLS handshake failure."""
+    reason = getattr(error, "reason", None)
+    if isinstance(reason, ssl.SSLError):
+        return True
+    message = str(reason) if reason is not None else str(error)
+    message = message.lower()
+    return "handshake" in message and "ssl" in message
+
+
+def _download_with_requests(url: str, output_path: Path, timeout: int) -> Path:
+    """Download a URL using requests as a compatibility fallback."""
+    response = requests.get(url, stream=True, timeout=timeout)
+    response.raise_for_status()
+    with open(output_path, "wb") as output_file:
+        for chunk in response.iter_content(chunk_size=1024 * 64):
+            if chunk:
+                output_file.write(chunk)
+    return output_path
+
+
 def download_url_to_file(url: str, output_path: Path, timeout: int = 30) -> Path:
     """Download a URL to a local file path.
 
@@ -159,10 +183,15 @@ def download_url_to_file(url: str, output_path: Path, timeout: int = 30) -> Path
     Returns:
         Path to the downloaded file.
     """
-    with urllib.request.urlopen(url, timeout=timeout) as response:
-        with open(output_path, "wb") as output_file:
-            shutil.copyfileobj(response, output_file)
-    return output_path
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as response:
+            with open(output_path, "wb") as output_file:
+                shutil.copyfileobj(response, output_file)
+        return output_path
+    except urllib.error.URLError as error:
+        if _is_ssl_handshake_error(error):
+            return _download_with_requests(url, output_path, timeout)
+        raise
 
 
 def supports_http_range(url: str, timeout: int = 10) -> bool:
