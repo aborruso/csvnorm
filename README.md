@@ -80,6 +80,7 @@ csvnorm input.csv [options]
 | `-d, --delimiter CHAR` | Set custom output delimiter (default: `,`) |
 | `-s, --skip-rows N` | Skip first N rows of input file (useful for metadata/comments) |
 | `--fix-mojibake [N]` | Fix mojibake using ftfy (optional sample size `N`; use `0` to force repair) |
+| `--download-remote` | Download remote CSV locally before processing (needed for remote .zip/.gz) |
 | `-V, --verbose` | Enable verbose output for debugging |
 | `-v, --version` | Show version number |
 | `-h, --help` | Show help message |
@@ -104,6 +105,9 @@ csvnorm data.csv > output.csv
 
 # Process remote CSV from URL
 csvnorm "https://raw.githubusercontent.com/aborruso/csvnorm/refs/heads/main/test/Trasporto%20Pubblico%20Locale%20Settore%20Pubblico%20Allargato%20-%20Indicatore%202000-2020%20Trasferimenti%20Correnti%20su%20Entrate%20Correnti.csv" -o output.csv
+
+# Process remote compressed CSV (download first, then handle gzip/zip locally)
+csvnorm "https://example.com/data.csv.gz" --download-remote -o output.csv
 
 # Custom delimiter
 csvnorm data.csv -d ';' -o output.csv

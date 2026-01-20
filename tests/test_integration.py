@@ -1,6 +1,8 @@
 """Integration tests for csvnorm."""
 
+import gzip
 import tempfile
+import zipfile
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -8,11 +10,18 @@ import pytest
 import duckdb
 
 from csvnorm.core import process_csv
+from csvnorm import core as core_module
 
 TEST_DIR = Path(__file__).parent.parent / "test"
 # Real public URL for testing
-TEST_URL = "https://raw.githubusercontent.com/aborruso/csvnorm/refs/heads/main/test/utf8_basic.csv"
-MINISTRY_URL = "https://www.dati.salute.gov.it/sites/default/files/2026-01/IMPORTAZIONI%20animali%20vivi%202025%20luglio-dicembre.csv"
+TEST_URL = (
+    "https://raw.githubusercontent.com/aborruso/csvnorm/refs/heads/main/test/"
+    "utf8_basic.csv"
+)
+MINISTRY_URL = (
+    "https://www.dati.salute.gov.it/sites/default/files/2026-01/"
+    "IMPORTAZIONI%20animali%20vivi%202025%20luglio-dicembre.csv"
+)
 
 
 class TestProcessCSV:
@@ -52,6 +61,124 @@ class TestProcessCSV:
         )
         assert result == 0
         assert output_file.exists()
+
+    @pytest.mark.skipif(
+        not (TEST_DIR / "utf8_basic.csv").exists(),
+        reason="Test fixtures not available",
+    )
+    def test_gzip_input(self, output_dir, tmp_path):
+        """Test processing a gzip-compressed CSV."""
+        input_csv = TEST_DIR / "utf8_basic.csv"
+        gz_path = tmp_path / "utf8_basic.csv.gz"
+        gz_path.write_bytes(gzip.compress(input_csv.read_bytes()))
+
+        output_file = output_dir / "utf8_basic.csv"
+        result = process_csv(
+            input_file=str(gz_path),
+            output_file=output_file,
+        )
+        assert result == 0
+        assert output_file.exists()
+
+    @patch("csvnorm.core.normalize_csv")
+    @patch("csvnorm.core.validate_csv")
+    def test_zip_single_csv(self, mock_validate, mock_normalize, output_dir, tmp_path):
+        """Test processing a zip with a single CSV entry."""
+        mock_validate.return_value = (1, [], None)
+
+        def _write_output(*, output_path, **_kwargs):
+            Path(output_path).write_text("a,b\n1,2\n")
+            return None
+
+        mock_normalize.side_effect = _write_output
+
+        zip_path = tmp_path / "data.zip"
+        with zipfile.ZipFile(zip_path, "w") as archive:
+            archive.writestr("data.csv", "a,b\n1,2\n")
+
+        output_file = output_dir / "out.csv"
+        result = process_csv(
+            input_file=str(zip_path),
+            output_file=output_file,
+        )
+        assert result == 0
+        assert output_file.exists()
+        assert mock_validate.call_count == 1
+        called_path = mock_validate.call_args[0][0]
+        assert isinstance(called_path, str)
+        assert called_path.startswith("zip://")
+        assert called_path.endswith("/data.csv")
+
+    @patch("csvnorm.core._can_load_zipfs", return_value=False)
+    @patch("csvnorm.core.normalize_csv")
+    @patch("csvnorm.core.validate_csv")
+    def test_zip_single_csv_fallback_extract(
+        self,
+        mock_validate,
+        mock_normalize,
+        _mock_zipfs,
+        output_dir,
+        tmp_path,
+    ):
+        """Test zip fallback extraction when zipfs is unavailable."""
+        mock_validate.return_value = (1, [], None)
+
+        def _write_output(*, output_path, **_kwargs):
+            Path(output_path).write_text("a,b\n1,2\n")
+            return None
+
+        mock_normalize.side_effect = _write_output
+
+        zip_path = tmp_path / "data.zip"
+        with zipfile.ZipFile(zip_path, "w") as archive:
+            archive.writestr("nested/data.csv", "a,b\n1,2\n")
+
+        output_file = output_dir / "out.csv"
+        result = process_csv(
+            input_file=str(zip_path),
+            output_file=output_file,
+        )
+        assert result == 0
+        assert output_file.exists()
+        assert mock_validate.call_count == 1
+        called_path = mock_validate.call_args[0][0]
+        assert isinstance(called_path, Path)
+        assert called_path.name == "data.csv"
+
+    @patch("csvnorm.core.normalize_csv")
+    @patch("csvnorm.core.validate_csv")
+    def test_zip_multiple_csvs(self, mock_validate, mock_normalize, output_dir, tmp_path):
+        """Test zip error when multiple CSV entries exist."""
+        zip_path = tmp_path / "multi.zip"
+        with zipfile.ZipFile(zip_path, "w") as archive:
+            archive.writestr("a.csv", "a\n1\n")
+            archive.writestr("b.csv", "b\n2\n")
+
+        output_file = output_dir / "out.csv"
+        result = process_csv(
+            input_file=str(zip_path),
+            output_file=output_file,
+        )
+        assert result == 1
+        mock_validate.assert_not_called()
+        mock_normalize.assert_not_called()
+
+    @patch("csvnorm.core.normalize_csv")
+    @patch("csvnorm.core.validate_csv")
+    def test_zip_no_csv(self, mock_validate, mock_normalize, output_dir, tmp_path):
+        """Test zip error when no CSV entries exist."""
+        zip_path = tmp_path / "empty.zip"
+        with zipfile.ZipFile(zip_path, "w") as archive:
+            archive.writestr("notes.txt", "notes")
+
+        output_file = output_dir / "out.csv"
+        result = process_csv(
+            input_file=str(zip_path),
+            output_file=output_file,
+        )
+        assert result == 1
+        mock_validate.assert_not_called()
+        mock_normalize.assert_not_called()
 
     @pytest.mark.skipif(
         not (TEST_DIR / "pipe_mixed_headers.csv").exists(),
@@ -218,6 +345,20 @@ class TestRemoteURLErrors:
         )
         assert result == 0
         mock_download.assert_called_once()
+
+    @patch.object(core_module, "show_warning_panel")
+    @patch("csvnorm.core.supports_http_range", return_value=True)
+    def test_remote_compressed_url_warns(
+        self, _mock_range, mock_warning, output_dir
+    ):
+        """Warn when remote URL points to compressed file."""
+        output_file = output_dir / "output.csv"
+        result = process_csv(
+            input_file="https://example.com/data.zip",
+            output_file=output_file,
+        )
+        assert result == 1
+        assert mock_warning.call_count == 1
 
     @patch("csvnorm.core.supports_http_range", return_value=True)
     @patch("csvnorm.core.download_url_to_file")

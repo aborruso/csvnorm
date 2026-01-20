@@ -25,6 +25,37 @@ FALLBACK_CONFIGS: list[ConfigDict] = [
 COMMON_DELIMITERS: list[str] = [",", ";", "|", "\t"]
 
 
+def _needs_zipfs(file_path: Union[Path, str]) -> bool:
+    """Return True if the input uses DuckDB zipfs paths."""
+    return isinstance(file_path, str) and file_path.startswith("zip://")
+
+
+def _compression_option(file_path: Union[Path, str]) -> str:
+    """Return DuckDB compression option for gzip inputs."""
+    name = file_path.name if isinstance(file_path, Path) else file_path
+    if name.lower().endswith(".gz"):
+        return "compression='auto'"
+    return ""
+
+
+def _ensure_zipfs_extension(
+    conn: duckdb.DuckDBPyConnection, file_path: Union[Path, str]
+) -> None:
+    """Install/load DuckDB zipfs extension when needed."""
+    if not _needs_zipfs(file_path):
+        return
+
+    try:
+        conn.execute("LOAD zipfs")
+    except duckdb.Error:
+        # Prefer community repo for zipfs if default repo doesn't have it.
+        try:
+            conn.execute("INSTALL zipfs FROM community")
+        except duckdb.Error:
+            conn.execute("INSTALL zipfs")
+        conn.execute("LOAD zipfs")
+
+
 def validate_csv(
     file_path: Union[Path, str],
     reject_file: Path,
@@ -50,6 +81,9 @@ def validate_csv(
     conn = duckdb.connect()
     fallback_config: Optional[ConfigDict] = None
 
+    _ensure_zipfs_extension(conn, file_path)
+    compression_opt = _compression_option(file_path)
+
     # Pre-check for header anomalies (local files only)
     # Skip early detection if user provided skip_rows
     suggested_config: Optional[ConfigDict] = None
@@ -70,15 +104,16 @@ def validate_csv(
                 delim = suggested_config["delim"]
                 skip = suggested_config["skip"]
                 # Use COUNT(*) instead of COPY TO /dev/null to avoid locking issues
+                read_opts = (
+                    f"delim='{delim}', skip={skip}, store_rejects=true, "
+                    "ignore_errors=true, sample_size=-1, all_varchar=true"
+                )
+                if compression_opt:
+                    read_opts += f", {compression_opt}"
                 conn.execute(f"""
                     SELECT COUNT(*) FROM read_csv(
                         '{file_path}',
-                        delim='{delim}',
-                        skip={skip},
-                        store_rejects=true,
-                        ignore_errors=true,
-                        sample_size=-1,
-                        all_varchar=true
+                        {read_opts}
                     )
                 """).fetchall()
                 fallback_config = suggested_config
@@ -94,6 +129,8 @@ def validate_csv(
                 # Use all_varchar=true to avoid type inference failures
                 # Add user-provided skip_rows if specified
                 read_opts = "store_rejects=true, sample_size=-1, all_varchar=true"
+                if compression_opt:
+                    read_opts += f", {compression_opt}"
                 if skip_rows > 0:
                     read_opts += f", skip={skip_rows}"
                     # Track that we used user-provided skip
@@ -140,15 +177,16 @@ def validate_csv(
                             delim = config["delim"]
                             skip = config["skip"]
                             # Use COUNT(*) instead of COPY TO /dev/null to avoid locking issues
+                            read_opts = (
+                                f"delim='{delim}', skip={skip}, store_rejects=true, "
+                                "ignore_errors=true, sample_size=-1, all_varchar=true"
+                            )
+                            if compression_opt:
+                                read_opts += f", {compression_opt}"
                             conn.execute(f"""
                                 SELECT COUNT(*) FROM read_csv(
                                     '{file_path}',
-                                    delim='{delim}',
-                                    skip={skip},
-                                    store_rejects=true,
-                                    ignore_errors=true,
-                                    sample_size=-1,
-                                    all_varchar=true
+                                    {read_opts}
                                 )
                             """).fetchall()
                             break
@@ -208,6 +246,9 @@ def normalize_csv(
     conn = duckdb.connect()
     used_fallback_config: Optional[ConfigDict] = None
 
+    _ensure_zipfs_extension(conn, input_path)
+    compression_opt = _compression_option(input_path)
+
     try:
         # Set HTTP timeout for remote URLs (30 seconds)
         if is_remote:
@@ -215,6 +256,8 @@ def normalize_csv(
 
         # Build read options
         read_opts = "sample_size=-1, all_varchar=true"
+        if compression_opt:
+            read_opts += f", {compression_opt}"
         if normalize_names:
             read_opts += ", normalize_names=true"
 
@@ -259,7 +302,14 @@ def normalize_csv(
         except duckdb.Error as e:
             error_msg = str(e)
             # If not already using fallback and it's a sniffing error, try fallback
-            if not fallback_config and skip_rows == 0 and ("sniffing" in error_msg.lower() or "detect" in error_msg.lower()):
+            if (
+                not fallback_config
+                and skip_rows == 0
+                and (
+                    "sniffing" in error_msg.lower()
+                    or "detect" in error_msg.lower()
+                )
+            ):
                 logger.debug("Normalization sniffing failed, trying fallback configurations...")
 
                 success = False
@@ -272,7 +322,11 @@ def normalize_csv(
                         # Use both store_rejects and ignore_errors for malformed rows
                         delim = config["delim"]
                         skip = config["skip"]
-                        read_opts = f"sample_size=-1, all_varchar=true, delim='{delim}', skip={skip}"
+                        read_opts = (
+                            "sample_size=-1, all_varchar=true"
+                            f"{', ' + compression_opt if compression_opt else ''}, "
+                            f"delim='{delim}', skip={skip}"
+                        )
 
                         # Add store_rejects and ignore_errors if reject_file provided
                         if reject_file:
@@ -378,16 +432,22 @@ def _try_read_csv_with_config(
         True if configuration works and has multiple columns, False otherwise.
     """
     try:
+        _ensure_zipfs_extension(conn, file_path)
         delim = config["delim"]
         skip = config["skip"]
 
         read_opts = f"delim='{delim}', skip={skip}, sample_size=-1, ignore_errors=true"
+        compression_opt = _compression_option(file_path)
+        if compression_opt:
+            read_opts += f", {compression_opt}"
         if all_varchar:
             read_opts += ", all_varchar=true"
 
         # Try to read and verify it has multiple columns
         # Use ignore_errors to handle potential malformed rows during testing
-        result = conn.execute(f"SELECT * FROM read_csv('{file_path}', {read_opts}) LIMIT 1").fetchall()
+        result = conn.execute(
+            f"SELECT * FROM read_csv('{file_path}', {read_opts}) LIMIT 1"
+        ).fetchall()
 
         # Check we got at least one row with multiple columns
         if result and len(result) > 0:

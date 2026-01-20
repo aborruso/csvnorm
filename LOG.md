@@ -2,6 +2,15 @@
 
 ## 2026-01-20
 
+### Compressed CSV Inputs
+
+**Added gzip and zip input handling**:
+- Supports `.csv.gz` via DuckDB compression autodetect
+- Supports `.zip` archives with a single CSV entry using DuckDB zipfs
+- Auto-installs/loads zipfs when a zip input is detected
+- Falls back to local ZIP extraction when zipfs is unavailable
+- Warns when a remote URL points to a compressed file and suggests `--download-remote`
+
 ### Remote Download Fallback
 
 **Added SSL/TLS handshake fallback for `--download-remote`**:

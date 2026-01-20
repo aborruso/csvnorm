@@ -2,7 +2,7 @@
 
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 import duckdb
 import pytest
@@ -10,6 +10,7 @@ import pytest
 from csvnorm.validation import (
     _count_lines,
     _detect_header_anomaly,
+    _ensure_zipfs_extension,
     _fix_duckdb_keyword_prefix,
     _get_error_types,
     _try_read_csv_with_config,
@@ -218,6 +219,27 @@ class TestTryReadCsvWithConfig:
             finally:
                 conn.close()
             assert result is False
+
+
+class TestZipfsExtension:
+    """Tests for zipfs extension handling."""
+
+    def test_ensure_zipfs_skips_non_zip(self):
+        conn = Mock()
+        _ensure_zipfs_extension(conn, Path("data.csv"))
+        conn.execute.assert_not_called()
+
+    def test_ensure_zipfs_installs_when_missing(self):
+        conn = Mock()
+        conn.execute.side_effect = [duckdb.Error("missing"), None, None]
+
+        _ensure_zipfs_extension(conn, "zip://archive.zip/data.csv")
+
+        assert conn.execute.call_args_list == [
+            call("LOAD zipfs"),
+            call("INSTALL zipfs FROM community"),
+            call("LOAD zipfs"),
+        ]
 
 
 class TestValidateCsv:

@@ -2,6 +2,7 @@
 
 import ssl
 import urllib.error
+import zipfile
 
 import pytest
 import requests
@@ -9,9 +10,14 @@ import requests
 from unittest.mock import Mock, patch
 
 from csvnorm.utils import (
+    build_zip_path,
     download_url_to_file,
     extract_filename_from_url,
+    is_compressed_url,
+    is_gzip_path,
     is_url,
+    is_zip_path,
+    resolve_zip_csv_entry,
     supports_http_range,
     to_snake_case,
     validate_delimiter,
@@ -108,6 +114,21 @@ class TestIsUrl:
 
     def test_url_without_protocol(self):
         assert is_url("example.com/data.csv") is False
+
+
+class TestIsCompressedUrl:
+    """Tests for compressed URL detection."""
+
+    def test_gzip_url(self):
+        assert (
+            is_compressed_url("https://example.com/data.csv.gz") is True
+        )
+
+    def test_zip_url(self):
+        assert is_compressed_url("https://example.com/data.zip") is True
+
+    def test_non_compressed_url(self):
+        assert is_compressed_url("https://example.com/data.csv") is False
 
 
 class TestValidateUrl:
@@ -207,6 +228,50 @@ class TestSupportsHttpRange:
     def test_urlopen_error(self, mock_urlopen):
         mock_urlopen.side_effect = OSError("boom")
         assert supports_http_range("https://example.com/data.csv") is False
+
+
+class TestCompressedPathHelpers:
+    """Tests for compressed path helpers."""
+
+    def test_is_gzip_path(self, tmp_path):
+        assert is_gzip_path(tmp_path / "data.csv.gz") is True
+        assert is_gzip_path(tmp_path / "data.csv") is False
+
+    def test_is_zip_path(self, tmp_path):
+        assert is_zip_path(tmp_path / "data.zip") is True
+        assert is_zip_path(tmp_path / "data.csv") is False
+
+    def test_resolve_zip_csv_entry_single(self, tmp_path):
+        zip_path = tmp_path / "data.zip"
+        with zipfile.ZipFile(zip_path, "w") as archive:
+            archive.writestr("data.csv", "a,b\n1,2\n")
+            archive.writestr("readme.txt", "notes")
+
+        entry = resolve_zip_csv_entry(zip_path)
+        assert entry == "data.csv"
+        zip_uri = build_zip_path(zip_path, entry)
+        assert zip_uri.startswith("zip://")
+        assert zip_uri.endswith("/data.csv")
+
+    def test_resolve_zip_csv_entry_multiple(self, tmp_path):
+        zip_path = tmp_path / "multi.zip"
+        with zipfile.ZipFile(zip_path, "w") as archive:
+            archive.writestr("a.csv", "a\n1\n")
+            archive.writestr("b.csv", "b\n2\n")
+
+        with pytest.raises(
+            ValueError,
+            match="The file contains more than one file. Extract the one you need",
+        ):
+            resolve_zip_csv_entry(zip_path)
+
+    def test_resolve_zip_csv_entry_none(self, tmp_path):
+        zip_path = tmp_path / "none.zip"
+        with zipfile.ZipFile(zip_path, "w") as archive:
+            archive.writestr("notes.txt", "notes")
+
+        with pytest.raises(ValueError, match="no CSV"):
+            resolve_zip_csv_entry(zip_path)
 
 
 class TestDownloadUrlToFile:

@@ -133,7 +133,8 @@ Examples:
         action="store_true",
         help=(
             "Download remote CSV locally before processing. "
-            "Useful for servers that block range reads or change files during reads."
+            "Useful for servers that block range reads or change files during reads, "
+            "and required for remote .zip/.gz inputs."
         ),
     )
 

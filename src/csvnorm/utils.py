@@ -7,6 +7,7 @@ import subprocess
 import ssl
 import urllib.error
 import urllib.request
+import zipfile
 from pathlib import Path
 from typing import Union
 from urllib.parse import urlparse
@@ -106,6 +107,54 @@ def validate_url(url: str) -> None:
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https"):
         raise ValueError(f"Only HTTP/HTTPS URLs are supported. Got: {parsed.scheme}://")
+
+
+def is_compressed_url(url: str) -> bool:
+    """Return True if URL path looks like a gzip or zip file."""
+    parsed = urlparse(url)
+    path = parsed.path.lower()
+    return path.endswith(".gz") or path.endswith(".zip")
+
+
+def is_gzip_path(file_path: Path) -> bool:
+    """Return True if path looks like a gzip-compressed file."""
+    return file_path.suffix.lower() == ".gz"
+
+
+def is_zip_path(file_path: Path) -> bool:
+    """Return True if path looks like a zip archive."""
+    return file_path.suffix.lower() == ".zip"
+
+
+def resolve_zip_csv_entry(zip_path: Path) -> str:
+    """Return the single CSV entry inside a zip archive.
+
+    Raises:
+        ValueError: If zero or multiple CSV entries are found.
+    """
+    with zipfile.ZipFile(zip_path) as archive:
+        csv_entries = [
+            info.filename
+            for info in archive.infolist()
+            if not info.is_dir() and info.filename.lower().endswith(".csv")
+        ]
+
+    if not csv_entries:
+        raise ValueError("Zip archive contains no CSV files.")
+
+    if len(csv_entries) > 1:
+        raise ValueError(
+            "The file contains more than one file. Extract the one you need and use "
+            "csvnorm on that file."
+        )
+
+    return csv_entries[0]
+
+
+def build_zip_path(zip_path: Path, csv_entry: str) -> str:
+    """Build a DuckDB zipfs path for the given CSV entry."""
+    entry = csv_entry.lstrip("/")
+    return f"zip://{zip_path.resolve().as_posix()}/{entry}"
 
 
 def extract_filename_from_url(url: str) -> str:
@@ -271,7 +320,8 @@ def get_column_count(file_path: Union[Path, str], delimiter: str = ",") -> int:
         conn = duckdb.connect(":memory:")
         # Get column names from CSV using DuckDB DESCRIBE
         columns = conn.execute(
-            f"DESCRIBE SELECT * FROM read_csv('{file_path}', delim='{delimiter}', header=true, sample_size=1)"
+            "DESCRIBE SELECT * FROM read_csv("
+            f"'{file_path}', delim='{delimiter}', header=true, sample_size=1)"
         ).fetchall()
         conn.close()
 

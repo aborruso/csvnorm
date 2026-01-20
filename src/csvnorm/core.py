@@ -1,9 +1,12 @@
 """Core processing logic for csvnorm."""
 
 import logging
+import shutil
 import sys
 import tempfile
 import urllib.error
+import zipfile
+from urllib.parse import urlparse
 from pathlib import Path
 from typing import Any, Optional, Union
 
@@ -20,10 +23,15 @@ from csvnorm.ui import (
     show_warning_panel,
 )
 from csvnorm.utils import (
+    build_zip_path,
     download_url_to_file,
     get_column_count,
     get_row_count,
+    is_compressed_url,
+    is_gzip_path,
     is_url,
+    is_zip_path,
+    resolve_zip_csv_entry,
     supports_http_range,
     validate_delimiter,
     validate_url,
@@ -140,7 +148,9 @@ def _download_remote_if_needed(
 
     if download_remote:
         try:
-            download_path = temp_dir / "remote_download.csv"
+            parsed_suffix = Path(urlparse(input_file).path).suffix.lower()
+            suffix = parsed_suffix if parsed_suffix else ".csv"
+            download_path = temp_dir / f"remote_download{suffix}"
             download_url_to_file(input_file, download_path)
         except (OSError, urllib.error.URLError) as e:
             show_error_panel(f"Failed to download remote file\n{e}")
@@ -166,6 +176,37 @@ def _download_remote_if_needed(
 def _check_remote_range_support(input_file: str) -> bool:
     """Verify the remote server supports HTTP range requests."""
     return supports_http_range(input_file)
+
+
+def _can_load_zipfs() -> bool:
+    """Return True if DuckDB can load zipfs (installing if needed)."""
+    conn = duckdb.connect()
+    try:
+        try:
+            conn.execute("LOAD zipfs")
+            return True
+        except duckdb.Error:
+            try:
+                conn.execute("INSTALL zipfs FROM community")
+            except duckdb.Error:
+                conn.execute("INSTALL zipfs")
+            conn.execute("LOAD zipfs")
+            return True
+    except duckdb.Error:
+        return False
+    finally:
+        conn.close()
+
+
+def _extract_single_csv_from_zip(zip_path: Path, temp_dir: Path) -> Path:
+    """Extract the single CSV entry from a zip archive into temp_dir."""
+    csv_entry = resolve_zip_csv_entry(zip_path)
+    safe_name = Path(csv_entry).name
+    output_path = temp_dir / safe_name
+    with zipfile.ZipFile(zip_path) as archive:
+        with archive.open(csv_entry) as source, open(output_path, "wb") as target:
+            shutil.copyfileobj(source, target)
+    return output_path
 
 
 def _handle_local_encoding(
@@ -260,6 +301,14 @@ def _validate_csv_with_http_handling(
     except duckdb.Error as e:
         progress.stop()
         error_msg = str(e)
+
+        if "zipfs" in error_msg.lower():
+            show_error_panel(
+                "Failed to load DuckDB zipfs extension for zip input\n\n"
+                f"{error_msg}\n\n"
+                "Install/upgrade DuckDB or extract the zip locally and retry."
+            )
+            raise
 
         if "HTTP Error" in error_msg or "HTTPException" in error_msg:
             if "ETag on reading file" in error_msg:
@@ -468,6 +517,14 @@ def process_csv(
         show_error_panel(str(e))
         return 1
 
+    if is_remote and is_compressed_url(input_file) and not download_remote:
+        show_warning_panel(
+            "Remote compressed file detected\n\n"
+            f"URL: [cyan]{input_file}[/cyan]\n\n"
+            "Remote ZIP/GZIP inputs are not unpacked automatically.\n"
+            "Use [bold]--download-remote[/bold] to download and process locally."
+        )
+
     # Setup paths
     temp_dir = Path(tempfile.mkdtemp(prefix="csvnorm_"))
 
@@ -505,6 +562,33 @@ def process_csv(
     except (OSError, urllib.error.URLError):
         return 1
 
+    compressed_type: Optional[str] = None
+    compressed_input_path: Union[str, Path] = input_path
+    local_input_path: Optional[Path]
+    if isinstance(input_path, Path):
+        local_input_path = input_path
+    else:
+        local_input_path = None
+    if local_input_path:
+        try:
+            if is_zip_path(local_input_path):
+                if _can_load_zipfs():
+                    csv_entry = resolve_zip_csv_entry(local_input_path)
+                    compressed_input_path = build_zip_path(local_input_path, csv_entry)
+                    compressed_type = "zip"
+                else:
+                    extracted_path = _extract_single_csv_from_zip(
+                        local_input_path, temp_dir
+                    )
+                    input_path = extracted_path
+                    local_input_path = extracted_path
+                    temp_files.append(extracted_path)
+            elif is_gzip_path(local_input_path):
+                compressed_type = "gzip"
+        except ValueError as e:
+            show_error_panel(str(e))
+            return 1
+
     # Use stderr console for progress when writing to stdout
     progress_console = Console(stderr=True) if use_stdout else console
 
@@ -526,6 +610,16 @@ def process_csv(
                 )
                 working_file = input_path  # Keep URL as string
                 encoding = "remote"
+            elif compressed_type:
+                progress.update(
+                    task,
+                    description=(
+                        f"[green]✓[/green] {compressed_type.upper()} input "
+                        "(encoding handled by DuckDB)"
+                    ),
+                )
+                working_file = compressed_input_path
+                encoding = compressed_type
             else:
                 file_input_path = input_path
                 assert isinstance(file_input_path, Path)
@@ -588,31 +682,47 @@ def process_csv(
             # Step 4: Normalize and write output
             progress.update(task, description="[cyan]Normalizing and writing output...")
             logger.debug("Normalizing CSV...")
-            (
-                used_fallback,
-                reject_count,
-                error_types,
-                has_validation_errors,
-            ) = _normalize_and_refresh_errors(
-                working_file,
-                actual_output_file,
-                delimiter,
-                keep_names,
-                is_remote,
-                skip_rows,
-                fallback_config,
-                reject_file,
-                reject_count,
-                error_types,
-            )
+            try:
+                (
+                    used_fallback,
+                    reject_count,
+                    error_types,
+                    has_validation_errors,
+                ) = _normalize_and_refresh_errors(
+                    working_file,
+                    actual_output_file,
+                    delimiter,
+                    keep_names,
+                    is_remote,
+                    skip_rows,
+                    fallback_config,
+                    reject_file,
+                    reject_count,
+                    error_types,
+                )
+            except duckdb.Error as e:
+                progress.stop()
+                error_msg = str(e)
+                if "zipfs" in error_msg.lower():
+                    show_error_panel(
+                        "Failed to load DuckDB zipfs extension for zip input\n\n"
+                        f"{error_msg}\n\n"
+                        "Ensure DuckDB can download extensions or install zipfs manually."
+                    )
+                else:
+                    show_error_panel(f"Normalization failed\n{error_msg}")
+                return 1
 
             logger.debug(f"Output written to: {actual_output_file}")
             progress.update(task, description="[green]✓[/green] Complete")
 
         # Handle output based on mode
-        input_size = (
-            working_file.stat().st_size if isinstance(working_file, Path) else 0
-        )
+        if local_input_path and local_input_path.exists():
+            input_size = local_input_path.stat().st_size
+        else:
+            input_size = (
+                working_file.stat().st_size if isinstance(working_file, Path) else 0
+            )
         output_size = actual_output_file.stat().st_size
         row_count = get_row_count(actual_output_file)
         column_count = get_column_count(actual_output_file, delimiter)
