@@ -105,22 +105,19 @@ class TestProcessCSV:
         assert output_file.exists()
         assert mock_validate.call_count == 1
         called_path = mock_validate.call_args[0][0]
-        assert isinstance(called_path, str)
-        assert called_path.startswith("zip://")
-        assert called_path.endswith("/data.csv")
+        assert isinstance(called_path, Path)
+        assert called_path.name == "data.csv"
 
-    @patch("csvnorm.core._can_load_zipfs", return_value=False)
     @patch("csvnorm.core.normalize_csv")
     @patch("csvnorm.core.validate_csv")
     def test_zip_single_csv_fallback_extract(
         self,
         mock_validate,
         mock_normalize,
-        _mock_zipfs,
         output_dir,
         tmp_path,
     ):
-        """Test zip fallback extraction when zipfs is unavailable."""
+        """Test zip extraction for nested CSV entries."""
         mock_validate.return_value = (1, [], None)
 
         def _write_output(*, output_path, **_kwargs):

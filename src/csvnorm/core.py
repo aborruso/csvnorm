@@ -23,7 +23,6 @@ from csvnorm.ui import (
     show_warning_panel,
 )
 from csvnorm.utils import (
-    build_zip_path,
     download_url_to_file,
     get_column_count,
     get_row_count,
@@ -176,26 +175,6 @@ def _download_remote_if_needed(
 def _check_remote_range_support(input_file: str) -> bool:
     """Verify the remote server supports HTTP range requests."""
     return supports_http_range(input_file)
-
-
-def _can_load_zipfs() -> bool:
-    """Return True if DuckDB can load zipfs (installing if needed)."""
-    conn = duckdb.connect()
-    try:
-        try:
-            conn.execute("LOAD zipfs")
-            return True
-        except duckdb.Error:
-            try:
-                conn.execute("INSTALL zipfs FROM community")
-            except duckdb.Error:
-                conn.execute("INSTALL zipfs")
-            conn.execute("LOAD zipfs")
-            return True
-    except duckdb.Error:
-        return False
-    finally:
-        conn.close()
 
 
 def _extract_single_csv_from_zip(zip_path: Path, temp_dir: Path) -> Path:
@@ -572,17 +551,11 @@ def process_csv(
     if local_input_path:
         try:
             if is_zip_path(local_input_path):
-                if _can_load_zipfs():
-                    csv_entry = resolve_zip_csv_entry(local_input_path)
-                    compressed_input_path = build_zip_path(local_input_path, csv_entry)
-                    compressed_type = "zip"
-                else:
-                    extracted_path = _extract_single_csv_from_zip(
-                        local_input_path, temp_dir
-                    )
-                    input_path = extracted_path
-                    local_input_path = extracted_path
-                    temp_files.append(extracted_path)
+                # Always extract local zip to allow encoding detection/conversion.
+                extracted_path = _extract_single_csv_from_zip(local_input_path, temp_dir)
+                input_path = extracted_path
+                local_input_path = extracted_path
+                temp_files.append(extracted_path)
             elif is_gzip_path(local_input_path):
                 compressed_type = "gzip"
         except ValueError as e:
