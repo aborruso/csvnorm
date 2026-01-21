@@ -111,7 +111,7 @@ The system SHALL fallback to local ZIP extraction when the input is a local ZIP 
 
 ### Requirement: Download remote input when download flag is provided
 
-The system SHALL provide an explicit CLI flag to download remote CSVs locally before processing.
+The system SHALL download remote HTTP/HTTPS inputs to a local temporary file before processing, regardless of whether `--download-remote` is provided.
 
 #### Scenario: Flag is provided
 - **WHEN** user runs `csvnorm https://example.com/data.csv --download-remote`
@@ -119,21 +119,43 @@ The system SHALL provide an explicit CLI flag to download remote CSVs locally be
 - **AND** continues processing using the local file
 - **AND** cleans up the temporary download after completion
 
-#### Scenario: Download encounters TLS/SSL handshake failure with flag provided
-- **WHEN** user runs `csvnorm https://example.com/data.csv --download-remote`
-- **AND** the initial download attempt fails with a TLS/SSL handshake error
-- **THEN** the system retries the download using a compatibility fallback
-- **AND** continues processing using the downloaded local file
+#### Scenario: Flag is not provided
+- **WHEN** user runs `csvnorm https://example.com/data.csv`
+- **THEN** the system downloads the file to a temporary local path
+- **AND** continues processing using the local file
 - **AND** cleans up the temporary download after completion
 
-#### Scenario: Remote server lacks range support and flag is not provided
-- **WHEN** user runs `csvnorm https://example.com/data.csv`
-- **AND** the remote server does not support HTTP range requests
-- **THEN** the system shows the existing error panel explaining the limitation
+### Requirement: Accept gzip-compressed CSV inputs
+The system SHALL accept gzip-compressed CSV inputs (e.g., `.csv.gz`) and process them without requiring manual decompression.
+
+#### Scenario: Gzip file input
+- **WHEN** user runs `csvnorm ./data.csv.gz`
+- **THEN** the system reads the file with DuckDB's CSV compression autodetect
+- **AND** produces normalized output as for uncompressed inputs
+
+### Requirement: Accept zip-compressed CSV inputs with a single CSV entry
+The system SHALL accept zip archives that contain exactly one CSV entry and process that entry without manual extraction.
+
+#### Scenario: Zip file with one CSV
+- **WHEN** user runs `csvnorm ./data.zip` and the zip contains exactly one `.csv`
+- **THEN** the system reads the CSV via a `zip://` path
+- **AND** produces normalized output as for uncompressed inputs
+
+#### Scenario: Zip file with multiple CSVs
+- **WHEN** user runs `csvnorm ./data.zip` and the zip contains more than one `.csv`
+- **THEN** the system fails with a clear error listing the CSV entries
 - **AND** exits with code 1
 
-#### Scenario: Flag is not provided and range is supported
-- **WHEN** user runs `csvnorm https://example.com/data.csv`
-- **AND** the remote server supports HTTP range requests
-- **THEN** the system processes the remote URL without downloading it
+#### Scenario: Zip file with no CSVs
+- **WHEN** user runs `csvnorm ./data.zip` and the zip contains no `.csv`
+- **THEN** the system fails with a clear error
+- **AND** exits with code 1
+
+### Requirement: Auto-install and load DuckDB zipfs extension for zip inputs
+The system SHALL automatically install and load DuckDB's `zipfs` extension when a zip input is detected.
+
+#### Scenario: Zip input loads zipfs extension
+- **WHEN** user runs `csvnorm ./data.zip`
+- **THEN** the system installs and loads `zipfs` if not already available
+- **AND** proceeds to read the CSV entry
 
