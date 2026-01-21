@@ -141,9 +141,8 @@ def create_parser() -> argparse.ArgumentParser:
         "--download-remote",
         action="store_true",
         help=(
-            "Download remote CSV locally before processing. "
-            "Useful for servers that block range reads or change files during reads, "
-            "and required for remote .zip/.gz inputs."
+            "Deprecated: remote URLs are always downloaded before processing. "
+            "This flag is kept for compatibility and can be omitted."
         ),
     )
 

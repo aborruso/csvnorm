@@ -2,12 +2,12 @@
 
 import gzip
 import tempfile
+import urllib.error
 import zipfile
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
-import duckdb
 
 from csvnorm.core import process_csv
 from csvnorm import core as core_module
@@ -302,69 +302,25 @@ class TestRemoteURLErrors:
         )
         assert result == 1
 
-    @patch("csvnorm.core.supports_http_range", return_value=False)
-    @patch("csvnorm.validation.duckdb.connect")
-    def test_http_range_not_supported(self, mock_connect, _mock_range, output_dir):
-        """Test handling when server does not support HTTP range requests."""
+    @patch("csvnorm.core.download_url_to_file")
+    def test_remote_download_failure(self, mock_download, output_dir):
+        """Fail when remote download fails."""
+        mock_download.side_effect = urllib.error.URLError("download failed")
         output_file = output_dir / "output.csv"
         result = process_csv(
-            input_file="https://example.com/no-range.csv",
+            input_file="https://example.com/nope.csv",
             output_file=output_file,
         )
         assert result == 1
-        mock_connect.assert_not_called()
-
-    @patch("csvnorm.core.supports_http_range", return_value=False)
-    @patch("csvnorm.core.download_url_to_file")
-    @patch("csvnorm.core.normalize_csv")
-    @patch("csvnorm.core.validate_csv")
-    def test_http_range_not_supported_with_download(
-        self, mock_validate, mock_normalize, mock_download, _mock_range, output_dir
-    ):
-        """Test download fallback when server does not support HTTP range requests."""
-        mock_validate.return_value = (1, [], None)
-
-        def _write_download(_url, path):
-            path.write_text("name,city\nAlice,Milan\n")
-
-        def _write_output(*, output_path, **_kwargs):
-            Path(output_path).write_text("name,city\nAlice,Milan\n")
-            return None
-
-        mock_download.side_effect = _write_download
-        mock_normalize.side_effect = _write_output
-
-        output_file = output_dir / "output.csv"
-        result = process_csv(
-            input_file="https://example.com/no-range.csv",
-            output_file=output_file,
-            download_remote=True,
-        )
-        assert result == 0
-        mock_download.assert_called_once()
 
     @patch.object(core_module, "show_warning_panel")
-    @patch("csvnorm.core.supports_http_range", return_value=True)
-    def test_remote_compressed_url_warns(
-        self, _mock_range, mock_warning, output_dir
-    ):
-        """Warn when remote URL points to compressed file."""
-        output_file = output_dir / "output.csv"
-        result = process_csv(
-            input_file="https://example.com/data.zip",
-            output_file=output_file,
-        )
-        assert result == 1
-        assert mock_warning.call_count == 1
-
-    @patch("csvnorm.core.supports_http_range", return_value=True)
     @patch("csvnorm.core.download_url_to_file")
     @patch("csvnorm.core.normalize_csv")
     @patch("csvnorm.core.validate_csv")
-    def test_http_range_supported_with_download(
-        self, mock_validate, mock_normalize, mock_download, _mock_range, output_dir
+    def test_download_remote_flag_warns(
+        self, mock_validate, mock_normalize, mock_download, mock_warning, output_dir
     ):
-        """Test download fallback even when server supports HTTP range requests."""
+        """Warn when deprecated --download-remote flag is used."""
         mock_validate.return_value = (1, [], None)
 
         def _write_download(_url, path):
@@ -379,79 +335,9 @@ class TestRemoteURLErrors:
 
         output_file = output_dir / "output.csv"
         result = process_csv(
-            input_file="https://example.com/with-range.csv",
+            input_file="https://example.com/with-flag.csv",
             output_file=output_file,
             download_remote=True,
         )
         assert result == 0
-        mock_download.assert_called_once()
-
-    @patch("csvnorm.core.supports_http_range", return_value=True)
-    @patch("csvnorm.validation.duckdb.connect")
-    def test_http_401_unauthorized(self, mock_connect, _mock_range, output_dir):
-        """Test handling of 401 authentication required."""
-        mock_conn = Mock()
-        mock_connect.return_value = mock_conn
-        # Simulate 401 error in DuckDB HTTP request
-        mock_conn.execute.side_effect = duckdb.Error("HTTP Error 401")
-
-        output_file = output_dir / "output.csv"
-        result = process_csv(
-            input_file="https://example.com/protected.csv",
-            output_file=output_file,
-        )
-        assert result == 1
-
-    @patch("csvnorm.core.supports_http_range", return_value=True)
-    @patch("csvnorm.validation.duckdb.connect")
-    def test_http_403_forbidden(self, mock_connect, _mock_range, output_dir):
-        """Test handling of 403 forbidden."""
-        mock_conn = Mock()
-        mock_connect.return_value = mock_conn
-        mock_conn.execute.side_effect = duckdb.Error("HTTP Error 403")
-
-        output_file = output_dir / "output.csv"
-        result = process_csv(
-            input_file="https://example.com/forbidden.csv",
-            output_file=output_file,
-        )
-        assert result == 1
-
-    @patch("csvnorm.core.supports_http_range", return_value=True)
-    @patch("csvnorm.validation.duckdb.connect")
-    def test_http_timeout(self, mock_connect, _mock_range, output_dir):
-        """Test handling of HTTP timeout."""
-        mock_conn = Mock()
-        mock_connect.return_value = mock_conn
-        # First: SET http_timeout, Second: COPY...read_csv (fails with timeout)
-        # Error message must contain "HTTP Error" or "HTTPException" to be caught
-        mock_conn.execute.side_effect = [
-            None,
-            duckdb.Error("HTTPException: Connection timed out"),
-        ]
-
-        output_file = output_dir / "output.csv"
-        result = process_csv(
-            input_file="https://example.com/slow.csv",
-            output_file=output_file,
-        )
-        assert result == 1
-
-    @patch("csvnorm.core.supports_http_range", return_value=True)
-    @patch("csvnorm.validation.duckdb.connect")
-    def test_http_500_error(self, mock_connect, _mock_range, output_dir):
-        """Test handling of HTTP 500 server error."""
-        mock_conn = Mock()
-        mock_connect.return_value = mock_conn
-        # First: SET http_timeout, Second: COPY...read_csv (fails with HTTP error)
-        mock_conn.execute.side_effect = [
-            None,
-            duckdb.Error("HTTP Error 500: Internal Server Error"),
-        ]
-
-        output_file = output_dir / "output.csv"
-        result = process_csv(
-            input_file="https://example.com/broken.csv",
-            output_file=output_file,
-        )
-        assert result == 1
+        assert mock_warning.call_count == 1

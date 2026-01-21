@@ -31,7 +31,6 @@ from csvnorm.utils import (
     is_url,
     is_zip_path,
     resolve_zip_csv_entry,
-    supports_http_range,
     validate_delimiter,
     validate_url,
 )
@@ -110,29 +109,6 @@ def _setup_output_paths(
     return actual_output_file, reject_file, temp_utf8_file
 
 
-def _download_for_mojibake_if_needed(
-    input_file: str,
-    input_path: Union[str, Path],
-    is_remote: bool,
-    fix_mojibake_sample: Optional[int],
-    temp_dir: Path,
-    temp_files: list[Path],
-) -> tuple[Union[str, Path], bool]:
-    """Download remote file if mojibake repair is requested."""
-    if not (is_remote and fix_mojibake_sample is not None):
-        return input_path, is_remote
-
-    try:
-        download_path = temp_dir / "remote_download.csv"
-        download_url_to_file(input_file, download_path)
-    except (OSError, urllib.error.URLError) as e:
-        show_error_panel(f"Failed to download remote file\n{e}")
-        raise
-
-    temp_files.append(download_path)
-    return download_path, False
-
-
 def _download_remote_if_needed(
     input_file: str,
     input_path: Union[str, Path],
@@ -141,40 +117,26 @@ def _download_remote_if_needed(
     temp_dir: Path,
     temp_files: list[Path],
 ) -> tuple[Union[str, Path], bool]:
-    """Download remote file if range requests are unsupported and flag enabled."""
+    """Download remote file to a local temp path for processing."""
     if not is_remote:
         return input_path, is_remote
 
     if download_remote:
-        try:
-            parsed_suffix = Path(urlparse(input_file).path).suffix.lower()
-            suffix = parsed_suffix if parsed_suffix else ".csv"
-            download_path = temp_dir / f"remote_download{suffix}"
-            download_url_to_file(input_file, download_path)
-        except (OSError, urllib.error.URLError) as e:
-            show_error_panel(f"Failed to download remote file\n{e}")
-            raise
-
-        temp_files.append(download_path)
-        return download_path, False
-
-    if _check_remote_range_support(input_file):
-        return input_path, is_remote
-
-    if not download_remote:
-        show_error_panel(
-            "Remote server does not support HTTP range requests\n\n"
-            f"URL: [cyan]{input_file}[/cyan]\n\n"
-            "DuckDB requires HTTP range requests to read remote CSVs.\n"
-            "Use [bold]--download-remote[/bold] to download the file locally "
-            "before processing."
+        show_warning_panel(
+            "--download-remote is now the default for URLs and can be omitted."
         )
-        raise ValueError("Remote server does not support range requests")
 
+    try:
+        parsed_suffix = Path(urlparse(input_file).path).suffix.lower()
+        suffix = parsed_suffix if parsed_suffix else ".csv"
+        download_path = temp_dir / f"remote_download{suffix}"
+        download_url_to_file(input_file, download_path)
+    except (OSError, urllib.error.URLError) as e:
+        show_error_panel(f"Failed to download remote file\n{e}")
+        raise
 
-def _check_remote_range_support(input_file: str) -> bool:
-    """Verify the remote server supports HTTP range requests."""
-    return supports_http_range(input_file)
+    temp_files.append(download_path)
+    return download_path, False
 
 
 def _extract_single_csv_from_zip(zip_path: Path, temp_dir: Path) -> Path:
@@ -294,8 +256,7 @@ def _validate_csv_with_http_handling(
                 show_error_panel(
                     "Remote file changed during read (ETag mismatch)\n\n"
                     f"URL: [cyan]{input_file}[/cyan]\n\n"
-                    "Try again and use [bold]--download-remote[/bold] to download "
-                    "the file locally before processing."
+                    "Try again later or download the file manually."
                 )
                 raise
             if "404" in error_msg:
@@ -324,7 +285,6 @@ def _validate_csv_with_http_handling(
                 show_error_panel(
                     "Remote server does not support HTTP range requests\n\n"
                     f"URL: [cyan]{input_file}[/cyan]\n\n"
-                    "DuckDB requires HTTP range requests to read remote CSVs.\n"
                     "Please download the file locally and run csvnorm on the file."
                 )
             else:
@@ -496,14 +456,6 @@ def process_csv(
         show_error_panel(str(e))
         return 1
 
-    if is_remote and is_compressed_url(input_file) and not download_remote:
-        show_warning_panel(
-            "Remote compressed file detected\n\n"
-            f"URL: [cyan]{input_file}[/cyan]\n\n"
-            "Remote ZIP/GZIP inputs are not unpacked automatically.\n"
-            "Use [bold]--download-remote[/bold] to download temporarily and process locally."
-        )
-
     # Setup paths
     temp_dir = Path(tempfile.mkdtemp(prefix="csvnorm_"))
 
@@ -527,17 +479,8 @@ def process_csv(
                 temp_dir,
                 temp_files,
             )
-        except (ValueError, OSError, urllib.error.URLError):
+        except (OSError, urllib.error.URLError):
             return 1
-
-        input_path, is_remote = _download_for_mojibake_if_needed(
-            input_file,
-            input_path,
-            is_remote,
-            fix_mojibake_sample,
-            temp_dir,
-            temp_files,
-        )
     except (OSError, urllib.error.URLError):
         return 1
 

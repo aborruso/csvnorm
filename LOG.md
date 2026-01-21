@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-01-21
+
+### Remote URL Handling
+
+**Always download remote inputs before processing**:
+- Remote HTTP/HTTPS URLs are saved to a temp file before validation/normalization
+- Encoding detection/conversion now runs for remote inputs like local files
+- `--download-remote` is deprecated (kept as a compatibility no-op)
+
 ## 2026-01-20
 
 ### Compressed CSV Inputs
