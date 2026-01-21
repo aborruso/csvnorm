@@ -1,34 +1,53 @@
 # Future Ideas
 
-## Lenient Mode per CSV Robusti
+## Product Messaging: "Almost-good" CSVs (English)
 
-**Fonte**: [DuckDB CSV Reader and Pollock Robustness Benchmark](https://duckdb.org/2025/04/16/duckdb-csv-pollock-benchmark)
+### Short claims (hero / banner)
+- "From almost-good CSVs to machine-ready."
+- "Turn 'readable' into 'reliable'."
+- "Step zero for public CSVs."
+- "Normalize the almost-good, not the broken."
+- "Make CSVs consistent before you analyze."
 
-### Spunti dall'articolo
+### Supporting lines (sub-headline / section)
+- "csvnorm isn’t a heavy cleaning tool. It normalizes the CSVs that look fine but aren’t machine-ready."
+- "A lightweight normalization step between 'opens in Excel' and 'works in a pipeline.'"
+- "For real-world CSVs: readable, but inconsistent."
 
-DuckDB ha ottenuto il punteggio #1 (9.599/10) nel Pollock Benchmark usando parametri specifici per gestire CSV "sporchi":
+### README paragraph (positioning)
+csvnorm isn’t built to rescue broken CSVs. It’s for the many CSVs that look okay but aren’t machine-ready: mixed
+Delimiters, uncertain encodings, messy headers, or occasional malformed rows. It provides a consistent, validated
+baseline so you can start exploration or ETL with fewer surprises.
 
-**Parametri DuckDB non usati attualmente**:
-- `strict_mode=false`: gestisce quote non escapate, colonne extra, newline misti
-- `null_padding=true`: riempie con NULL le celle mancanti in righe inconsistenti
-- `ignore_errors=true`: salta righe problematiche (alternativa a `store_rejects`)
+## Lenient Mode for Robust CSVs
 
-**Categorie di errori comuni identificate**:
-1. ✅ Conteggi celle inconsistenti (già gestito via `store_rejects`)
-2. ✅ Newline misti (DuckDB li gestisce di default)
-3. ❓ Header multipli (non gestito esplicitamente)
-4. ❓ Quote incorrette (potrebbero causare rejects)
-5. ❓ Delimitatori multibyte (non testato)
-6. ❓ Tabelle multiple in un file (non gestito)
+**Source**: [DuckDB CSV Reader and Pollock Robustness Benchmark](https://duckdb.org/2025/04/16/duckdb-csv-pollock-benchmark)
 
-### Proposta implementazione
+### Ideas from the article
 
-**Flag CLI**:
+DuckDB reached the #1 score (9.599/10) in the Pollock Benchmark using specific parameters to handle "dirty" CSVs:
+
+**DuckDB parameters not currently used**:
+- `strict_mode=false`: handles unescaped quotes, extra columns, mixed newlines
+- `null_padding=true`: fills missing cells with NULL in inconsistent rows
+- `ignore_errors=true`: skips problematic rows (alternative to `store_rejects`)
+
+**Common error categories identified**:
+1. ✅ Inconsistent cell counts (already handled via `store_rejects`)
+2. ✅ Mixed newlines (DuckDB handles by default)
+3. ❓ Multiple headers (not explicitly handled)
+4. ❓ Incorrect quoting (may cause rejects)
+5. ❓ Multibyte delimiters (not tested)
+6. ❓ Multiple tables in one file (not handled)
+
+### Implementation proposal
+
+**CLI flag**:
 ```bash
-csvnorm input.csv --lenient  # Massima tolleranza per CSV sporchi
+csvnorm input.csv --lenient  # Maximum tolerance for dirty CSVs
 ```
 
-**Implementazione in validation.py**:
+**Implementation in validation.py**:
 ```python
 def validate_csv(..., lenient=False):
     if lenient:
@@ -42,13 +61,13 @@ def validate_csv(..., lenient=False):
         """)
 ```
 
-### Vantaggi
+### Advantages
 
-- `null_padding=true`: risolve righe inconsistenti senza generare rejects
-- `strict_mode=false`: migliora robustness su CSV reali con quote malformate
-- Mantiene `store_rejects=true` per trasparenza (vs `ignore_errors`)
+- `null_padding=true`: fixes inconsistent rows without generating rejects
+- `strict_mode=false`: improves robustness on real CSVs with malformed quotes
+- Keeps `store_rejects=true` for transparency (vs `ignore_errors`)
 
-### Trade-off
+### Trade-offs
 
-- Potrebbe introdurre ambiguità (NULL vs dato mancante intenzionale)
-- Più permissivo = meno validazione stretta
+- Could introduce ambiguity (NULL vs intentionally missing data)
+- More permissive = less strict validation
