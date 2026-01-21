@@ -32,6 +32,9 @@ export default {
       animation: {
         float: 'float 6s ease-in-out infinite',
         sweep: 'sweep 18s ease-in-out infinite'
+      },
+      mediaQueries: {
+        '(prefers-reduced-motion: no-preference)': { motion: 'no-preference' }
       }
     }
   },

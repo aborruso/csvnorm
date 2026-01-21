@@ -9,11 +9,12 @@ const ogImage = new URL(ogPath, site).toString();
 const canonical = new URL(`${basePath}/`, site).toString();
 ---
 <!doctype html>
-<html lang="en">
+<html lang="en" style="color-scheme: light">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
+    <meta name="theme-color" content="#f9f4eb" />
     <meta name="description" content={description} />
     <link rel="icon" type="image/svg+xml" href={`${basePath}/favicon.svg`} />
     <link rel="canonical" href={canonical} />
