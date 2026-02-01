@@ -78,15 +78,24 @@ CSV Normalizer Utility - A command-line tool that validates and normalizes CSV f
    - Uses charset-normalizer for conversion
    - Writes to a temp UTF-8 file before validation/normalization
 
+3.5. **Mojibake Repair** (`mojibake.py::repair_file()`, optional):
+   - Runs only when `--fix-mojibake` flag is provided
+   - Uses ftfy badness heuristic to detect garbled text in a sample (default 5000 chars)
+   - Repairs entire file only if sample is flagged as "bad"
+   - For remote URLs: downloads to temp file first, then processes
+
 4. **Validation** (`validation.py::validate_csv()`):
-   - DuckDB `read_csv(store_rejects=True, sample_size=-1)`
+   - **Early detection**: Pre-checks first 5 lines for header anomalies (local files only)
+   - **Fallback mechanism**: If DuckDB auto-detection fails, tries common delimiter/skip combinations
+   - DuckDB `read_csv(store_rejects=True, sample_size=-1, all_varchar=True)`
    - Writes rejects to `{output_stem}_reject_errors.csv`
-   - Returns reject count and error summaries
+   - Returns reject count, error summaries, and fallback_config (if used)
 
 5. **Normalization** (`validation.py::normalize_csv()`):
    - DuckDB `COPY ... TO ... WITH (HEADER, DELIMITER, FORMAT CSV)`
    - Uses `normalize_names=True` (unless `--keep-names` is set)
-   - Respects custom delimiter from `--delimiter`
+   - Preserves fallback_config delimiter if provided from validation step
+   - Respects custom output delimiter from `--delimiter` flag
 
 6. **Cleanup** (`core.py:170-360`):
    - Remove temp files and directories
@@ -100,6 +109,8 @@ CSV Normalizer Utility - A command-line tool that validates and normalizes CSV f
 
 **File Contract**:
 - Input: Local CSV or HTTP/HTTPS URL
+  - Remote URLs: DuckDB reads directly via httpfs extension (30s timeout)
+  - If `--fix-mojibake` with URL: downloads to temp file first for processing
 - Output: UTF-8 CSV to stdout (default) or file + optional `{name}_reject_errors.csv`
 
 ### Testing Strategy
