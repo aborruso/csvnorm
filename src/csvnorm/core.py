@@ -413,6 +413,7 @@ def process_csv(
     fix_mojibake_sample: Optional[int] = None,
     download_remote: bool = False,
     strict: bool = False,
+    check_only: bool = False,
 ) -> int:
     """Main CSV processing pipeline.
 
@@ -426,6 +427,7 @@ def process_csv(
         verbose: If True, enable debug logging.
         fix_mojibake_sample: Sample size for mojibake detection, None to disable.
         strict: If True, exit with error code 1 if validation errors occur.
+        check_only: If True, only validate CSV without processing or normalizing.
 
     Returns:
         Exit code: 0 for success, 1 for error.
@@ -532,6 +534,7 @@ def process_csv(
                 file_input_path = input_path
                 assert isinstance(file_input_path, Path)
 
+                # Always do encoding conversion (even in check mode) to avoid false positives
                 try:
                     working_file, encoding = _handle_local_encoding(
                         file_input_path,
@@ -549,19 +552,21 @@ def process_csv(
                     show_error_panel(f"Encoding conversion failed\n{e}")
                     return 1
 
-                try:
-                    mojibake_repaired, working_file = _handle_mojibake_if_needed(
-                        working_file,
-                        temp_dir,
-                        fix_mojibake_sample,
-                        progress,
-                        task,
-                        temp_files,
-                    )
-                except (OSError, UnicodeDecodeError, ValueError) as e:
-                    progress.stop()
-                    show_error_panel(f"Mojibake repair failed\n{e}")
-                    return 1
+                # Skip mojibake repair in check-only mode (optional step)
+                if not check_only:
+                    try:
+                        mojibake_repaired, working_file = _handle_mojibake_if_needed(
+                            working_file,
+                            temp_dir,
+                            fix_mojibake_sample,
+                            progress,
+                            task,
+                            temp_files,
+                        )
+                    except (OSError, UnicodeDecodeError, ValueError) as e:
+                        progress.stop()
+                        show_error_panel(f"Mojibake repair failed\n{e}")
+                        return 1
 
             # Step 3: Validate CSV
             try:
@@ -582,6 +587,26 @@ def process_csv(
                 return 1
 
             has_validation_errors = reject_count > 1
+            
+            # Check-only mode: validate and exit without processing
+            if check_only:
+                progress.stop()
+                stderr_console = Console(stderr=True)
+                
+                if has_validation_errors:
+                    stderr_console.print(
+                        f"[red]✗ Invalid CSV:[/red] {reject_count - 1} rows rejected",
+                        style="red"
+                    )
+                    if error_types:
+                        stderr_console.print("[yellow]Error types:[/yellow]")
+                        for error_type in error_types[:3]:  # Show max 3 error types
+                            stderr_console.print(f"  • {error_type}")
+                else:
+                    stderr_console.print("[green]✓ Valid CSV[/green]")
+                
+                _cleanup_temp_artifacts(use_stdout, reject_file, temp_files)
+                return 1 if has_validation_errors else 0
             
             # Show validation errors immediately (before normalization) for stdout mode
             if use_stdout and has_validation_errors:

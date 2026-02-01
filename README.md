@@ -81,6 +81,7 @@ csvnorm input.csv [options]
 | `-s, --skip-rows N` | Skip first N rows of input file (useful for metadata/comments) |
 | `--fix-mojibake [N]` | Fix mojibake using ftfy (optional sample size `N`; use `0` to force repair) |
 | `--strict` | Exit with error code 1 if any validation errors occur (fail-fast mode) |
+| `--check` | Validate CSV without processing or normalizing (exit code 0=valid, 1=invalid) |
 | `--download-remote` | Download remote CSV locally before processing (needed for remote .zip/.gz) |
 | `-V, --verbose` | Enable verbose output for debugging |
 | `-v, --version` | Show version number |
@@ -136,6 +137,15 @@ csvnorm data.csv --strict > output.csv || echo "Validation failed!"
 
 # Use in pipelines where data quality is critical
 csvnorm remote_data.csv --strict | other_tool || handle_error
+
+# Quick validation check (no processing or output)
+csvnorm data.csv --check && echo "Valid CSV" || echo "Invalid CSV"
+
+# Check remote CSV for validity
+csvnorm https://example.com/data.csv --check
+
+# Use in CI/CD pipelines for validation
+csvnorm raw_data.csv --check || exit 1
 ```
 
 ### Output

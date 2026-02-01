@@ -389,3 +389,62 @@ class TestCLISubprocess:
         assert result.returncode == 0
         combined = (result.stdout + result.stderr).lower()
         assert "broken pipe" not in combined
+
+
+class TestCheckMode:
+    """Test --check flag functionality."""
+
+    def test_check_mode_valid_csv(self, tmp_path):
+        """Test --check with valid CSV returns exit code 0."""
+        from pathlib import Path
+        test_file = Path("test/utf8_basic.csv")
+        result = main([str(test_file), "--check"])
+        assert result == 0
+
+    def test_check_mode_invalid_csv(self):
+        """Test --check with invalid CSV returns exit code 1."""
+        from pathlib import Path
+        malformed_file = Path("test/malformed_rows.csv")
+        result = main([str(malformed_file), "--check"])
+        assert result == 1
+
+    def test_check_mode_no_output_created(self, tmp_path):
+        """Test --check does not create output file."""
+        from pathlib import Path
+        test_file = Path("test/utf8_basic.csv")
+        # Check mode should not create output even if we redirect
+        result = subprocess.run(
+            [sys.executable, "-m", "csvnorm", str(test_file), "--check"],
+            capture_output=True,
+            text=True,
+        )
+        # No CSV data in stdout
+        assert "column" not in result.stdout.lower()
+        assert result.returncode == 0
+
+    def test_check_mode_with_output_file_fails(self, tmp_path):
+        """Test --check with -o flag returns error."""
+        from pathlib import Path
+        test_file = Path("test/utf8_basic.csv")
+        output_file = tmp_path / "output.csv"
+        result = main([str(test_file), "--check", "-o", str(output_file)])
+        assert result == 1
+
+    def test_check_mode_with_strict_warns(self, capsys):
+        """Test --check with --strict shows warning."""
+        from pathlib import Path
+        test_file = Path("test/utf8_basic.csv")
+        result = main([str(test_file), "--check", "--strict"])
+        captured = capsys.readouterr()
+        assert "redundant" in captured.out.lower() or "warning" in captured.out.lower()
+        assert result == 0
+
+    def test_check_mode_with_encoding_conversion(self, tmp_path):
+        """Test --check handles non-UTF8 encoding correctly."""
+        # Create a latin1 CSV
+        latin1_csv = tmp_path / "latin1.csv"
+        content = "nome;età\nAndrea;25\n"
+        latin1_csv.write_bytes(content.encode("latin1"))
+        
+        result = main([str(latin1_csv), "--check"])
+        assert result == 0

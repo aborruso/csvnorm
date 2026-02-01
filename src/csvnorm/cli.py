@@ -35,6 +35,8 @@ def show_examples() -> None:
     console.print("  # Shell redirect")
     console.print("  [cyan]csvnorm data.csv | head -20[/cyan]")
     console.print("  # Preview with pipe")
+    console.print("  [cyan]csvnorm data.csv --check[/cyan]")
+    console.print("  # Validate without processing")
     console.print("  [cyan]csvnorm data.csv --strict | process.sh[/cyan]")
     console.print("  # Fail-fast mode for pipelines")
     console.print("  [cyan]csvnorm data.csv -d ';' -o output.csv[/cyan]")
@@ -159,6 +161,16 @@ def create_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--check",
+        action="store_true",
+        help=(
+            "Validate CSV structure without processing or normalizing. "
+            "Exits with code 0 if valid, 1 if validation errors found. "
+            "No output file is created. Use for quick validation checks."
+        ),
+    )
+
+    parser.add_argument(
         "-V",
         "--verbose",
         action="store_true",
@@ -216,6 +228,20 @@ def main(argv: Optional[list[str]] = None) -> int:
         console.print("[red]Error:[/red] --skip-rows must be non-negative", style="red")
         return 1
 
+    # Validate incompatible flag combinations
+    if args.check and args.output_file:
+        console.print(
+            "[red]Error:[/red] --check cannot be used with -o (output file)",
+            style="red"
+        )
+        return 1
+
+    if args.check and args.strict:
+        console.print(
+            "[yellow]Warning:[/yellow] --strict is redundant with --check (both exit on errors)",
+            style="yellow"
+        )
+
     # Run processing (output_file can be None for stdout)
     fix_mojibake_sample = args.fix_mojibake
     return process_csv(
@@ -229,6 +255,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         fix_mojibake_sample=fix_mojibake_sample,
         download_remote=args.download_remote,
         strict=args.strict,
+        check_only=args.check,
     )
 
 

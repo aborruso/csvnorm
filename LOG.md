@@ -2,6 +2,21 @@
 
 ## 2026-02-01
 
+### Added Validation-Only Mode
+
+**New `--check` flag for quick CSV validation**:
+- Validates CSV structure without processing or normalizing
+- Exit code 0 if valid, 1 if validation errors found
+- No output file created (validation only)
+- Performs encoding detection/conversion to avoid false positives
+- Useful for CI/CD pipelines and quick data quality checks
+
+**Usage**:
+```bash
+csvnorm data.csv --check && echo "Valid" || echo "Invalid"
+csvnorm https://example.com/data.csv --check
+```
+
 ### Improved Stdout Error Visibility
 
 **BREAKING CHANGE**: Reject file location changed for stdout mode
