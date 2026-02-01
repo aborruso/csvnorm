@@ -80,6 +80,7 @@ csvnorm input.csv [options]
 | `-d, --delimiter CHAR` | Set custom output delimiter (default: `,`) |
 | `-s, --skip-rows N` | Skip first N rows of input file (useful for metadata/comments) |
 | `--fix-mojibake [N]` | Fix mojibake using ftfy (optional sample size `N`; use `0` to force repair) |
+| `--strict` | Exit with error code 1 if any validation errors occur (fail-fast mode) |
 | `--download-remote` | Download remote CSV locally before processing (needed for remote .zip/.gz) |
 | `-V, --verbose` | Enable verbose output for debugging |
 | `-v, --version` | Show version number |
@@ -129,6 +130,12 @@ csvnorm data.csv --fix-mojibake 4000 -o fixed.csv
 
 # Force mojibake repair even with low badness score
 csvnorm data.csv --fix-mojibake 0 -o fixed.csv
+
+# Fail-fast mode: exit with error if validation errors occur
+csvnorm data.csv --strict > output.csv || echo "Validation failed!"
+
+# Use in pipelines where data quality is critical
+csvnorm remote_data.csv --strict | other_tool || handle_error
 ```
 
 ### Output
@@ -136,7 +143,8 @@ csvnorm data.csv --fix-mojibake 0 -o fixed.csv
 **Default behavior (stdout):**
 - Writes normalized CSV to stdout
 - Progress and errors go to stderr
-- Validation errors (if any) are written to a temporary file with path shown in stderr
+- Validation errors (if any) are shown to stderr **before** the output data
+- Reject file saved to `./reject_errors.csv` in current working directory
 - Perfect for piping to other tools or shell redirection
 
 **File output (with `-o`):**

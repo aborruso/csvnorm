@@ -35,6 +35,8 @@ def show_examples() -> None:
     console.print("  # Shell redirect")
     console.print("  [cyan]csvnorm data.csv | head -20[/cyan]")
     console.print("  # Preview with pipe")
+    console.print("  [cyan]csvnorm data.csv --strict | process.sh[/cyan]")
+    console.print("  # Fail-fast mode for pipelines")
     console.print("  [cyan]csvnorm data.csv -d ';' -o output.csv[/cyan]")
     console.print("  # Custom delimiter")
     console.print("  [cyan]csvnorm data.csv --skip-rows 2 -o out.csv[/cyan]")
@@ -147,6 +149,16 @@ def create_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--strict",
+        action="store_true",
+        help=(
+            "Exit with error code 1 if any validation errors occur, "
+            "preventing output from being written. Use this in pipelines "
+            "where you want to fail fast on malformed data."
+        ),
+    )
+
+    parser.add_argument(
         "-V",
         "--verbose",
         action="store_true",
@@ -216,6 +228,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         verbose=args.verbose,
         fix_mojibake_sample=fix_mojibake_sample,
         download_remote=args.download_remote,
+        strict=args.strict,
     )
 
 

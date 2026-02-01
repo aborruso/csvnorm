@@ -104,7 +104,7 @@ def show_success_table(
 
 
 def show_validation_error_panel(
-    reject_count: int, error_types: list[str], reject_file: Path
+    reject_count: int, error_types: list[str], reject_file: Path, console_out: Optional[Console] = None
 ) -> None:
     """Display validation error summary panel.
 
@@ -112,8 +112,10 @@ def show_validation_error_panel(
         reject_count: Number of rejected rows (including header).
         error_types: List of error type descriptions.
         reject_file: Path to reject errors CSV file.
+        console_out: Optional console to use (defaults to module console).
     """
-    console.print()
+    target_console = console_out or console
+    target_console.print()
     error_lines = []
     error_lines.append("[bold red]Validation Errors:[/bold red]")
     error_lines.append("")
@@ -128,7 +130,7 @@ def show_validation_error_panel(
     error_lines.append("")
     error_lines.append(f"Details: [cyan]{reject_file}[/cyan]")
 
-    console.print(
+    target_console.print(
         Panel(
             "\n".join(error_lines),
             border_style="yellow",

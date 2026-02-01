@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-02-01
+
+### Improved Stdout Error Visibility
+
+**BREAKING CHANGE**: Reject file location changed for stdout mode
+- Reject file now saved to `./reject_errors.csv` in current working directory (was `/tmp/csvnorm_xxxxx/reject_errors.csv`)
+- Validation errors displayed to stderr **before** output data (was after)
+- Added `--strict` flag: exits with code 1 if validation errors occur, preventing output
+
+**Benefits**:
+- Validation warnings visible even when piping to tools like `head` that close early
+- Reject file accessible in current directory instead of temp location
+- Fail-fast mode for pipelines requiring data quality guarantees
+
 ## 2026-01-21
 
 ### Remote URL Handling

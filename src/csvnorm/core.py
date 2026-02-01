@@ -26,7 +26,6 @@ from csvnorm.utils import (
     download_url_to_file,
     get_column_count,
     get_row_count,
-    is_compressed_url,
     is_gzip_path,
     is_url,
     is_zip_path,
@@ -85,8 +84,9 @@ def _setup_output_paths(
 ) -> tuple[Path, Path, Path]:
     """Determine output, reject, and temp UTF-8 paths."""
     if output_file is None:
+        # Stdout mode: place reject file in current working directory
         actual_output_file = temp_dir / "output.csv"
-        reject_file = temp_dir / "reject_errors.csv"
+        reject_file = Path.cwd() / "reject_errors.csv"
         temp_utf8_file = temp_dir / "utf8.csv"
         return actual_output_file, reject_file, temp_utf8_file
 
@@ -362,18 +362,8 @@ def _emit_stdout_output(
             out_console=stderr_console,
         )
 
-    if has_validation_errors:
-        stderr_console = Console(stderr=True)
-        stderr_console.print()
-        stderr_console.print(
-            f"[yellow]Warning:[/yellow] {reject_count - 1} rows rejected during validation",
-            style="yellow",
-        )
-        stderr_console.print(f"Reject file saved to: {reject_file}", style="dim")
-        stderr_console.print()
-        return 1
-
-    return 0
+    # Return exit code 1 if validation errors occurred (warning already shown before output)
+    return 1 if has_validation_errors else 0
 
 
 def _cleanup_temp_artifacts(
@@ -422,6 +412,7 @@ def process_csv(
     verbose: bool = False,
     fix_mojibake_sample: Optional[int] = None,
     download_remote: bool = False,
+    strict: bool = False,
 ) -> int:
     """Main CSV processing pipeline.
 
@@ -434,6 +425,7 @@ def process_csv(
         skip_rows: Number of rows to skip at the beginning of the file.
         verbose: If True, enable debug logging.
         fix_mojibake_sample: Sample size for mojibake detection, None to disable.
+        strict: If True, exit with error code 1 if validation errors occur.
 
     Returns:
         Exit code: 0 for success, 1 for error.
@@ -590,7 +582,21 @@ def process_csv(
                 return 1
 
             has_validation_errors = reject_count > 1
-            if has_validation_errors:
+            
+            # Show validation errors immediately (before normalization) for stdout mode
+            if use_stdout and has_validation_errors:
+                progress.stop()
+                stderr_console = Console(stderr=True)
+                show_validation_error_panel(reject_count, error_types, reject_file, stderr_console)
+                
+                # In strict mode, exit immediately without normalizing
+                if strict:
+                    _cleanup_temp_artifacts(use_stdout, reject_file, temp_files)
+                    return 1
+                    
+                # Continue with normalization for non-strict mode
+                progress.start()
+            elif has_validation_errors:
                 progress.stop()
 
             progress.update(task, description="[green]✓[/green] CSV validated")
