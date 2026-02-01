@@ -550,22 +550,37 @@ def _detect_header_anomaly(
             return None
 
         data_lines = separator_counts[1:]  # Skip first line for analysis
+        header_counts = separator_counts[0]
 
-        # Find the most common delimiter in data lines
-        delimiter_totals = {delim: 0 for delim in COMMON_DELIMITERS}
-        for counts in data_lines:
-            for delim, count in counts.items():
-                delimiter_totals[delim] += count
+        # Prefer delimiters that are consistent across data lines.
+        # This avoids false positives from decimal commas.
+        consistent_candidates = []
+        for delim in COMMON_DELIMITERS:
+            counts = [line[delim] for line in data_lines]
+            if not counts:
+                continue
+            if min(counts) == max(counts) and counts[0] > 0:
+                header_match = header_counts.get(delim, 0)
+                consistent_candidates.append((header_match, counts[0], delim))
 
-        # Get dominant delimiter (most occurrences in data lines)
-        dominant_delim = max(delimiter_totals.items(), key=lambda x: x[1])[0]
-        dominant_count = delimiter_totals[dominant_delim]
+        if consistent_candidates:
+            # Prefer the delimiter that also appears in the header.
+            # Tie-break on higher consistent count.
+            consistent_candidates.sort(reverse=True)
+            dominant_delim = consistent_candidates[0][2]
+        else:
+            # Fall back to delimiter with most occurrences in data lines
+            delimiter_totals = {delim: 0 for delim in COMMON_DELIMITERS}
+            for counts in data_lines:
+                for delim, count in counts.items():
+                    delimiter_totals[delim] += count
 
-        # Skip if no clear delimiter in data lines
-        if dominant_count == 0:
-            return None
+            dominant_delim = max(delimiter_totals.items(), key=lambda x: x[1])[0]
 
-        # Check if dominant delimiter is consistent across data lines
+            # Skip if no clear delimiter in data lines
+            if delimiter_totals[dominant_delim] == 0:
+                return None
+
         data_counts = [counts[dominant_delim] for counts in data_lines]
         if not data_counts:
             return None
