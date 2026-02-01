@@ -126,6 +126,14 @@ def is_zip_path(file_path: Path) -> bool:
     return file_path.suffix.lower() == ".zip"
 
 
+def is_zip_file(file_path: Path) -> bool:
+    """Return True if file is a zip archive (magic-bytes check)."""
+    try:
+        return zipfile.is_zipfile(file_path)
+    except (OSError, ValueError):
+        return False
+
+
 def resolve_zip_csv_entry(zip_path: Path) -> str:
     """Return the single CSV entry inside a zip archive.
 

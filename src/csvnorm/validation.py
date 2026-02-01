@@ -149,7 +149,9 @@ def validate_csv(
                 error_msg = str(e)
                 # Check if it's a dialect detection failure
                 if "sniffing" in error_msg.lower() or "detect" in error_msg.lower():
-                    logger.debug("Standard sniffing failed, trying fallback configurations...")
+                    logger.debug(
+                        "Standard sniffing failed, trying fallback configurations and strict_mode=false..."
+                    )
 
                     # Create fallback configs based on user-provided skip_rows
                     # If skip_rows > 0, use it; otherwise use predefined FALLBACK_CONFIGS
@@ -192,8 +194,33 @@ def validate_csv(
                             break
 
                     if not success:
-                        # No fallback worked, re-raise original error
-                        raise
+                        # If delimiter fallbacks fail, try strict_mode=false
+                        try:
+                            strict_opts = "store_rejects=true, sample_size=-1, all_varchar=true"
+                            if compression_opt:
+                                strict_opts += f", {compression_opt}"
+                            if skip_rows > 0:
+                                strict_opts += f", skip={skip_rows}"
+                            strict_opts += ", ignore_errors=true, strict_mode=false"
+
+                            conn.execute(f"""
+                                SELECT COUNT(*) FROM read_csv(
+                                    '{file_path}',
+                                    {strict_opts}
+                                )
+                            """).fetchall()
+                            logger.info("Strict mode disabled; sniffing succeeded")
+                            if skip_rows > 0:
+                                fallback_config = {
+                                    "delim": ",",
+                                    "skip": skip_rows,
+                                    "strict_mode": False,
+                                }
+                            else:
+                                fallback_config = {"strict_mode": False}
+                        except duckdb.Error:
+                            # No fallback worked, re-raise original error
+                            raise
                 else:
                     # Not a sniffing error, re-raise
                     raise
@@ -277,11 +304,19 @@ def normalize_csv(
                     )
         # Add fallback config options if available and skip_rows not provided
         elif fallback_config:
-            delim = fallback_config["delim"]
-            skip = fallback_config["skip"]
-            # Add ignore_errors when using fallback (may have malformed rows)
-            read_opts += f", delim='{delim}', skip={skip}, ignore_errors=true"
-            logger.debug(f"Using fallback config: {fallback_config}")
+            delim = fallback_config.get("delim")
+            skip = fallback_config.get("skip")
+            if delim is not None and skip is not None:
+                # Add ignore_errors when using fallback (may have malformed rows)
+                read_opts += f", delim='{delim}', skip={skip}, ignore_errors=true"
+                logger.debug(f"Using fallback config: {fallback_config}")
+            elif skip is not None:
+                read_opts += f", skip={skip}"
+                logger.debug("Using fallback skip_rows: %s", skip)
+
+        # Apply strict_mode=false if requested by fallback config
+        if fallback_config and fallback_config.get("strict_mode") is False:
+            read_opts += ", strict_mode=false"
 
         # Build copy options
         copy_opts = "header true, format csv"
@@ -310,7 +345,9 @@ def normalize_csv(
                     or "detect" in error_msg.lower()
                 )
             ):
-                logger.debug("Normalization sniffing failed, trying fallback configurations...")
+                logger.debug(
+                    "Normalization sniffing failed, trying fallback configurations and strict_mode=false..."
+                )
 
                 success = False
                 for config in FALLBACK_CONFIGS:
@@ -357,7 +394,19 @@ def normalize_csv(
                         break
 
                 if not success:
-                    raise
+                    # Try strict_mode=false as last resort
+                    try:
+                        read_opts_strict = f"{read_opts}, strict_mode=false"
+                        query = f"""
+                            COPY (
+                                SELECT * FROM read_csv('{input_path}', {read_opts_strict})
+                            ) TO '{output_path}' ({copy_opts})
+                        """
+                        logger.debug(f"DuckDB query with strict_mode=false: {query}")
+                        conn.execute(query)
+                        used_fallback_config = {"strict_mode": False}
+                    except duckdb.Error:
+                        raise
             else:
                 raise
 

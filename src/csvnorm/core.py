@@ -28,6 +28,7 @@ from csvnorm.utils import (
     get_row_count,
     is_gzip_path,
     is_url,
+    is_zip_file,
     is_zip_path,
     resolve_zip_csv_entry,
     validate_delimiter,
@@ -141,7 +142,14 @@ def _download_remote_if_needed(
 
 def _extract_single_csv_from_zip(zip_path: Path, temp_dir: Path) -> Path:
     """Extract the single CSV entry from a zip archive into temp_dir."""
-    csv_entry = resolve_zip_csv_entry(zip_path)
+    try:
+        csv_entry = resolve_zip_csv_entry(zip_path)
+    except ValueError as e:
+        raise ValueError(
+            "The downloaded file is a ZIP archive and does not contain a single CSV.\n\n"
+            f"ZIP: {zip_path}\n\n"
+            "Please extract the desired CSV file and run csvnorm on that file."
+        ) from e
     safe_name = Path(csv_entry).name
     output_path = temp_dir / safe_name
     with zipfile.ZipFile(zip_path) as archive:
@@ -290,6 +298,10 @@ def _validate_csv_with_http_handling(
             else:
                 show_error_panel(f"HTTP request failed\n\n{error_msg}")
             raise
+
+        # Non-HTTP DuckDB errors: surface the real error instead of failing silently.
+        show_error_panel(f"Validation failed\n\n{error_msg}")
+        raise
 
         raise
 
@@ -487,7 +499,7 @@ def process_csv(
         local_input_path = None
     if local_input_path:
         try:
-            if is_zip_path(local_input_path):
+            if is_zip_path(local_input_path) or is_zip_file(local_input_path):
                 # Always extract local zip to allow encoding detection/conversion.
                 extracted_path = _extract_single_csv_from_zip(local_input_path, temp_dir)
                 input_path = extracted_path
@@ -587,6 +599,16 @@ def process_csv(
                 return 1
 
             has_validation_errors = reject_count > 1
+            # If strict_mode was disabled, warn that parsing is permissive.
+            if fallback_config and fallback_config.get("strict_mode") is False:
+                progress.stop()
+                warn_console = Console(stderr=True)
+                show_warning_panel(
+                    "Parsing in permissive mode (strict_mode=false).\n"
+                    "Malformed rows may be skipped and recorded in the reject file.",
+                    title="Permissive Parsing",
+                )
+                progress.start()
             
             # Check-only mode: validate and exit without processing
             if check_only:
