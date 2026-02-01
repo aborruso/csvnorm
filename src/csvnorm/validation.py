@@ -556,12 +556,12 @@ def _detect_header_anomaly(
         # This avoids false positives from decimal commas.
         consistent_candidates = []
         for delim in COMMON_DELIMITERS:
-            counts = [line[delim] for line in data_lines]
-            if not counts:
+            count_list = [line[delim] for line in data_lines]
+            if not count_list:
                 continue
-            if min(counts) == max(counts) and counts[0] > 0:
+            if min(count_list) == max(count_list) and count_list[0] > 0:
                 header_match = header_counts.get(delim, 0)
-                consistent_candidates.append((header_match, counts[0], delim))
+                consistent_candidates.append((header_match, count_list[0], delim))
 
         if consistent_candidates:
             # Prefer the delimiter that also appears in the header.
