@@ -35,6 +35,7 @@ For deployment procedures (building, tagging, publishing to PyPI), see `DEPLOYME
 - NEVER release if `csvnorm -v` fails (basic smoke test)
 - Verify all runtime dependencies are in `pyproject.toml`
 - Test installation: `uv tool install --reinstall --force .` then `csvnorm -v`
+- Release notes MUST be user-oriented: focus on what the user can do now, with usage examples. Internal/refactoring details go under a separate "Internal" section.
 
 ## Common Commands
 

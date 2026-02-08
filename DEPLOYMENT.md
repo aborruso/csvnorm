@@ -85,19 +85,21 @@ You can monitor the workflow at: https://github.com/aborruso/csvnorm/actions
 
 ### 4. Create GitHub Release (REQUIRED)
 
-**Wait for the workflow to complete successfully**, then create the GitHub Release:
+**Wait for the workflow to complete successfully**, then create the GitHub Release.
+
+**Release notes MUST be user-oriented**: describe what users can do now, include usage examples (code blocks), and explain the benefit. Internal changes (refactoring, test additions) go under a separate "Internal" section. Avoid implementation jargon.
 
 ```bash
 # Create release notes file
 cat > /tmp/release_notes.md << 'EOF'
 ## Features
-- Feature description
+- Feature description with usage example
 
 ## Bug Fixes
 - Fix description
 
-## Changes
-- Change description
+## Internal
+- Refactoring, test additions, etc.
 
 Full Changelog: https://github.com/aborruso/csvnorm/compare/v0.2.0...v0.3.0
 EOF
