@@ -272,6 +272,7 @@ class TestProcessCSV:
         assert result == 1
 
     @pytest.mark.network
+    @pytest.mark.xfail(reason="Remote server may timeout", strict=False)
     def test_remote_url_download_fallback_ministry(self, output_dir):
         """Test remote download fallback with real public URL."""
         output_file = output_dir / "ministry.csv"
