@@ -465,12 +465,12 @@ def _fix_duckdb_keyword_prefix(file_path: Path) -> None:
 
     header = first_line
 
-    def _strip_keyword_prefix(m: re.Match) -> str:
-        prefix = m.group(1)  # '' or ','
-        name = m.group(2)    # word after '_'
+    def _strip_keyword_prefix(m: re.Match[str]) -> str:
+        prefix: str = m.group(1)  # '' or ','
+        name: str = m.group(2)    # word after '_'
         if name in _DUCKDB_KEYWORD_SET:
             return prefix + name
-        return m.group(0)
+        return str(m.group(0))
 
     header = re.sub(r"(^|,)_([A-Za-z0-9]+)\b", _strip_keyword_prefix, header)
 
