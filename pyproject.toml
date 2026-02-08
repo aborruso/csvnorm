@@ -59,7 +59,7 @@ where = ["src"]
 
 [tool.ruff]
 line-length = 88
-target-version = "py38"
+target-version = "py39"
 
 [tool.pytest.ini_options]
 markers = [

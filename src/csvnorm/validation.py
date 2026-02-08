@@ -11,6 +11,12 @@ logger = logging.getLogger("csvnorm")
 
 ConfigDict = dict[str, Union[str, int]]
 
+
+def _sql_escape(value: Union[str, Path]) -> str:
+    """Escape single quotes in a value for DuckDB SQL strings."""
+    return str(value).replace("'", "''")
+
+
 # Fallback configurations to try when automatic dialect detection fails
 FALLBACK_CONFIGS: list[ConfigDict] = [
     {"delim": ";", "skip": 1},
@@ -23,6 +29,22 @@ FALLBACK_CONFIGS: list[ConfigDict] = [
 
 # Common delimiters to check
 COMMON_DELIMITERS: list[str] = [",", ";", "|", "\t"]
+
+# SQL keywords that DuckDB prefixes with underscore when using normalize_names=true.
+# Only these are stripped by _fix_duckdb_keyword_prefix; user columns like _id are kept.
+_DUCKDB_KEYWORD_SET: frozenset[str] = frozenset({
+    "absolute", "action", "all", "alter", "and", "any", "as", "asc",
+    "cascade", "case", "check", "column", "constraint", "create", "cross",
+    "current", "data", "day", "default", "delete", "desc", "distinct",
+    "drop", "else", "end", "fetch", "first", "foreign", "from", "full",
+    "grant", "group", "having", "hour", "in", "index", "inner", "insert",
+    "into", "is", "join", "key", "last", "left", "level", "like", "limit",
+    "location", "minute", "month", "name", "natural", "next", "not", "null",
+    "offset", "on", "or", "order", "outer", "primary", "prior", "recursive",
+    "references", "relative", "restrict", "right", "role", "second",
+    "select", "set", "start", "table", "then", "type", "union", "unique",
+    "update", "user", "value", "when", "where", "with", "year",
+})
 
 
 def _needs_zipfs(file_path: Union[Path, str]) -> bool:
@@ -56,6 +78,18 @@ def _ensure_zipfs_extension(
         conn.execute("LOAD zipfs")
 
 
+def _create_connection(
+    file_path: Union[Path, str],
+    is_remote: bool = False,
+) -> duckdb.DuckDBPyConnection:
+    """Create DuckDB connection with zipfs and HTTP timeout setup."""
+    conn = duckdb.connect()
+    _ensure_zipfs_extension(conn, file_path)
+    if is_remote:
+        conn.execute("SET http_timeout=30000")
+    return conn
+
+
 def validate_csv(
     file_path: Union[Path, str],
     reject_file: Path,
@@ -78,10 +112,9 @@ def validate_csv(
     """
     logger.debug(f"Validating CSV: {file_path}")
 
-    conn = duckdb.connect()
+    conn = _create_connection(file_path, is_remote)
     fallback_config: Optional[ConfigDict] = None
 
-    _ensure_zipfs_extension(conn, file_path)
     compression_opt = _compression_option(file_path)
 
     # Pre-check for header anomalies (local files only)
@@ -93,9 +126,6 @@ def validate_csv(
             logger.info(f"Early detection suggests config: {suggested_config}")
 
     try:
-        # Set HTTP timeout for remote URLs (30 seconds)
-        if is_remote:
-            conn.execute("SET http_timeout=30000")
 
         # If early detection found anomaly, try that config first
         if suggested_config:
@@ -112,7 +142,7 @@ def validate_csv(
                     read_opts += f", {compression_opt}"
                 conn.execute(f"""
                     SELECT COUNT(*) FROM read_csv(
-                        '{file_path}',
+                        '{_sql_escape(file_path)}',
                         {read_opts}
                     )
                 """).fetchall()
@@ -139,7 +169,7 @@ def validate_csv(
                 # Use COUNT(*) instead of COPY TO /dev/null to avoid locking issues
                 conn.execute(f"""
                     SELECT COUNT(*) FROM read_csv(
-                        '{file_path}',
+                        '{_sql_escape(file_path)}',
                         {read_opts}
                     )
                 """).fetchall()
@@ -187,7 +217,7 @@ def validate_csv(
                                 read_opts += f", {compression_opt}"
                             conn.execute(f"""
                                 SELECT COUNT(*) FROM read_csv(
-                                    '{file_path}',
+                                    '{_sql_escape(file_path)}',
                                     {read_opts}
                                 )
                             """).fetchall()
@@ -205,7 +235,7 @@ def validate_csv(
 
                             conn.execute(f"""
                                 SELECT COUNT(*) FROM read_csv(
-                                    '{file_path}',
+                                    '{_sql_escape(file_path)}',
                                     {strict_opts}
                                 )
                             """).fetchall()
@@ -226,7 +256,7 @@ def validate_csv(
                     raise
 
         # Export rejected rows to file
-        conn.execute(f"COPY (FROM reject_errors) TO '{reject_file}'")
+        conn.execute(f"COPY (FROM reject_errors) TO '{_sql_escape(reject_file)}'")
 
     finally:
         conn.close()
@@ -270,17 +300,12 @@ def normalize_csv(
     """
     logger.debug(f"Normalizing CSV: {input_path} -> {output_path}")
 
-    conn = duckdb.connect()
+    conn = _create_connection(input_path, is_remote)
     used_fallback_config: Optional[ConfigDict] = None
 
-    _ensure_zipfs_extension(conn, input_path)
     compression_opt = _compression_option(input_path)
 
     try:
-        # Set HTTP timeout for remote URLs (30 seconds)
-        if is_remote:
-            conn.execute("SET http_timeout=30000")
-
         # Build read options
         read_opts = "sample_size=-1, all_varchar=true"
         if compression_opt:
@@ -327,8 +352,8 @@ def normalize_csv(
         try:
             query = f"""
                 COPY (
-                    SELECT * FROM read_csv('{input_path}', {read_opts})
-                ) TO '{output_path}' ({copy_opts})
+                    SELECT * FROM read_csv('{_sql_escape(input_path)}', {read_opts})
+                ) TO '{_sql_escape(output_path)}' ({copy_opts})
             """
 
             logger.debug(f"DuckDB query: {query}")
@@ -377,8 +402,8 @@ def normalize_csv(
 
                         query = f"""
                             COPY (
-                                SELECT * FROM read_csv('{input_path}', {read_opts})
-                            ) TO '{output_path}' ({copy_opts})
+                                SELECT * FROM read_csv('{_sql_escape(input_path)}', {read_opts})
+                            ) TO '{_sql_escape(output_path)}' ({copy_opts})
                         """
 
                         logger.debug(f"DuckDB query with fallback: {query}")
@@ -386,7 +411,7 @@ def normalize_csv(
 
                         # Export reject_errors if using store_rejects
                         if reject_file:
-                            conn.execute(f"COPY (FROM reject_errors) TO '{reject_file}'")
+                            conn.execute(f"COPY (FROM reject_errors) TO '{_sql_escape(reject_file)}'")
                             logger.debug(f"Reject errors exported to: {reject_file}")
 
                         used_fallback_config = config
@@ -399,8 +424,8 @@ def normalize_csv(
                         read_opts_strict = f"{read_opts}, strict_mode=false"
                         query = f"""
                             COPY (
-                                SELECT * FROM read_csv('{input_path}', {read_opts_strict})
-                            ) TO '{output_path}' ({copy_opts})
+                                SELECT * FROM read_csv('{_sql_escape(input_path)}', {read_opts_strict})
+                            ) TO '{_sql_escape(output_path)}' ({copy_opts})
                         """
                         logger.debug(f"DuckDB query with strict_mode=false: {query}")
                         conn.execute(query)
@@ -426,25 +451,32 @@ def _fix_duckdb_keyword_prefix(file_path: Path) -> None:
 
     DuckDB's normalize_names option prefixes SQL keywords with an underscore to
     avoid conflicts. This function removes those prefixes from the header row only.
+    Only known DuckDB keywords are stripped; user columns like ``_id`` are preserved.
 
     Args:
         file_path: Path to CSV file to fix.
     """
     with open(file_path, "r") as f:
-        lines = f.readlines()
+        first_line = f.readline()
+        rest = f.read()
 
-    if not lines:
+    if not first_line:
         return
 
-    header = lines[0]
+    header = first_line
 
-    # Remove leading underscore on any column name (start of header or after comma).
-    header = re.sub(r"(^|,)_([A-Za-z0-9]+)\b", r"\1\2", header)
+    def _strip_keyword_prefix(m: re.Match) -> str:
+        prefix = m.group(1)  # '' or ','
+        name = m.group(2)    # word after '_'
+        if name in _DUCKDB_KEYWORD_SET:
+            return prefix + name
+        return m.group(0)
 
-    lines[0] = header
+    header = re.sub(r"(^|,)_([A-Za-z0-9]+)\b", _strip_keyword_prefix, header)
 
     with open(file_path, "w") as f:
-        f.writelines(lines)
+        f.write(header)
+        f.write(rest)
 
 
 def _count_lines(file_path: Path) -> int:
@@ -495,7 +527,7 @@ def _try_read_csv_with_config(
         # Try to read and verify it has multiple columns
         # Use ignore_errors to handle potential malformed rows during testing
         result = conn.execute(
-            f"SELECT * FROM read_csv('{file_path}', {read_opts}) LIMIT 1"
+            f"SELECT * FROM read_csv('{_sql_escape(file_path)}', {read_opts}) LIMIT 1"
         ).fetchall()
 
         # Check we got at least one row with multiple columns

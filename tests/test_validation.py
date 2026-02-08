@@ -123,11 +123,11 @@ class TestGetErrorTypes:
 class TestFixDuckdbKeywordPrefix:
     """Tests for _fix_duckdb_keyword_prefix internal function."""
 
-    def test_removes_leading_underscore_from_header(self):
-        """Test removing underscore prefix from any header column."""
+    def test_removes_keyword_prefix_from_header(self):
+        """Test removing underscore prefix from DuckDB SQL keywords only."""
         with tempfile.TemporaryDirectory() as tmpdir:
             test_file = Path(tmpdir) / "test.csv"
-            test_file.write_text("_value,_location,_data,_foo,bar\n1,2,3,4,5\n")
+            test_file.write_text("_value,_location,_data,bar\n1,2,3,4\n")
 
             _fix_duckdb_keyword_prefix(test_file)
 
@@ -135,8 +135,25 @@ class TestFixDuckdbKeywordPrefix:
                 header = f.readline().strip()
                 data = f.readline().strip()
 
-            assert header == "value,location,data,foo,bar"
-            assert data == "1,2,3,4,5"
+            assert header == "value,location,data,bar"
+            assert data == "1,2,3,4"
+
+    def test_preserves_non_keyword_underscore_columns(self):
+        """Test that non-keyword columns like _id are preserved."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_file = Path(tmpdir) / "test.csv"
+            test_file.write_text("_id,_value,_source,_order\n1,2,3,4\n")
+
+            _fix_duckdb_keyword_prefix(test_file)
+
+            with open(test_file, "r") as f:
+                header = f.readline().strip()
+                data = f.readline().strip()
+
+            # _id and _source are NOT DuckDB keywords -> preserved
+            # _value and _order ARE DuckDB keywords -> stripped
+            assert header == "_id,value,_source,order"
+            assert data == "1,2,3,4"
 
     def test_empty_file_no_change(self):
         """Test that empty file is handled gracefully."""

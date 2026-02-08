@@ -327,9 +327,10 @@ def get_column_count(file_path: Union[Path, str], delimiter: str = ",") -> int:
     try:
         conn = duckdb.connect(":memory:")
         # Get column names from CSV using DuckDB DESCRIBE
+        escaped_path = str(file_path).replace("'", "''")
         columns = conn.execute(
             "DESCRIBE SELECT * FROM read_csv("
-            f"'{file_path}', delim='{delimiter}', header=true, sample_size=1)"
+            f"'{escaped_path}', delim='{delimiter}', header=true, sample_size=1)"
         ).fetchall()
         conn.close()
 
