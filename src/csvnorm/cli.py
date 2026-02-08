@@ -44,6 +44,8 @@ def show_examples() -> None:
     console.print("  [cyan]csvnorm data.csv --skip-rows 2 -o out.csv[/cyan]")
     console.print("  # Skip first 2 rows")
     console.print("  [cyan]csvnorm https://example.com/data.csv -o processed.csv[/cyan]")
+    console.print("  # Read from stdin")
+    console.print("  [cyan]cat data.csv | csvnorm -[/cyan]")
 
 
 class VersionAction(argparse.Action):
@@ -83,7 +85,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "input_file",
         type=str,
-        help="Input CSV file path or HTTP/HTTPS URL",
+        help="Input CSV file path, HTTP/HTTPS URL, or - for stdin",
     )
 
     parser.add_argument(

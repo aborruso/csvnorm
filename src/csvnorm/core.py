@@ -303,8 +303,6 @@ def _validate_csv_with_http_handling(
         show_error_panel(f"Validation failed\n\n{error_msg}")
         raise
 
-        raise
-
 
 def _normalize_and_refresh_errors(
     working_file: Union[str, Path],
@@ -382,8 +380,6 @@ def _cleanup_temp_artifacts(
     use_stdout: bool, reject_file: Path, temp_files: list[Path]
 ) -> None:
     """Cleanup temp files and prune empty reject files."""
-    import shutil
-
     if use_stdout and reject_file.exists():
         with open(reject_file, "r") as f:
             line_count = sum(1 for _ in f)
@@ -412,6 +408,202 @@ def _cleanup_temp_artifacts(
         if line_count <= 1:
             logger.debug(f"Removing empty reject file: {reject_file}")
             reject_file.unlink()
+
+
+def _prepare_working_file(
+    input_path: Union[str, Path],
+    is_remote: bool,
+    compressed_type: Optional[str],
+    compressed_input_path: Union[str, Path],
+    temp_utf8_file: Path,
+    temp_dir: Path,
+    fix_mojibake_sample: Optional[int],
+    check_only: bool,
+    progress: Progress,
+    task: TaskID,
+    temp_files: list[Path],
+) -> Optional[tuple[Union[str, Path], str, bool]]:
+    """Resolve encoding and apply mojibake repair.
+
+    Returns:
+        Tuple of (working_file, encoding, mojibake_repaired) on success,
+        None on error (error panel already shown).
+    """
+    if is_remote:
+        progress.update(
+            task,
+            description="[green]✓[/green] Remote URL (encoding handled by DuckDB)",
+        )
+        return input_path, "remote", False
+
+    if compressed_type:
+        progress.update(
+            task,
+            description=(
+                f"[green]✓[/green] {compressed_type.upper()} input "
+                "(encoding handled by DuckDB)"
+            ),
+        )
+        return compressed_input_path, compressed_type, False
+
+    file_input_path = input_path
+    assert isinstance(file_input_path, Path)
+
+    try:
+        working_file, encoding = _handle_local_encoding(
+            file_input_path, temp_utf8_file, progress, task, temp_files,
+        )
+    except ValueError as e:
+        progress.stop()
+        show_error_panel(str(e))
+        return None
+    except (UnicodeDecodeError, LookupError) as e:
+        progress.stop()
+        show_error_panel(f"Encoding conversion failed\n{e}")
+        return None
+
+    mojibake_repaired = False
+    if not check_only:
+        try:
+            mojibake_repaired, working_file = _handle_mojibake_if_needed(
+                working_file, temp_dir, fix_mojibake_sample,
+                progress, task, temp_files,
+            )
+        except (OSError, UnicodeDecodeError, ValueError) as e:
+            progress.stop()
+            show_error_panel(f"Mojibake repair failed\n{e}")
+            return None
+
+    return working_file, encoding, mojibake_repaired
+
+
+def _handle_post_validation(
+    has_validation_errors: bool,
+    reject_count: int,
+    error_types: list[str],
+    fallback_config: Optional[dict[str, Union[str, int]]],
+    check_only: bool,
+    strict: bool,
+    use_stdout: bool,
+    reject_file: Path,
+    progress: Progress,
+) -> Optional[int]:
+    """Handle post-validation logic: check-only, strict, permissive warnings.
+
+    Returns:
+        Exit code if processing should stop, None to continue.
+    """
+    if fallback_config and fallback_config.get("strict_mode") is False:
+        progress.stop()
+        show_warning_panel(
+            "Parsing in permissive mode (strict_mode=false).\n"
+            "Malformed rows may be skipped and recorded in the reject file.",
+            title="Permissive Parsing",
+        )
+        progress.start()
+
+    if check_only:
+        progress.stop()
+        stderr_console = Console(stderr=True)
+        if has_validation_errors:
+            stderr_console.print(
+                f"[red]✗ Invalid CSV:[/red] {reject_count - 1} rows rejected",
+                style="red",
+            )
+            if error_types:
+                stderr_console.print("[yellow]Error types:[/yellow]")
+                for error_type in error_types[:3]:
+                    stderr_console.print(f"  • {error_type}")
+        else:
+            stderr_console.print("[green]✓ Valid CSV[/green]")
+        return 1 if has_validation_errors else 0
+
+    if use_stdout and has_validation_errors:
+        progress.stop()
+        stderr_console = Console(stderr=True)
+        show_validation_error_panel(reject_count, error_types, reject_file, stderr_console)
+        if strict:
+            return 1
+        progress.start()
+    elif has_validation_errors:
+        progress.stop()
+
+    return None
+
+
+def _compute_and_show_output(
+    input_file: str,
+    local_input_path: Optional[Path],
+    working_file: Union[str, Path],
+    actual_output_file: Path,
+    encoding: str,
+    is_remote: bool,
+    mojibake_repaired: bool,
+    delimiter: str,
+    keep_names: bool,
+    use_stdout: bool,
+    has_validation_errors: bool,
+    reject_count: int,
+    error_types: list[str],
+    reject_file: Path,
+) -> int:
+    """Compute statistics and display output for stdout or file mode.
+
+    Returns:
+        Exit code: 0 for success, 1 for validation errors.
+    """
+    if local_input_path and local_input_path.exists():
+        input_size = local_input_path.stat().st_size
+    else:
+        input_size = (
+            working_file.stat().st_size if isinstance(working_file, Path) else 0
+        )
+    output_size = actual_output_file.stat().st_size
+    row_count = get_row_count(actual_output_file)
+    column_count = get_column_count(actual_output_file, delimiter)
+
+    if use_stdout:
+        summary = {
+            "input_file": input_file,
+            "output_file": actual_output_file,
+            "encoding": encoding,
+            "is_remote": is_remote,
+            "mojibake_repaired": mojibake_repaired,
+            "row_count": row_count,
+            "column_count": column_count,
+            "input_size": input_size,
+            "output_size": output_size,
+            "delimiter": delimiter,
+            "keep_names": keep_names,
+            "output_display": "stdout",
+        }
+        return _emit_stdout_output(
+            actual_output_file,
+            has_validation_errors,
+            reject_count,
+            reject_file,
+            summary,
+        )
+
+    show_success_table(
+        input_file=input_file,
+        output_file=actual_output_file,
+        encoding=encoding,
+        is_remote=is_remote,
+        mojibake_repaired=mojibake_repaired,
+        row_count=row_count,
+        column_count=column_count,
+        input_size=input_size,
+        output_size=output_size,
+        delimiter=delimiter,
+        keep_names=keep_names,
+    )
+
+    if has_validation_errors:
+        show_validation_error_panel(reject_count, error_types, reject_file)
+        return 1
+
+    return 0
 
 
 def process_csv(
@@ -444,17 +636,29 @@ def process_csv(
     Returns:
         Exit code: 0 for success, 1 for error.
     """
-    # Determine if output mode is stdout or file
     use_stdout = output_file is None
+    stdin_temp_file: Optional[Path] = None
 
     if fix_mojibake_sample is not None and fix_mojibake_sample < 0:
         show_error_panel("--fix-mojibake must be non-negative (use 0 to force repair)")
         return 1
 
-    try:
-        input_path, is_remote = _resolve_input_path(input_file, output_file)
-    except (ValueError, FileNotFoundError, IsADirectoryError):
-        return 1
+    # Handle stdin input (csvnorm -)
+    if input_file == "-":
+        if sys.stdin.isatty():
+            show_error_panel("No input data on stdin\n\nUsage: cat data.csv | csvnorm -")
+            return 1
+        stdin_data = sys.stdin.buffer.read()
+        stdin_temp_dir = Path(tempfile.mkdtemp(prefix="csvnorm_stdin_"))
+        stdin_temp_file = stdin_temp_dir / "stdin_input.csv"
+        stdin_temp_file.write_bytes(stdin_data)
+        input_path: Union[str, Path] = stdin_temp_file
+        is_remote = False
+    else:
+        try:
+            input_path, is_remote = _resolve_input_path(input_file, output_file)
+        except (ValueError, FileNotFoundError, IsADirectoryError):
+            return 1
 
     try:
         validate_delimiter(delimiter)
@@ -472,46 +676,40 @@ def process_csv(
     except FileExistsError:
         return 1
 
-    # Track files to clean up
     temp_files: list[Path] = [temp_dir]
-
-    try:
-        try:
-            input_path, is_remote = _download_remote_if_needed(
-                input_file,
-                input_path,
-                is_remote,
-                download_remote,
-                temp_dir,
-                temp_files,
-            )
-        except (OSError, urllib.error.URLError):
-            return 1
-    except (OSError, urllib.error.URLError):
-        return 1
+    if stdin_temp_file is not None:
+        temp_files.append(stdin_temp_file.parent)
 
     compressed_type: Optional[str] = None
     compressed_input_path: Union[str, Path] = input_path
-    local_input_path: Optional[Path]
-    if isinstance(input_path, Path):
-        local_input_path = input_path
+
+    if stdin_temp_file is not None:
+        # Stdin input: skip remote download and compressed detection
+        local_input_path: Optional[Path] = None
     else:
-        local_input_path = None
-    if local_input_path:
         try:
-            if is_zip_path(local_input_path) or is_zip_file(local_input_path):
-                # Always extract local zip to allow encoding detection/conversion.
-                extracted_path = _extract_single_csv_from_zip(local_input_path, temp_dir)
-                input_path = extracted_path
-                local_input_path = extracted_path
-                temp_files.append(extracted_path)
-            elif is_gzip_path(local_input_path):
-                compressed_type = "gzip"
-        except ValueError as e:
-            show_error_panel(str(e))
+            input_path, is_remote = _download_remote_if_needed(
+                input_file, input_path, is_remote, download_remote, temp_dir, temp_files,
+            )
+        except (OSError, urllib.error.URLError):
             return 1
 
-    # Use stderr console for progress when writing to stdout
+        # Handle compressed input
+        compressed_input_path = input_path
+        local_input_path = input_path if isinstance(input_path, Path) else None
+        if local_input_path:
+            try:
+                if is_zip_path(local_input_path) or is_zip_file(local_input_path):
+                    extracted_path = _extract_single_csv_from_zip(local_input_path, temp_dir)
+                    input_path = extracted_path
+                    local_input_path = extracted_path
+                    temp_files.append(extracted_path)
+                elif is_gzip_path(local_input_path):
+                    compressed_type = "gzip"
+            except ValueError as e:
+                show_error_panel(str(e))
+                return 1
+
     progress_console = Console(stderr=True) if use_stdout else console
 
     try:
@@ -522,129 +720,35 @@ def process_csv(
             transient=True,
         ) as progress:
             task = progress.add_task("[cyan]Processing...", total=None)
-            mojibake_repaired = False
 
-            # For remote URLs, skip encoding detection/conversion
-            if is_remote:
-                progress.update(
-                    task,
-                    description="[green]✓[/green] Remote URL (encoding handled by DuckDB)",
-                )
-                working_file = input_path  # Keep URL as string
-                encoding = "remote"
-            elif compressed_type:
-                progress.update(
-                    task,
-                    description=(
-                        f"[green]✓[/green] {compressed_type.upper()} input "
-                        "(encoding handled by DuckDB)"
-                    ),
-                )
-                working_file = compressed_input_path
-                encoding = compressed_type
-            else:
-                file_input_path = input_path
-                assert isinstance(file_input_path, Path)
-
-                # Always do encoding conversion (even in check mode) to avoid false positives
-                try:
-                    working_file, encoding = _handle_local_encoding(
-                        file_input_path,
-                        temp_utf8_file,
-                        progress,
-                        task,
-                        temp_files,
-                    )
-                except ValueError as e:
-                    progress.stop()
-                    show_error_panel(str(e))
-                    return 1
-                except (UnicodeDecodeError, LookupError) as e:
-                    progress.stop()
-                    show_error_panel(f"Encoding conversion failed\n{e}")
-                    return 1
-
-                # Skip mojibake repair in check-only mode (optional step)
-                if not check_only:
-                    try:
-                        mojibake_repaired, working_file = _handle_mojibake_if_needed(
-                            working_file,
-                            temp_dir,
-                            fix_mojibake_sample,
-                            progress,
-                            task,
-                            temp_files,
-                        )
-                    except (OSError, UnicodeDecodeError, ValueError) as e:
-                        progress.stop()
-                        show_error_panel(f"Mojibake repair failed\n{e}")
-                        return 1
+            # Step 1-2: Encoding detection + mojibake repair
+            result = _prepare_working_file(
+                input_path, is_remote, compressed_type, compressed_input_path,
+                temp_utf8_file, temp_dir, fix_mojibake_sample, check_only,
+                progress, task, temp_files,
+            )
+            if result is None:
+                return 1
+            working_file, encoding, mojibake_repaired = result
 
             # Step 3: Validate CSV
             try:
-                (
-                    reject_count,
-                    error_types,
-                    fallback_config,
-                ) = _validate_csv_with_http_handling(
-                    working_file,
-                    reject_file,
-                    is_remote,
-                    skip_rows,
-                    input_file,
-                    progress,
-                    task,
+                reject_count, error_types, fallback_config = (
+                    _validate_csv_with_http_handling(
+                        working_file, reject_file, is_remote, skip_rows,
+                        input_file, progress, task,
+                    )
                 )
             except duckdb.Error:
                 return 1
 
             has_validation_errors = reject_count > 1
-            # If strict_mode was disabled, warn that parsing is permissive.
-            if fallback_config and fallback_config.get("strict_mode") is False:
-                progress.stop()
-                warn_console = Console(stderr=True)
-                show_warning_panel(
-                    "Parsing in permissive mode (strict_mode=false).\n"
-                    "Malformed rows may be skipped and recorded in the reject file.",
-                    title="Permissive Parsing",
-                )
-                progress.start()
-            
-            # Check-only mode: validate and exit without processing
-            if check_only:
-                progress.stop()
-                stderr_console = Console(stderr=True)
-                
-                if has_validation_errors:
-                    stderr_console.print(
-                        f"[red]✗ Invalid CSV:[/red] {reject_count - 1} rows rejected",
-                        style="red"
-                    )
-                    if error_types:
-                        stderr_console.print("[yellow]Error types:[/yellow]")
-                        for error_type in error_types[:3]:  # Show max 3 error types
-                            stderr_console.print(f"  • {error_type}")
-                else:
-                    stderr_console.print("[green]✓ Valid CSV[/green]")
-                
-                _cleanup_temp_artifacts(use_stdout, reject_file, temp_files)
-                return 1 if has_validation_errors else 0
-            
-            # Show validation errors immediately (before normalization) for stdout mode
-            if use_stdout and has_validation_errors:
-                progress.stop()
-                stderr_console = Console(stderr=True)
-                show_validation_error_panel(reject_count, error_types, reject_file, stderr_console)
-                
-                # In strict mode, exit immediately without normalizing
-                if strict:
-                    _cleanup_temp_artifacts(use_stdout, reject_file, temp_files)
-                    return 1
-                    
-                # Continue with normalization for non-strict mode
-                progress.start()
-            elif has_validation_errors:
-                progress.stop()
+            exit_code = _handle_post_validation(
+                has_validation_errors, reject_count, error_types, fallback_config,
+                check_only, strict, use_stdout, reject_file, progress,
+            )
+            if exit_code is not None:
+                return exit_code
 
             progress.update(task, description="[green]✓[/green] CSV validated")
 
@@ -653,21 +757,14 @@ def process_csv(
             logger.debug("Normalizing CSV...")
             try:
                 (
-                    used_fallback,
+                    _,
                     reject_count,
                     error_types,
                     has_validation_errors,
                 ) = _normalize_and_refresh_errors(
-                    working_file,
-                    actual_output_file,
-                    delimiter,
-                    keep_names,
-                    is_remote,
-                    skip_rows,
-                    fallback_config,
-                    reject_file,
-                    reject_count,
-                    error_types,
+                    working_file, actual_output_file, delimiter, keep_names,
+                    is_remote, skip_rows, fallback_config, reject_file,
+                    reject_count, error_types,
                 )
             except duckdb.Error as e:
                 progress.stop()
@@ -685,61 +782,12 @@ def process_csv(
             logger.debug(f"Output written to: {actual_output_file}")
             progress.update(task, description="[green]✓[/green] Complete")
 
-        # Handle output based on mode
-        if local_input_path and local_input_path.exists():
-            input_size = local_input_path.stat().st_size
-        else:
-            input_size = (
-                working_file.stat().st_size if isinstance(working_file, Path) else 0
-            )
-        output_size = actual_output_file.stat().st_size
-        row_count = get_row_count(actual_output_file)
-        column_count = get_column_count(actual_output_file, delimiter)
-
-        if use_stdout:
-            summary = {
-                "input_file": input_file,
-                "output_file": actual_output_file,
-                "encoding": encoding,
-                "is_remote": is_remote,
-                "mojibake_repaired": mojibake_repaired,
-                "row_count": row_count,
-                "column_count": column_count,
-                "input_size": input_size,
-                "output_size": output_size,
-                "delimiter": delimiter,
-                "keep_names": keep_names,
-                "output_display": "stdout",
-            }
-            return _emit_stdout_output(
-                actual_output_file,
-                has_validation_errors,
-                reject_count,
-                reject_file,
-                summary,
-            )
-        else:
-            # File mode: show success table
-            show_success_table(
-                input_file=input_file,
-                output_file=actual_output_file,
-                encoding=encoding,
-                is_remote=is_remote,
-                mojibake_repaired=mojibake_repaired,
-                row_count=row_count,
-                column_count=column_count,
-                input_size=input_size,
-                output_size=output_size,
-                delimiter=delimiter,
-                keep_names=keep_names,
-            )
-
-            # Show validation errors if any
-            if has_validation_errors:
-                show_validation_error_panel(reject_count, error_types, reject_file)
-                return 1
+        # Compute statistics and display results
+        return _compute_and_show_output(
+            input_file, local_input_path, working_file, actual_output_file,
+            encoding, is_remote, mojibake_repaired, delimiter, keep_names,
+            use_stdout, has_validation_errors, reject_count, error_types, reject_file,
+        )
 
     finally:
         _cleanup_temp_artifacts(use_stdout, reject_file, temp_files)
-
-    return 0

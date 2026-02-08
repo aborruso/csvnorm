@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-02-08
+
+### Added stdin support (`csvnorm -`)
+
+- Accept `-` as input to read CSV data from stdin
+- Binary read preserves original encoding for detection
+- Temp file created, processed as local file, cleaned up after
+- Error if stdin is a terminal (no piped data)
+- Compatible with all flags: `--check`, `-o`, `--fix-mojibake`, `--strict`
+- Added 5 tests for stdin input (valid data, tty error, file output, check mode, non-UTF-8)
+- Total tests: 176 -> 181 (+5)
+
+### Evaluation v1.2.13 Fixes
+
+- Fixed ruff target-version: `py38` -> `py39` (aligned with `requires-python = ">=3.9"`)
+- Extracted `_create_connection()` helper in validation.py to eliminate duplicated DuckDB connection setup in `validate_csv()` and `normalize_csv()`
+- Added 28 new tests in `tests/test_core_helpers.py` covering core.py helper functions
+  - `_prepare_working_file`: remote, compressed, encoding errors, mojibake errors, check_only
+  - `_handle_post_validation`: permissive mode, check_only, strict, file/stdout modes
+  - `_validate_csv_with_http_handling`: zipfs, HTTP 404/401/403/timeout/range/ETag, generic errors
+  - `_cleanup_temp_artifacts`: empty reject removal, temp file cleanup
+  - `_compute_and_show_output`: file mode with/without errors, input_size fallback
+- core.py coverage: 74% -> 89% (+15 points)
+- Total tests: 148 -> 176 (+28)
+- Overall coverage: 87%
+
 ## 2026-02-01
 
 ### Added Validation-Only Mode
