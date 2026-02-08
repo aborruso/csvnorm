@@ -66,9 +66,10 @@ This tool prepares CSV files for **basic exploratory data analysis (EDA)**, not 
 
 ```bash
 csvnorm input.csv [options]
+csvnorm -                    # read from stdin
 ```
 
-**By default, csvnorm writes to stdout** for easy piping and composability with other Unix tools.
+**By default, csvnorm writes to stdout** for easy piping and composability with other Unix tools. Use `-` as input to read from stdin.
 
 ### Options
 
@@ -92,6 +93,11 @@ csvnorm input.csv [options]
 ```bash
 # Default: output to stdout
 csvnorm data.csv
+
+# Read from stdin
+cat data.csv | csvnorm -
+curl -s https://example.com/data.csv | csvnorm - -o clean.csv
+csvnorm - --check < data.csv
 
 # Preview first rows
 csvnorm data.csv | head -20

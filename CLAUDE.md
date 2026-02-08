@@ -63,6 +63,7 @@ csvnorm test/utf8_basic.csv -o out.csv   # Write to file
 csvnorm test/latin1_semicolon.csv -V     # Verbose mode
 csvnorm input.csv -s 2 -o output.csv     # Skip first 2 rows
 csvnorm input.csv --fix-mojibake -o out.csv  # Fix mojibake
+cat data.csv | csvnorm -                    # Read from stdin
 ```
 
 ## Architecture
@@ -96,6 +97,11 @@ src/csvnorm/
 3. Validation → reject file in output dir
 4. Normalization → output file
 5. Success table → stdout
+
+**Stdin mode** (`cat data.csv | csvnorm -`):
+- Reads binary data from stdin, saves to temp file
+- Processes as local file (encoding detection, validation, normalization)
+- Temp file cleaned up after completion
 
 **Remote URLs** (`csvnorm https://example.com/data.csv`):
 - DuckDB reads directly via httpfs (30s timeout)
@@ -197,7 +203,7 @@ Test fixtures in `test/`:
 
 ## File Contract
 
-**Input**: Arbitrary CSV (any encoding, any delimiter, local or HTTP/HTTPS URL)
+**Input**: Arbitrary CSV (any encoding, any delimiter, local file, HTTP/HTTPS URL, or stdin via `-`)
 
 **Output**:
 - Stdout mode: normalized CSV to stdout, reject errors to temp file
@@ -208,7 +214,7 @@ Test fixtures in `test/`:
 ## Key Files
 
 - `src/csvnorm/` - Python package
-- `tests/` - Test suite (105 tests)
+- `tests/` - Test suite (181 tests)
 - `test/` - CSV fixtures
 - `pyproject.toml` - Package configuration
 - `PRD.md` - Product requirements

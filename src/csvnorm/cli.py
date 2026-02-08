@@ -43,9 +43,9 @@ def show_examples() -> None:
     console.print("  # Custom delimiter")
     console.print("  [cyan]csvnorm data.csv --skip-rows 2 -o out.csv[/cyan]")
     console.print("  # Skip first 2 rows")
-    console.print("  [cyan]csvnorm https://example.com/data.csv -o processed.csv[/cyan]")
-    console.print("  # Read from stdin")
     console.print("  [cyan]cat data.csv | csvnorm -[/cyan]")
+    console.print("  # Read from stdin")
+    console.print("  [cyan]csvnorm https://example.com/data.csv -o processed.csv[/cyan]")
 
 
 class VersionAction(argparse.Action):

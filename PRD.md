@@ -38,7 +38,7 @@ Many open data portals and legacy systems publish CSV files with inconsistent en
 3. *As an Open-Data Maintainer* I want the tool to fail fast and generate `reject_errors.csv` so that I can fix invalid rows.
 
 ## 7. Functional Requirements
-FR-1 The tool SHALL accept an input CSV path or HTTP/HTTPS URL as the first positional argument.
+FR-1 The tool SHALL accept an input CSV path, HTTP/HTTPS URL, or `-` for stdin as the first positional argument.
 FR-2 The tool SHALL detect file encoding using `charset_normalizer` library.
 FR-3 If encoding ≠ UTF-8/ASCII/UTF-8-SIG, the tool SHALL convert the file to UTF-8 using Python codecs.
 FR-4 The tool SHALL validate the CSV with DuckDB's `read_csv` and store rejects to `<basename>_reject_errors.csv`.
