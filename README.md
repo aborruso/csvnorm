@@ -319,3 +319,15 @@ See [docs/COMMUNICATION.md](docs/COMMUNICATION.md) for details.
 ## License
 
 MIT License (c) 2026 aborruso@gmail.com - See LICENSE file for details
+
+## Acknowledgments
+
+csvnorm is built on top of excellent open-source libraries:
+
+- [**charset-normalizer**](https://github.com/Ousret/charset_normalizer) - Universal encoding detection
+- [**DuckDB**](https://duckdb.org/) - Fast in-process analytical database for CSV processing
+- [**ftfy**](https://github.com/rspeer/python-ftfy) - Fixes mojibake and other text encoding issues
+- [**Rich**](https://github.com/Textualize/rich) - Beautiful terminal output formatting
+- [**rich-argparse**](https://github.com/hamdanal/rich-argparse) - Enhanced CLI help formatting
+
+We are grateful to the creators and maintainers of these libraries, without whom csvnorm would not exist and function.
