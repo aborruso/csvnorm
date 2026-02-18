@@ -44,12 +44,36 @@ jobs:
         run: |-
           set -euo pipefail
 
+          gh_with_retry() {
+            local attempts=3
+            local delay=5
+            local i
+
+            for i in $(seq 1 "${attempts}"); do
+              if gh "$@"; then
+                return 0
+              fi
+
+              if [ "${i}" -lt "${attempts}" ]; then
+                echo "⚠️ gh command failed (attempt ${i}/${attempts}). Retrying in ${delay}s..."
+                sleep "${delay}"
+                delay=$((delay * 2))
+              fi
+            done
+
+            echo "❌ gh command failed after ${attempts} attempts: gh $*"
+            return 1
+          }
+
+          echo '🔐 Verifying GitHub CLI authentication...'
+          gh auth status
+
           echo '🔍 Finding issues without labels...'
-          NO_LABEL_ISSUES="$(gh issue list --repo "${GITHUB_REPOSITORY}" \
+          NO_LABEL_ISSUES="$(gh_with_retry issue list --repo "${GITHUB_REPOSITORY}" \
             --search 'is:open is:issue no:label' --json number,title,body)"
 
           echo '🏷️ Finding issues that need triage...'
-          NEED_TRIAGE_ISSUES="$(gh issue list --repo "${GITHUB_REPOSITORY}" \
+          NEED_TRIAGE_ISSUES="$(gh_with_retry issue list --repo "${GITHUB_REPOSITORY}" \
             --search 'is:open is:issue label:"status/needs-triage"' --json number,title,body)"
 
           echo '🔄 Merging and deduplicating issues...'
