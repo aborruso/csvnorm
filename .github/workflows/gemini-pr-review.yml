@@ -98,6 +98,30 @@ jobs:
         run: |-
           set -euo pipefail
 
+          gh_with_retry() {
+            local attempts=3
+            local delay=5
+            local i
+
+            for i in $(seq 1 "${attempts}"); do
+              if gh "$@"; then
+                return 0
+              fi
+
+              if [ "${i}" -lt "${attempts}" ]; then
+                echo "⚠️ gh command failed (attempt ${i}/${attempts}). Retrying in ${delay}s..."
+                sleep "${delay}"
+                delay=$((delay * 2))
+              fi
+            done
+
+            echo "❌ gh command failed after ${attempts} attempts: gh $*"
+            return 1
+          }
+
+          echo '🔐 Verifying GitHub CLI authentication...'
+          gh auth status
+
           if [[ "${EVENT_NAME}" = "workflow_dispatch" ]]; then
             PR_NUMBER="${WORKFLOW_PR_NUMBER}"
           else
@@ -107,11 +131,11 @@ jobs:
           echo "pr_number=${PR_NUMBER}" >> "${GITHUB_OUTPUT}"
 
           # Get PR details
-          PR_DATA="$(gh pr view "${PR_NUMBER}" --json title,body,additions,deletions,changedFiles,baseRefName,headRefName)"
+          PR_DATA="$(gh_with_retry pr view "${PR_NUMBER}" --json title,body,additions,deletions,changedFiles,baseRefName,headRefName)"
           echo "pr_data=${PR_DATA}" >> "${GITHUB_OUTPUT}"
 
           # Get file changes
-          CHANGED_FILES="$(gh pr diff "${PR_NUMBER}" --name-only)"
+          CHANGED_FILES="$(gh_with_retry pr diff "${PR_NUMBER}" --name-only)"
           {
             echo "changed_files<<EOF"
             echo "${CHANGED_FILES}"
@@ -130,6 +154,30 @@ jobs:
         run: |-
           set -euo pipefail
 
+          gh_with_retry() {
+            local attempts=3
+            local delay=5
+            local i
+
+            for i in $(seq 1 "${attempts}"); do
+              if gh "$@"; then
+                return 0
+              fi
+
+              if [ "${i}" -lt "${attempts}" ]; then
+                echo "⚠️ gh command failed (attempt ${i}/${attempts}). Retrying in ${delay}s..."
+                sleep "${delay}"
+                delay=$((delay * 2))
+              fi
+            done
+
+            echo "❌ gh command failed after ${attempts} attempts: gh $*"
+            return 1
+          }
+
+          echo '🔐 Verifying GitHub CLI authentication...'
+          gh auth status
+
           echo "pr_number=${PR_NUMBER}" >> "${GITHUB_OUTPUT}"
 
           # Extract additional instructions from comment
@@ -139,11 +187,11 @@ jobs:
           echo "additional_instructions=${ADDITIONAL_INSTRUCTIONS}" >> "${GITHUB_OUTPUT}"
 
           # Get PR details
-          PR_DATA="$(gh pr view "${PR_NUMBER}" --json title,body,additions,deletions,changedFiles,baseRefName,headRefName)"
+          PR_DATA="$(gh_with_retry pr view "${PR_NUMBER}" --json title,body,additions,deletions,changedFiles,baseRefName,headRefName)"
           echo "pr_data=${PR_DATA}" >> "${GITHUB_OUTPUT}"
 
           # Get file changes
-          CHANGED_FILES="$(gh pr diff "${PR_NUMBER}" --name-only)"
+          CHANGED_FILES="$(gh_with_retry pr diff "${PR_NUMBER}" --name-only)"
           {
             echo "changed_files<<EOF"
             echo "${CHANGED_FILES}"

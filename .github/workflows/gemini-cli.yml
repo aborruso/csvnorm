@@ -148,9 +148,33 @@ jobs:
           REQUEST_TYPE: '${{ steps.get_context.outputs.request_type }}'
         run: |-
           set -euo pipefail
+
+          gh_with_retry() {
+            local attempts=3
+            local delay=5
+            local i
+
+            for i in $(seq 1 "${attempts}"); do
+              if gh "$@"; then
+                return 0
+              fi
+
+              if [ "${i}" -lt "${attempts}" ]; then
+                echo "⚠️ gh command failed (attempt ${i}/${attempts}). Retrying in ${delay}s..."
+                sleep "${delay}"
+                delay=$((delay * 2))
+              fi
+            done
+
+            echo "❌ gh command failed after ${attempts} attempts: gh $*"
+            return 1
+          }
+
+          echo '🔐 Verifying GitHub CLI authentication...'
+          gh auth status
           MESSAGE="@${GITHUB_ACTOR} I've received your request and I'm working on it now! 🤖"
           if [[ -n "${MESSAGE}" ]]; then
-            gh issue comment "${ISSUE_NUMBER}" \
+            gh_with_retry issue comment "${ISSUE_NUMBER}" \
               --body "${MESSAGE}" \
               --repo "${REPOSITORY}"
           fi
@@ -163,10 +187,34 @@ jobs:
           ISSUE_NUMBER: '${{ steps.get_context.outputs.issue_number }}'
         run: |-
           set -euo pipefail
+
+          gh_with_retry() {
+            local attempts=3
+            local delay=5
+            local i
+
+            for i in $(seq 1 "${attempts}"); do
+              if gh "$@"; then
+                return 0
+              fi
+
+              if [ "${i}" -lt "${attempts}" ]; then
+                echo "⚠️ gh command failed (attempt ${i}/${attempts}). Retrying in ${delay}s..."
+                sleep "${delay}"
+                delay=$((delay * 2))
+              fi
+            done
+
+            echo "❌ gh command failed after ${attempts} attempts: gh $*"
+            return 1
+          }
+
+          echo '🔐 Verifying GitHub CLI authentication...'
+          gh auth status
           if [[ "${IS_PR}" == "true" ]]; then
-            DESCRIPTION=$(gh pr view "${ISSUE_NUMBER}" --json body --template '{{.body}}')
+            DESCRIPTION=$(gh_with_retry pr view "${ISSUE_NUMBER}" --json body --template '{{.body}}')
           else
-            DESCRIPTION=$(gh issue view "${ISSUE_NUMBER}" --json body --template '{{.body}}')
+            DESCRIPTION=$(gh_with_retry issue view "${ISSUE_NUMBER}" --json body --template '{{.body}}')
           fi
           {
             echo "description<<EOF"
@@ -182,10 +230,34 @@ jobs:
           ISSUE_NUMBER: '${{ steps.get_context.outputs.issue_number }}'
         run: |-
           set -euo pipefail
+
+          gh_with_retry() {
+            local attempts=3
+            local delay=5
+            local i
+
+            for i in $(seq 1 "${attempts}"); do
+              if gh "$@"; then
+                return 0
+              fi
+
+              if [ "${i}" -lt "${attempts}" ]; then
+                echo "⚠️ gh command failed (attempt ${i}/${attempts}). Retrying in ${delay}s..."
+                sleep "${delay}"
+                delay=$((delay * 2))
+              fi
+            done
+
+            echo "❌ gh command failed after ${attempts} attempts: gh $*"
+            return 1
+          }
+
+          echo '🔐 Verifying GitHub CLI authentication...'
+          gh auth status
           if [[ "${IS_PR}" == "true" ]]; then
-            COMMENTS=$(gh pr view "${ISSUE_NUMBER}" --json comments --template '{{range .comments}}{{.author.login}}: {{.body}}{{"\n"}}{{end}}')
+            COMMENTS=$(gh_with_retry pr view "${ISSUE_NUMBER}" --json comments --template '{{range .comments}}{{.author.login}}: {{.body}}{{"\n"}}{{end}}')
           else
-            COMMENTS=$(gh issue view "${ISSUE_NUMBER}" --json comments --template '{{range .comments}}{{.author.login}}: {{.body}}{{"\n"}}{{end}}')
+            COMMENTS=$(gh_with_retry issue view "${ISSUE_NUMBER}" --json comments --template '{{range .comments}}{{.author.login}}: {{.body}}{{"\n"}}{{end}}')
           fi
           {
             echo "comments<<EOF"
