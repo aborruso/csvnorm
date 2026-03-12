@@ -370,6 +370,7 @@ def _emit_stdout_output(
             keep_names=summary["keep_names"],
             output_display=summary["output_display"],
             out_console=stderr_console,
+            reject_count=summary.get("reject_count", 0),
         )
 
     # Return exit code 1 if validation errors occurred (warning already shown before output)
@@ -576,6 +577,7 @@ def _compute_and_show_output(
             "delimiter": delimiter,
             "keep_names": keep_names,
             "output_display": "stdout",
+            "reject_count": reject_count - 1 if has_validation_errors else 0,
         }
         return _emit_stdout_output(
             actual_output_file,
@@ -597,6 +599,7 @@ def _compute_and_show_output(
         output_size=output_size,
         delimiter=delimiter,
         keep_names=keep_names,
+        reject_count=reject_count - 1 if has_validation_errors else 0,
     )
 
     if has_validation_errors:

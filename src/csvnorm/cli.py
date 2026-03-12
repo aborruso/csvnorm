@@ -11,7 +11,7 @@ from rich_argparse import RichHelpFormatter
 from importlib.metadata import version
 from csvnorm.core import process_csv
 from csvnorm.mojibake import DEFAULT_MOJIBAKE_SAMPLE
-from csvnorm.utils import setup_logger
+from csvnorm.utils import setup_logger, to_snake_case
 
 console = Console()
 
@@ -132,6 +132,17 @@ def create_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "-O",
+        "--auto-output",
+        action="store_true",
+        help=(
+            "Auto-derive output filename in snake_case from input filename, "
+            "saved in the same directory. Example: 'My Data.csv' → 'my_data.csv'. "
+            "Asks confirmation if output already exists (unless -f is set)."
+        ),
+    )
+
+    parser.add_argument(
         "--fix-mojibake",
         nargs="?",
         const=DEFAULT_MOJIBAKE_SAMPLE,
@@ -229,6 +240,43 @@ def main(argv: Optional[list[str]] = None) -> int:
     if args.skip_rows < 0:
         console.print("[red]Error:[/red] --skip-rows must be non-negative", style="red")
         return 1
+
+    # Resolve --auto-output into output_file
+    if args.auto_output:
+        if args.output_file:
+            console.print("[red]Error:[/red] -O/--auto-output cannot be used with -o", style="red")
+            return 1
+        if args.input_file == "-":
+            console.print("[red]Error:[/red] -O/--auto-output cannot be used with stdin input", style="red")
+            return 1
+        if args.input_file.startswith("http://") or args.input_file.startswith("https://"):
+            console.print("[red]Error:[/red] -O/--auto-output cannot be used with URL input", style="red")
+            return 1
+
+        input_path = Path(args.input_file)
+        snake_stem = to_snake_case(input_path.stem)
+        auto_output = input_path.parent / f"{snake_stem}.csv"
+
+        if auto_output.resolve() == input_path.resolve():
+            console.print(
+                f"[yellow]Warning:[/yellow] filename is already in snake_case ({input_path.name}). "
+                "Use -o to specify a different output path.",
+                style="yellow",
+            )
+            return 1
+
+        if auto_output.exists() and not args.force:
+            console.print(f"[yellow]Output file already exists:[/yellow] {auto_output}")
+            try:
+                confirm = input("Overwrite? [y/N] ").strip().lower()
+            except (EOFError, KeyboardInterrupt):
+                console.print("\nAborted.")
+                return 0
+            if confirm != "y":
+                console.print("Aborted.")
+                return 0
+
+        args.output_file = auto_output
 
     # Validate incompatible flag combinations
     if args.check and args.output_file:

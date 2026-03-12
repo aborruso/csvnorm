@@ -49,6 +49,7 @@ def show_success_table(
     keep_names: bool,
     output_display: Optional[str] = None,
     out_console: Optional[Console] = None,
+    reject_count: int = 0,
 ) -> None:
     """Display success summary table with processing results.
 
@@ -66,7 +67,10 @@ def show_success_table(
         keep_names: Whether original column names were kept.
     """
     table = Table(show_header=False, box=None, padding=(0, 1))
-    table.add_row("[green]✓[/green] Success", "")
+    if reject_count > 0:
+        table.add_row("[yellow]⚠[/yellow] Done with errors", "")
+    else:
+        table.add_row("[green]✓[/green] Success", "")
     table.add_row("Input:", f"[cyan]{input_file}[/cyan]")
     output_value = output_display if output_display is not None else str(output_file)
     table.add_row("Output:", f"[cyan]{output_value}[/cyan]")
@@ -95,6 +99,8 @@ def show_success_table(
     # Optional fields
     if delimiter != ",":
         table.add_row("Delimiter:", repr(delimiter))
+    if reject_count > 0:
+        table.add_row("Rejected rows:", f"[yellow]{reject_count}[/yellow]")
     if not keep_names:
         table.add_row("Headers:", "normalized to snake_case")
 

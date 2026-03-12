@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-03-12
+
+- feat: add `-O`/`--auto-output` flag to derive output filename in snake_case from input (e.g. `My Data.csv` → `my_data.csv`); asks confirmation if output exists, unless `-f`
+- fix: stdout mode summary now shows "⚠ Done with errors" and "Rejected rows: N" when there are rejected rows, instead of the misleading "✓ Success"
+
 ## 2026-02-08
 
 ### Added stdin support (`csvnorm -`)
