@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 from rich.console import Console
-from rich_argparse import RichHelpFormatter
+from rich_argparse import RawDescriptionRichHelpFormatter
 
 from importlib.metadata import version
 from csvnorm.core import process_csv
@@ -22,30 +22,6 @@ def show_banner() -> None:
     console.print("  csvnorm  ", style="bold cyan on black", justify="center")
     console.print()
 
-
-def show_examples() -> None:
-    console.print()
-    console.print("[orange1]Examples:[/orange1]")
-    console.print("  # Base command with stdout output")
-    console.print("  [cyan]csvnorm data.csv[/cyan]")
-    console.print("  # Output to stdout")
-    console.print("  [cyan]csvnorm data.csv -o output.csv[/cyan]")
-    console.print("  # Write to file")
-    console.print("  [cyan]csvnorm data.csv > output.csv[/cyan]")
-    console.print("  # Shell redirect")
-    console.print("  [cyan]csvnorm data.csv | head -20[/cyan]")
-    console.print("  # Preview with pipe")
-    console.print("  [cyan]csvnorm data.csv --check[/cyan]")
-    console.print("  # Validate without processing")
-    console.print("  [cyan]csvnorm data.csv --strict | process.sh[/cyan]")
-    console.print("  # Fail-fast mode for pipelines")
-    console.print("  [cyan]csvnorm data.csv -d ';' -o output.csv[/cyan]")
-    console.print("  # Custom delimiter")
-    console.print("  [cyan]csvnorm data.csv --skip-rows 2 -o out.csv[/cyan]")
-    console.print("  # Skip first 2 rows")
-    console.print("  [cyan]cat data.csv | csvnorm -[/cyan]")
-    console.print("  # Read from stdin")
-    console.print("  [cyan]csvnorm https://example.com/data.csv -o processed.csv[/cyan]")
 
 
 class VersionAction(argparse.Action):
@@ -74,12 +50,28 @@ class VersionAction(argparse.Action):
         parser.exit()
 
 
+_EXAMPLES = """
+Examples:
+  csvnorm data.csv                                 Output to stdout (default)
+  csvnorm data.csv -o output.csv                   Write to file
+  csvnorm data.csv > output.csv                    Shell redirect
+  csvnorm data.csv | head -20                      Pipe to another command
+  csvnorm data.csv --check                         Validate only, no output
+  csvnorm data.csv --strict | process.sh           Fail-fast pipeline
+  csvnorm data.csv -d ';' -o output.csv            Custom delimiter
+  csvnorm data.csv --skip-rows 2 -o out.csv        Skip metadata rows
+  cat data.csv | csvnorm -                         Read from stdin
+  csvnorm https://example.com/data.csv -o out.csv  Remote URL
+"""
+
+
 def create_parser() -> argparse.ArgumentParser:
     """Create and return the argument parser."""
     parser = argparse.ArgumentParser(
         prog="csvnorm",
         description="Validate and normalize CSV files for exploratory data analysis",
-        formatter_class=RichHelpFormatter,
+        formatter_class=RawDescriptionRichHelpFormatter,
+        epilog=_EXAMPLES,
     )
 
     parser.add_argument(
@@ -224,7 +216,6 @@ def main(argv: Optional[list[str]] = None) -> int:
         )
         console.print()
         parser.print_help()
-        show_examples()
         return 0 if argv else 2
 
     args = parser.parse_args(argv)
@@ -266,12 +257,18 @@ def main(argv: Optional[list[str]] = None) -> int:
             return 1
 
         if auto_output.exists() and not args.force:
+            if not sys.stdin.isatty():
+                console.print(
+                    f"[red]Error:[/red] Output file already exists: {auto_output}\n"
+                    "Use --force to overwrite."
+                )
+                return 1
             console.print(f"[yellow]Output file already exists:[/yellow] {auto_output}")
             try:
                 confirm = input("Overwrite? [y/N] ").strip().lower()
             except (EOFError, KeyboardInterrupt):
                 console.print("\nAborted.")
-                return 0
+                return 1
             if confirm != "y":
                 console.print("Aborted.")
                 return 0

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-04-26
+
+- fix: error/warning panels now go to stderr (were on stdout, breaking pipes)
+- fix: `--auto-output` no longer hangs with interactive prompt in non-TTY contexts; fails fast with actionable error + exit 1
+- fix: `EOFError` in `--auto-output` prompt now returns exit 1 instead of 0
+- feat: examples added to `--help` epilog (visible with `csvnorm <file> --help`)
+- chore: switched formatter to `RawDescriptionRichHelpFormatter` to preserve epilog formatting
+
 ## 2026-03-12
 
 - feat: add `-O`/`--auto-output` flag to derive output filename in snake_case from input (e.g. `My Data.csv` → `my_data.csv`); asks confirmation if output exists, unless `-f`

@@ -11,6 +11,7 @@ from csvnorm.encoding import needs_conversion
 from csvnorm.utils import format_file_size
 
 console = Console()
+err_console = Console(stderr=True)
 
 
 def show_error_panel(message: str, title: str = "Error") -> None:
@@ -20,7 +21,7 @@ def show_error_panel(message: str, title: str = "Error") -> None:
         message: Error message to display.
         title: Panel title (default: "Error").
     """
-    console.print(Panel(f"[bold red]{title}:[/bold red] {message}", border_style="red"))
+    err_console.print(Panel(f"[bold red]{title}:[/bold red] {message}", border_style="red"))
 
 
 def show_warning_panel(message: str, title: str = "Warning") -> None:
@@ -30,7 +31,7 @@ def show_warning_panel(message: str, title: str = "Warning") -> None:
         message: Warning message to display.
         title: Panel title (default: "Warning").
     """
-    console.print(
+    err_console.print(
         Panel(f"[bold yellow]{title}:[/bold yellow] {message}", border_style="yellow")
     )
 
@@ -118,9 +119,9 @@ def show_validation_error_panel(
         reject_count: Number of rejected rows (including header).
         error_types: List of error type descriptions.
         reject_file: Path to reject errors CSV file.
-        console_out: Optional console to use (defaults to module console).
+        console_out: Optional console to use (defaults to stderr).
     """
-    target_console = console_out or console
+    target_console = console_out or err_console
     target_console.print()
     error_lines = []
     error_lines.append("[bold red]Validation Errors:[/bold red]")
