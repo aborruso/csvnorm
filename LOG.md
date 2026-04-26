@@ -1,6 +1,10 @@
 # Changelog
 
-## 2026-04-26
+## 2026-04-26 (v1.2.17)
+
+- docs: clarify `-d`/`--delimiter` help text: "output field delimiter" (not just "field delimiter")
+
+## 2026-04-26 (v1.2.16)
 
 - fix: error/warning panels now go to stderr (were on stdout, breaking pipes)
 - fix: `--auto-output` no longer hangs with interactive prompt in non-TTY contexts; fails fast with actionable error + exit 1

@@ -102,7 +102,7 @@ def create_parser() -> argparse.ArgumentParser:
         "-d",
         "--delimiter",
         default=",",
-        help="Set custom field delimiter (default: comma). Example: -d ';'",
+        help="Set custom output field delimiter (default: comma). Example: -d ';'",
     )
 
     parser.add_argument(
