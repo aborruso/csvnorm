@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-05-16
+
+- feat: preserve CRLF row terminators in file output (`-o`) when input uses CRLF (RFC 4180 §2)
+  - In-cell LF inside quoted fields stays LF; only row terminators become CRLF
+  - Stdout mode always outputs LF (Unix pipeline compatibility)
+  - Detection is automatic, no CLI flag required
+  - Implementation: byte-level state machine in `validation.py` (no quoting side effects)
+
 ## 2026-04-26 (v1.2.17)
 
 - docs: clarify `-d`/`--delimiter` help text: "output field delimiter" (not just "field delimiter")

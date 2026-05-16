@@ -26,6 +26,7 @@ from csvnorm.utils import (
     download_url_to_file,
     get_column_count,
     get_row_count,
+    has_crlf_line_endings,
     is_gzip_path,
     is_url,
     is_zip_file,
@@ -34,7 +35,7 @@ from csvnorm.utils import (
     validate_delimiter,
     validate_url,
 )
-from csvnorm.validation import normalize_csv, validate_csv
+from csvnorm.validation import convert_row_endings_to_crlf, normalize_csv, validate_csv
 
 logger = logging.getLogger("csvnorm")
 console = Console()
@@ -713,6 +714,13 @@ def process_csv(
                 show_error_panel(str(e))
                 return 1
 
+    # Detect CRLF before any processing so file output can preserve it
+    input_has_crlf = (
+        isinstance(input_path, Path)
+        and compressed_type is None
+        and has_crlf_line_endings(input_path)
+    )
+
     progress_console = Console(stderr=True) if use_stdout else console
 
     try:
@@ -781,6 +789,9 @@ def process_csv(
                 else:
                     show_error_panel(f"Normalization failed\n{error_msg}")
                 return 1
+
+            if input_has_crlf and not use_stdout:
+                convert_row_endings_to_crlf(actual_output_file)
 
             logger.debug(f"Output written to: {actual_output_file}")
             progress.update(task, description="[green]✓[/green] Complete")

@@ -639,6 +639,25 @@ def _detect_header_anomaly(
         return None
 
 
+def convert_row_endings_to_crlf(file_path: Path) -> None:
+    """Rewrite file so row terminators are CRLF while in-cell LF stays LF.
+
+    Uses a byte-level state machine to avoid altering DuckDB's quoting style.
+    """
+    data = file_path.read_bytes()
+    out = bytearray()
+    in_quotes = False
+    for b in data:
+        if b == 0x22:  # "
+            in_quotes = not in_quotes
+            out.append(b)
+        elif b == 0x0A and not in_quotes:  # \n outside quotes → \r\n
+            out.extend(b"\r\n")
+        else:
+            out.append(b)
+    file_path.write_bytes(bytes(out))
+
+
 def _get_error_types(reject_file: Path) -> list[str]:
     """Extract sample error types from reject file.
 

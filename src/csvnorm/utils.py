@@ -290,6 +290,16 @@ def supports_http_range(url: str, timeout: int = 10) -> bool:
         return False
 
 
+def has_crlf_line_endings(file_path: Path) -> bool:
+    """Return True if file uses CRLF line endings."""
+    try:
+        with open(file_path, "rb") as f:
+            chunk = f.read(8192)
+        return b"\r\n" in chunk
+    except OSError:
+        return False
+
+
 def get_row_count(file_path: Union[Path, str]) -> int:
     """Count number of rows in a CSV file.
 

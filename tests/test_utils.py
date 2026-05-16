@@ -13,6 +13,7 @@ from csvnorm.utils import (
     build_zip_path,
     download_url_to_file,
     extract_filename_from_url,
+    has_crlf_line_endings,
     is_compressed_url,
     is_gzip_path,
     is_url,
@@ -318,3 +319,25 @@ class TestDownloadUrlToFile:
 
         assert output_path.read_bytes() == b"ok\n"
         mock_curl.assert_called_once()
+
+
+class TestHasCrlfLineEndings:
+    """Tests for has_crlf_line_endings function."""
+
+    def test_crlf_file(self, tmp_path):
+        f = tmp_path / "crlf.csv"
+        f.write_bytes(b"a,b\r\nc,d\r\n")
+        assert has_crlf_line_endings(f) is True
+
+    def test_lf_only_file(self, tmp_path):
+        f = tmp_path / "lf.csv"
+        f.write_bytes(b"a,b\nc,d\n")
+        assert has_crlf_line_endings(f) is False
+
+    def test_mixed_crlf_and_lf(self, tmp_path):
+        f = tmp_path / "mixed.csv"
+        f.write_bytes(b'a,b\r\n1,"in\ncell"\r\n')
+        assert has_crlf_line_endings(f) is True
+
+    def test_nonexistent_file(self, tmp_path):
+        assert has_crlf_line_endings(tmp_path / "nope.csv") is False

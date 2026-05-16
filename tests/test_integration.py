@@ -342,3 +342,40 @@ class TestRemoteURLErrors:
         )
         assert result == 0
         assert mock_warning.call_count == 1
+
+
+class TestCrlfPreservation:
+    """Tests for CRLF line ending preservation in file output."""
+
+    @pytest.fixture
+    def output_dir(self, tmp_path):
+        return tmp_path
+
+    def test_crlf_input_preserves_crlf_in_file_output(self, output_dir):
+        """CRLF terminators + in-cell LF → output file keeps CRLF + LF."""
+        input_file = TEST_DIR / "crlf_with_embedded_lf.csv"
+        output_file = output_dir / "out.csv"
+        result = process_csv(str(input_file), output_file)
+        assert result == 0
+        data = output_file.read_bytes()
+        crlf_count = data.count(b"\r\n")
+        lf_only_count = data.count(b"\n") - crlf_count
+        assert crlf_count >= 3, f"Expected CRLF row terminators, got {crlf_count}"
+        assert lf_only_count >= 2, f"Expected in-cell LF preserved, got {lf_only_count}"
+
+    def test_lf_input_stays_lf_in_file_output(self, output_dir):
+        """LF-only input produces LF-only output (no regression)."""
+        input_file = TEST_DIR / "utf8_basic.csv"
+        output_file = output_dir / "out.csv"
+        result = process_csv(str(input_file), output_file)
+        assert result == 0
+        data = output_file.read_bytes()
+        assert b"\r\n" not in data, "LF-only input should not produce CRLF output"
+
+    def test_crlf_input_stdout_always_lf(self, output_dir, capsys):
+        """CRLF input to stdout mode outputs LF (Unix pipeline compatibility)."""
+        input_file = TEST_DIR / "crlf_with_embedded_lf.csv"
+        result = process_csv(str(input_file), output_file=None)
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "\r\n" not in captured.out, "Stdout should never contain CRLF"
