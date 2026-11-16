@@ -306,8 +306,11 @@ def normalize_csv(
     compression_opt = _compression_option(input_path)
 
     try:
-        # Build read options
-        read_opts = "sample_size=-1, all_varchar=true"
+        # Build read options. ignore_errors mirrors validation (store_rejects
+        # implies it): without it the sniffer sees the malformed rows and picks
+        # a different dialect (e.g. a single column), or fails and triggers the
+        # delimiter fallbacks on a file that is really comma-separated.
+        read_opts = "sample_size=-1, all_varchar=true, ignore_errors=true"
         if compression_opt:
             read_opts += f", {compression_opt}"
         if normalize_names:
@@ -332,8 +335,7 @@ def normalize_csv(
             delim = fallback_config.get("delim")
             skip = fallback_config.get("skip")
             if delim is not None and skip is not None:
-                # Add ignore_errors when using fallback (may have malformed rows)
-                read_opts += f", delim='{delim}', skip={skip}, ignore_errors=true"
+                read_opts += f", delim='{delim}', skip={skip}"
                 logger.debug(f"Using fallback config: {fallback_config}")
             elif skip is not None:
                 read_opts += f", skip={skip}"
@@ -456,7 +458,8 @@ def _fix_duckdb_keyword_prefix(file_path: Path) -> None:
     Args:
         file_path: Path to CSV file to fix.
     """
-    with open(file_path, "r") as f:
+    # newline="" keeps bare CRs inside quoted fields (text mode would turn them into LF)
+    with open(file_path, "r", encoding="utf-8", newline="") as f:
         first_line = f.readline()
         rest = f.read()
 
@@ -474,7 +477,7 @@ def _fix_duckdb_keyword_prefix(file_path: Path) -> None:
 
     header = re.sub(r"(^|,)_([A-Za-z0-9]+)\b", _strip_keyword_prefix, header)
 
-    with open(file_path, "w") as f:
+    with open(file_path, "w", encoding="utf-8", newline="") as f:
         f.write(header)
         f.write(rest)
 

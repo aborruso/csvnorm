@@ -504,8 +504,10 @@ class TestStrictMatrix:
             assert produced == ""
             assert not output_file.exists()
         else:
-            assert "1,2,3" in produced
-            assert "7,8,9" in produced or valid
+            expected = (
+                "a,b,c\n1,2,3\n4,5,6\n" if valid else "a,b,c\n1,2,3\n7,8,9\n"
+            )
+            assert produced == expected
 
         assert reject_file.exists() == (not valid)
 
@@ -523,6 +525,85 @@ class TestStrictMatrix:
         assert result.returncode == 1
         assert output_file.read_bytes() == b"previous,content\r\nkeep,me\n"
         assert (tmp_path / "out_reject_errors.csv").exists()
+
+
+class TestMalformedRowsKeepDialect:
+    """Malformed rows are rejected; the accepted rows keep the original columns."""
+
+    @pytest.mark.parametrize(
+        "content, expected",
+        [
+            (b"a,b,c\n1,2,3\n4,5\n6,7,8,9\n7,8,9\n", "a,b,c\n1,2,3\n7,8,9\n"),
+            (b'a,b,c\n1,2,3\n4,"x\ry",5,6\n7,8,9\n', "a,b,c\n1,2,3\n7,8,9\n"),
+        ],
+        ids=["short_and_long_rows", "bare_cr_in_rejected_row"],
+    )
+    def test_output_keeps_columns(self, tmp_path, content, expected):
+        test_csv = tmp_path / "input.csv"
+        test_csv.write_bytes(content)
+        output_file = tmp_path / "out.csv"
+
+        result = subprocess.run(
+            [sys.executable, "-m", "csvnorm", str(test_csv), "-o", str(output_file)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd=tmp_path,
+        )
+
+        assert result.returncode == 1
+        assert output_file.read_text() == expected
+
+    def test_malformed_rows_fixture_keeps_header(self, tmp_path):
+        fixture = Path(__file__).parent.parent / "test" / "malformed_rows.csv"
+        output_file = tmp_path / "out.csv"
+
+        subprocess.run(
+            [sys.executable, "-m", "csvnorm", str(fixture), "-o", str(output_file)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd=tmp_path,
+        )
+
+        assert output_file.read_text().splitlines()[0] == "a,b,c"
+
+    def test_bare_cr_inside_valid_field_is_preserved(self, tmp_path):
+        test_csv = tmp_path / "input.csv"
+        test_csv.write_bytes(b'a,b,c\n1,2,3\n4,"x\ry",5\n7,8,9\n')
+        output_file = tmp_path / "out.csv"
+
+        result = subprocess.run(
+            [sys.executable, "-m", "csvnorm", str(test_csv), "-o", str(output_file)],
+            capture_output=True,
+            timeout=30,
+            cwd=tmp_path,
+        )
+
+        assert result.returncode == 0
+        assert output_file.read_bytes() == b'a,b,c\n1,2,3\n4,"x\ry",5\n7,8,9\n'
+
+    @pytest.mark.parametrize(
+        "fixture",
+        ["metadata_skip_rows.csv", "title_row_skip.csv", "POSAS_2025_it_Comuni.csv"],
+    )
+    def test_fallback_dialect_fixtures_still_normalize(self, tmp_path, fixture):
+        """Fixtures that go through the validation fallback config must still produce output."""
+        source = Path(__file__).parent.parent / "test" / fixture
+        output_file = tmp_path / "out.csv"
+
+        result = subprocess.run(
+            [sys.executable, "-m", "csvnorm", str(source), "-o", str(output_file)],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            cwd=tmp_path,
+        )
+
+        assert "Normalization failed" not in result.stderr + result.stdout
+        lines = output_file.read_text().splitlines()
+        assert len(lines) > 1
+        assert lines[0].count(",") >= 1
 
 
 class TestCheckMode:
