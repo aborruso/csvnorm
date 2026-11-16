@@ -184,6 +184,10 @@ csvnorm raw_data.csv --check || exit 1
 - Encoding is handled automatically by DuckDB
 - If `--fix-mojibake` is enabled, the URL is downloaded to a temp file first
 
+**Encoding detection limits:**
+- Non-UTF-8 encodings are detected automatically with charset-normalizer, which can confuse single-byte encodings that share most characters (for example cp1252 with cp1250 or cp1258, or cp850 with cp1250). When scores tie, csvnorm prefers Western European encodings (cp1252).
+- Check accented and typographic characters (`à`, `ì`, `“ ”`, `€`) in the output of non-UTF-8 files. If they are wrong, convert the file to UTF-8 yourself before running csvnorm, for example `iconv -f cp1252 -t utf-8 data.csv > data_utf8.csv`.
+
 **Mojibake repair (`--fix-mojibake [N]`):**
 - Mojibake is garbled text produced by decoding bytes with the wrong character encoding (e.g., `CittÃ ` instead of `Città`).
 - Enables optional mojibake repair using ftfy (for already-misdecoded text).
