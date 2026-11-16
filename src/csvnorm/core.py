@@ -561,7 +561,7 @@ def _compute_and_show_output(
             working_file.stat().st_size if isinstance(working_file, Path) else 0
         )
     output_size = actual_output_file.stat().st_size
-    row_count = get_row_count(actual_output_file)
+    row_count = get_row_count(actual_output_file, delimiter)
     column_count = get_column_count(actual_output_file, delimiter)
 
     if use_stdout:

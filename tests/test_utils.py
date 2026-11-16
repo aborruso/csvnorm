@@ -13,6 +13,7 @@ from csvnorm.utils import (
     build_zip_path,
     download_url_to_file,
     extract_filename_from_url,
+    get_row_count,
     has_crlf_line_endings,
     is_compressed_url,
     is_gzip_path,
@@ -341,3 +342,35 @@ class TestHasCrlfLineEndings:
 
     def test_nonexistent_file(self, tmp_path):
         assert has_crlf_line_endings(tmp_path / "nope.csv") is False
+
+
+class TestGetRowCount:
+    """Tests for get_row_count: counts CSV records, not physical lines."""
+
+    def test_simple_rows(self, tmp_path):
+        f = tmp_path / "a.csv"
+        f.write_text("a,b\n1,2\n3,4\n")
+        assert get_row_count(f) == 2
+
+    def test_newline_in_quoted_field(self, tmp_path):
+        f = tmp_path / "a.csv"
+        f.write_text('id,note\n1,"hello\nworld"\n2,plain\n')
+        assert get_row_count(f) == 2
+
+    def test_newline_in_header(self, tmp_path):
+        f = tmp_path / "a.csv"
+        f.write_text('id,"long\nnote"\n1,x\n2,y\n')
+        assert get_row_count(f) == 2
+
+    def test_semicolon_delimiter(self, tmp_path):
+        f = tmp_path / "a.csv"
+        f.write_text('id;note\n1;"a\nb"\n')
+        assert get_row_count(f, ";") == 1
+
+    def test_header_only(self, tmp_path):
+        f = tmp_path / "a.csv"
+        f.write_text("a,b\n")
+        assert get_row_count(f) == 0
+
+    def test_missing_file(self, tmp_path):
+        assert get_row_count(tmp_path / "missing.csv") == 0

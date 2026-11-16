@@ -305,24 +305,30 @@ def has_crlf_line_endings(file_path: Path) -> bool:
         return False
 
 
-def get_row_count(file_path: Union[Path, str]) -> int:
-    """Count number of rows in a CSV file.
+def get_row_count(file_path: Union[Path, str], delimiter: str = ",") -> int:
+    """Count CSV records in a file using DuckDB (newlines in quoted fields included).
 
     Args:
         file_path: Path to CSV file.
+        delimiter: Field delimiter used in the CSV file.
 
     Returns:
-        Number of data rows (excluding header), or 0 if file doesn't exist.
+        Number of data records (excluding header), or 0 if file doesn't exist or error.
     """
     if not isinstance(file_path, Path) or not file_path.exists():
         return 0
 
     try:
-        with open(file_path, "r") as f:
-            # Skip header
-            next(f, None)
-            return sum(1 for _ in f)
-    except (OSError, UnicodeDecodeError):
+        conn = duckdb.connect(":memory:")
+        escaped_path = str(file_path).replace("'", "''")
+        escaped_delim = delimiter.replace("'", "''")
+        result = conn.execute(
+            "SELECT count(*) FROM read_csv("
+            f"'{escaped_path}', delim='{escaped_delim}', header=true, all_varchar=true)"
+        ).fetchone()
+        conn.close()
+        return int(result[0]) if result else 0
+    except (duckdb.Error, OSError):
         return 0
 
 

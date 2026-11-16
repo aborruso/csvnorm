@@ -1,5 +1,6 @@
 """Tests for CLI module."""
 
+import re
 import shutil
 import subprocess
 import sys
@@ -581,3 +582,23 @@ class TestCheckMode:
         
         result = main([str(latin1_csv), "--check"])
         assert result == 0
+
+
+class TestSummaryRowCount:
+    """The summary reports CSV records, not physical lines."""
+
+    def test_multiline_field_counts_records(self, tmp_path):
+        test_csv = tmp_path / "input.csv"
+        test_csv.write_text('id,note\n1,"hello\nworld"\n2,plain\n')
+        output_file = tmp_path / "out.csv"
+
+        result = subprocess.run(
+            [sys.executable, "-m", "csvnorm", str(test_csv), "-o", str(output_file)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd=tmp_path,
+        )
+
+        assert result.returncode == 0
+        assert re.search(r"Rows:\s+2\b", result.stdout), result.stdout
