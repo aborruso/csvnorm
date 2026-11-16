@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 import duckdb
 import requests
 
+from rich.console import Console
 from rich.logging import RichHandler
 
 
@@ -56,7 +57,11 @@ def setup_logger(verbose: bool = False) -> logging.Logger:
 
     if not logger.handlers:
         handler = RichHandler(
-            show_time=False, show_path=verbose, markup=True, rich_tracebacks=True
+            console=Console(stderr=True),
+            show_time=False,
+            show_path=verbose,
+            markup=True,
+            rich_tracebacks=True,
         )
         logger.addHandler(handler)
 

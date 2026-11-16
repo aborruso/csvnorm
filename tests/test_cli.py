@@ -418,6 +418,45 @@ class TestCLISubprocess:
             assert result.returncode == expected, command
 
 
+class TestStdoutCarriesOnlyData:
+    """Diagnostics go to stderr; stdout carries only CSV data."""
+
+    def _run(self, tmp_path, args):
+        return subprocess.run(
+            [sys.executable, "-m", "csvnorm", *args],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd=tmp_path,
+        )
+
+    def test_verbose_does_not_change_stdout(self, tmp_path):
+        test_csv = tmp_path / "input.csv"
+        test_csv.write_text("Name,Value\nTest,123\n")
+
+        plain = self._run(tmp_path, [str(test_csv)])
+        verbose = self._run(tmp_path, [str(test_csv), "-V"])
+
+        assert plain.returncode == verbose.returncode == 0
+        assert verbose.stdout == plain.stdout
+        assert "DEBUG" in verbose.stderr
+        assert "csvnorm" in verbose.stderr
+
+    @pytest.mark.parametrize(
+        "extra_args",
+        [["--check", "--strict"], ["-s", "-1"]],
+        ids=["check_strict_warning", "negative_skip_rows_error"],
+    )
+    def test_cli_messages_on_stderr(self, tmp_path, extra_args):
+        test_csv = tmp_path / "input.csv"
+        test_csv.write_text("a,b\n1,2\n")
+
+        result = self._run(tmp_path, [str(test_csv), *extra_args])
+
+        assert result.stdout == ""
+        assert result.stderr.strip() != ""
+
+
 VALID_CSV = "a,b,c\n1,2,3\n4,5,6\n"
 INVALID_CSV = "a,b,c\n1,2,3\n4,5\n6,7,8,9\n7,8,9\n"
 
@@ -530,7 +569,7 @@ class TestCheckMode:
         test_file = Path("test/utf8_basic.csv")
         result = main([str(test_file), "--check", "--strict"])
         captured = capsys.readouterr()
-        assert "redundant" in captured.out.lower() or "warning" in captured.out.lower()
+        assert "redundant" in captured.err.lower() or "warning" in captured.err.lower()
         assert result == 0
 
     def test_check_mode_with_encoding_conversion(self, tmp_path):

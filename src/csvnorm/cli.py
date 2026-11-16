@@ -14,13 +14,14 @@ from csvnorm.mojibake import DEFAULT_MOJIBAKE_SAMPLE
 from csvnorm.utils import setup_logger, to_snake_case
 
 console = Console()
+err_console = Console(stderr=True)
 
 
-def show_banner() -> None:
+def show_banner(target: Console = console) -> None:
     """Show simple styled banner."""
-    console.print()
-    console.print("  csvnorm  ", style="bold cyan on black", justify="center")
-    console.print()
+    target.print()
+    target.print("  csvnorm  ", style="bold cyan on black", justify="center")
+    target.print()
 
 
 
@@ -222,26 +223,26 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     # Show banner in verbose mode
     if args.verbose:
-        show_banner()
+        show_banner(err_console)
 
     # Setup logging
     setup_logger(args.verbose)
 
     # Validate skip_rows
     if args.skip_rows < 0:
-        console.print("[red]Error:[/red] --skip-rows must be non-negative", style="red")
+        err_console.print("[red]Error:[/red] --skip-rows must be non-negative", style="red")
         return 1
 
     # Resolve --auto-output into output_file
     if args.auto_output:
         if args.output_file:
-            console.print("[red]Error:[/red] -O/--auto-output cannot be used with -o", style="red")
+            err_console.print("[red]Error:[/red] -O/--auto-output cannot be used with -o", style="red")
             return 1
         if args.input_file == "-":
-            console.print("[red]Error:[/red] -O/--auto-output cannot be used with stdin input", style="red")
+            err_console.print("[red]Error:[/red] -O/--auto-output cannot be used with stdin input", style="red")
             return 1
         if args.input_file.startswith("http://") or args.input_file.startswith("https://"):
-            console.print("[red]Error:[/red] -O/--auto-output cannot be used with URL input", style="red")
+            err_console.print("[red]Error:[/red] -O/--auto-output cannot be used with URL input", style="red")
             return 1
 
         input_path = Path(args.input_file)
@@ -249,7 +250,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         auto_output = input_path.parent / f"{snake_stem}.csv"
 
         if auto_output.resolve() == input_path.resolve():
-            console.print(
+            err_console.print(
                 f"[yellow]Warning:[/yellow] filename is already in snake_case ({input_path.name}). "
                 "Use -o to specify a different output path.",
                 style="yellow",
@@ -258,33 +259,33 @@ def main(argv: Optional[list[str]] = None) -> int:
 
         if auto_output.exists() and not args.force:
             if not sys.stdin.isatty():
-                console.print(
+                err_console.print(
                     f"[red]Error:[/red] Output file already exists: {auto_output}\n"
                     "Use --force to overwrite."
                 )
                 return 1
-            console.print(f"[yellow]Output file already exists:[/yellow] {auto_output}")
+            err_console.print(f"[yellow]Output file already exists:[/yellow] {auto_output}")
             try:
                 confirm = input("Overwrite? [y/N] ").strip().lower()
             except (EOFError, KeyboardInterrupt):
-                console.print("\nAborted.")
+                err_console.print("\nAborted.")
                 return 1
             if confirm != "y":
-                console.print("Aborted.")
+                err_console.print("Aborted.")
                 return 0
 
         args.output_file = auto_output
 
     # Validate incompatible flag combinations
     if args.check and args.output_file:
-        console.print(
+        err_console.print(
             "[red]Error:[/red] --check cannot be used with -o (output file)",
             style="red"
         )
         return 1
 
     if args.check and args.strict:
-        console.print(
+        err_console.print(
             "[yellow]Warning:[/yellow] --strict is redundant with --check (both exit on errors)",
             style="yellow"
         )
