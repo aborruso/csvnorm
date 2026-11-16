@@ -59,6 +59,21 @@ class TestCountLines:
             reject_count, _, _ = validate_csv(csv_file, reject_file)
             assert reject_count == 2  # header + 1 rejected row
 
+    def test_reject_file_is_valid_utf8_with_long_multibyte_row(self):
+        """Issue #29: DuckDB truncates csv_line in the reject table; with
+        duckdb<2.0 the cut could split a multibyte char (e.g. 'à' -> b'\\xc3')."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            csv_file = Path(tmpdir) / "long.csv"
+            # Rejected rows longer than the cut, each shifted by one byte so that
+            # in at least one of them an 'à' straddles the cut point
+            long_text = "uniformità " * 2000
+            rows = [f'{i},"{"x" * i}{long_text}",extra' for i in range(12)]
+            csv_file.write_text("a,b\n1,2\n" + "\n".join(rows) + "\n", encoding="utf-8")
+            reject_file = Path(tmpdir) / "reject.csv"
+            reject_count, _, _ = validate_csv(csv_file, reject_file)
+            assert reject_count == 13  # header + 12 rejected rows
+            reject_file.read_bytes().decode("utf-8")  # raises if invalid
+
 
 class TestGetErrorTypes:
     """Tests for _get_error_types internal function."""

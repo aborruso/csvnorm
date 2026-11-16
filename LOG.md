@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-16 (after v1.3.0)
+
+- test: regression test for issue #29 (reject file not valid UTF-8). Cause: DuckDB < 2.0 truncates `csv_line` in the reject table by bytes and can split a multibyte char (`uniformit\xc3`); DuckDB 2.0.0 cuts on character boundaries. Fixed in 1.3.0 by `duckdb>=2.0.0`; the stdout-mode part of the issue (reject file in the working directory) fixed by the temp-dir change
+- note: `Cc_Opendata_Pronunce_2026.csv` (Corte costituzionale) has 12 header fields and 13 fields per row (`ECLI` code missing from the header): every row is rejected, `Rows: 0`
+
 ## 2026-11-16 (v1.3.0)
 
 - build: requires `duckdb>=2.0.0` and therefore Python >= 3.11 (was `duckdb>=0.9.0`, Python >= 3.9); CI matrix 3.11-3.13
