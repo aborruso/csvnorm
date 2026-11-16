@@ -74,7 +74,7 @@ git push origin v0.3.0
 ```
 
 **The GitHub Actions workflow will automatically:**
-1. Run tests on Python 3.9-3.12
+1. Run tests on Python 3.11-3.13
 2. Build the package
 3. Publish to PyPI using Trusted Publishing
 4. Create attestations for the release
@@ -158,7 +158,7 @@ The project uses **GitHub Actions with Trusted Publishing** to automatically pub
 
 Triggered on tag push (`v*`):
 1. **Build job**: Creates wheel and sdist packages
-2. **Test job**: Runs tests on Python 3.9-3.12 matrix
+2. **Test job**: Runs tests on Python 3.11-3.13 matrix
 3. **Publish job**: Uploads to PyPI using OIDC trusted publishing (no tokens needed!)
 
 ### Trusted Publishing Setup
@@ -201,7 +201,7 @@ rm -rf test_venv
 
 **Workflow fails on test matrix:**
 - Check that `requires-python` in `pyproject.toml` matches the matrix
-- Python 3.8 is no longer supported (requires-python = ">=3.9")
+- Python 3.9 and 3.10 are no longer supported (requires-python = ">=3.11", required by duckdb>=2.0.0)
 
 **Trusted publisher authentication fails:**
 - Verify configuration at https://pypi.org/manage/account/publishing/

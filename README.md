@@ -1,6 +1,6 @@
 [![PyPI version](https://badge.fury.io/py/csvnorm.svg)](https://pypi.org/project/csvnorm/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/aborruso/csvnorm)
 
 # csvnorm
@@ -249,10 +249,10 @@ The tool provides modern terminal output (shown only when using `-o` to write to
 
 ## Requirements
 
-- Python 3.9+
+- Python 3.11+
 - Dependencies (automatically installed):
   - `charset-normalizer>=3.0.0` - Encoding detection
-  - `duckdb>=0.9.0` - CSV validation and normalization
+  - `duckdb>=2.0.0` - CSV validation and normalization
   - `ftfy>=6.3.1` - Mojibake repair
   - `rich>=13.0.0` - Modern terminal output formatting
   - `rich-argparse>=1.0.0` - Enhanced CLI help formatting
