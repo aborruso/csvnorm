@@ -355,7 +355,8 @@ def _emit_stdout_output(
 ) -> int:
     """Write output to stdout and emit validation warnings if needed."""
     try:
-        with open(actual_output_file, "r") as f:
+        # newline="" keeps bare CRs inside quoted fields
+        with open(actual_output_file, "r", encoding="utf-8", newline="") as f:
             sys.stdout.write(f.read())
     except BrokenPipeError:
         return 0
@@ -521,6 +522,7 @@ def _handle_post_validation(
                 stderr_console.print("[yellow]Error types:[/yellow]")
                 for error_type in error_types[:3]:
                     stderr_console.print(f"  • {error_type}")
+            stderr_console.print(f"Details: {reject_file}", soft_wrap=True)
         else:
             stderr_console.print("[green]✓ Valid CSV[/green]")
         return 1 if has_validation_errors else 0

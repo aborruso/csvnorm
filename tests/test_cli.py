@@ -725,3 +725,48 @@ class TestStdoutRejectFileLocation:
         assert result.returncode == 0
         assert sorted(p.name for p in work.iterdir()) == ["input.csv"]
         assert list(tmpdir.glob("csvnorm_reject_errors_*")) == []
+
+    def test_check_mode_prints_reject_path(self, tmp_path):
+        """--check keeps the reject file in the temp dir and names it on stderr."""
+        result, work, tmpdir = self._run_args(
+            tmp_path, "a,b,c\n1,2,3\n4,5\n", ["--check"]
+        )
+
+        assert result.returncode == 1
+        rejects = list(tmpdir.glob("csvnorm_reject_errors_*.csv"))
+        assert len(rejects) == 1
+        flat = re.sub(r"[\s│]", "", result.stderr)
+        assert rejects[0].name in flat
+
+    def _run_args(self, tmp_path, content, extra):
+        work = tmp_path / "work"
+        tmpdir = tmp_path / "tmpdir"
+        work.mkdir()
+        tmpdir.mkdir()
+        test_csv = work / "input.csv"
+        test_csv.write_text(content)
+        result = subprocess.run(
+            [sys.executable, "-m", "csvnorm", str(test_csv), *extra],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd=work,
+            env={**os.environ, "TMPDIR": str(tmpdir)},
+        )
+        return result, work, tmpdir
+
+
+class TestStdoutKeepsBareCr:
+    def test_bare_cr_inside_field_on_stdout(self, tmp_path):
+        test_csv = tmp_path / "input.csv"
+        test_csv.write_bytes(b'a,b,c\n1,2,3\n4,"x\ry",5\n7,8,9\n')
+
+        result = subprocess.run(
+            [sys.executable, "-m", "csvnorm", str(test_csv)],
+            capture_output=True,
+            timeout=30,
+            cwd=tmp_path,
+        )
+
+        assert result.returncode == 0
+        assert result.stdout == b'a,b,c\n1,2,3\n4,"x\ry",5\n7,8,9\n'

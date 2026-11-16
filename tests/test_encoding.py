@@ -97,6 +97,15 @@ class TestDetectEncoding:
         text = path.read_bytes().decode(detect_encoding(path))
         assert "Quantità" in text
 
+    def test_cyrillic_cp1251_not_turned_western(self, tmp_path):
+        """The Western tie-break must not override a clearly non-Western file."""
+        words = "город улица область район население год число значение школа больница"
+        rows = ["id,descrizione"] + [f"{i},{words}" for i in range(50)]
+        path = tmp_path / "ru.csv"
+        path.write_bytes("\n".join(rows).encode("cp1251"))
+        text = path.read_bytes().decode(detect_encoding(path))
+        assert "город улица область" in text
+
     def test_short_latin1_western_text(self, tmp_path):
         path = tmp_path / "w.csv"
         path.write_bytes("Nom;Città\nCafé;Müller\n".encode("latin-1"))

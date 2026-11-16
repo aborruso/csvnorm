@@ -248,8 +248,9 @@ The tool provides modern terminal output (shown only when using `-o` to write to
 
 | Code | Meaning |
 |------|---------|
-| 0 | Success |
-| 1 | Error (validation failed, file not found, etc.) |
+| 0 | Success, no validation errors |
+| 1 | Validation errors (with or without `--strict`; without it the accepted rows are still written), or a fatal error (file not found, download failure, etc.) |
+| 2 | Invalid command line (unknown option, missing argument) |
 
 ## Requirements
 
