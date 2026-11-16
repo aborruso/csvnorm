@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-11-16 (v1.3.0)
+
+- build: requires `duckdb>=2.0.0` and therefore Python >= 3.11 (was `duckdb>=0.9.0`, Python >= 3.9); CI matrix 3.11-3.13
+- fix: `--strict` with `-o` no longer writes the output file on validation errors; an existing output is left untouched, even with `--force`
+- fix: `python -m csvnorm` now returns the real exit code (was always 0)
+- fix: with `-V`, stdout carries only CSV data; verbose banner, debug log, CLI errors and warnings go to stderr
+- fix: summary `Rows` counts CSV records (newlines inside quoted fields no longer inflate it)
+- fix: a bare CR inside a quoted field of a rejected row no longer inflates the reject count
+- docs: README no longer suggests `csvnorm data.csv > data.csv` (the shell empties the input first); `--strict` row explains the no-output behavior
+- docs: exit codes clarified: 1 on validation errors in any mode, 2 on invalid CLI usage
+
 ## 2026-05-16
 
 - feat: preserve CRLF row terminators in file output (`-o`) when input uses CRLF (RFC 4180 §2)
