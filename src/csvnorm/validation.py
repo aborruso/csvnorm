@@ -491,7 +491,7 @@ def _count_lines(file_path: Path) -> int:
     if not file_path.exists():
         return 0
 
-    with open(file_path, "r") as f:
+    with open(file_path, "rb") as f:
         return sum(1 for _ in f)
 
 

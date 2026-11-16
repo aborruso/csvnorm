@@ -331,7 +331,7 @@ def _normalize_and_refresh_errors(
 
     has_validation_errors = reject_count > 1
     if used_fallback and used_fallback != fallback_config:
-        reject_count = sum(1 for _ in open(reject_file)) if reject_file.exists() else 0
+        reject_count = sum(1 for _ in open(reject_file, "rb")) if reject_file.exists() else 0
         has_validation_errors = reject_count > 1
         if has_validation_errors:
             from csvnorm.validation import _get_error_types
@@ -383,7 +383,7 @@ def _cleanup_temp_artifacts(
 ) -> None:
     """Cleanup temp files and prune empty reject files."""
     if use_stdout and reject_file.exists():
-        with open(reject_file, "r") as f:
+        with open(reject_file, "rb") as f:
             line_count = sum(1 for _ in f)
         if line_count <= 1:
             reject_file.unlink()
@@ -405,7 +405,7 @@ def _cleanup_temp_artifacts(
                 temp_path.unlink()
 
     if not use_stdout and reject_file.exists():
-        with open(reject_file, "r") as f:
+        with open(reject_file, "rb") as f:
             line_count = sum(1 for _ in f)
         if line_count <= 1:
             logger.debug(f"Removing empty reject file: {reject_file}")

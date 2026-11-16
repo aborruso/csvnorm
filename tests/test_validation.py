@@ -43,6 +43,22 @@ class TestCountLines:
             result = _count_lines(test_file)
             assert result == 3
 
+    def test_lone_cr_is_not_a_line_break(self):
+        """A bare CR inside a quoted field must not be counted as a new line."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_file = Path(tmpdir) / "test.csv"
+            test_file.write_bytes(b'h\n"x\ry"\n')
+            assert _count_lines(test_file) == 2
+
+    def test_reject_count_with_cr_in_rejected_row(self):
+        """One rejected row containing a bare CR counts as one reject."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            csv_file = Path(tmpdir) / "cr.csv"
+            csv_file.write_bytes(b'a,b,c\n1,2,3\n4,"x\ry",5,6\n7,8,9\n')
+            reject_file = Path(tmpdir) / "reject.csv"
+            reject_count, _, _ = validate_csv(csv_file, reject_file)
+            assert reject_count == 2  # header + 1 rejected row
+
 
 class TestGetErrorTypes:
     """Tests for _get_error_types internal function."""
