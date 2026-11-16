@@ -53,7 +53,7 @@ FR-11 The tool SHALL pre-validate first 5 lines to detect header anomalies (titl
 ## 8. Non-Functional Requirements
 NFR-1 Execution time for a 100 MB file SHOULD be < 60 s on a 4-core machine.
 NFR-2 Memory footprint SHOULD not exceed 2× input file size.
-NFR-3 The package SHALL target Python 3.9+ and run cross-platform (Linux, macOS, Windows).
+NFR-3 The package SHALL target Python 3.11+ and run cross-platform (Linux, macOS, Windows).
 NFR-4 The code SHALL use type hints, pass ruff linting, and maintain pytest test coverage.
 
 ## 9. Constraints & Assumptions

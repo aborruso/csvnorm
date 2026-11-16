@@ -3,6 +3,12 @@
 ## 2026-11-16 (v1.3.0)
 
 - build: requires `duckdb>=2.0.0` and therefore Python >= 3.11 (was `duckdb>=0.9.0`, Python >= 3.9); CI matrix 3.11-3.13
+- fix: CSV files with malformed rows keep their columns; before, the accepted rows could come out as a single quoted column or with `column0..N` headers
+- fix: Italian/Western latin1 files are no longer decoded as cp1250 (`Città` was becoming `Cittŕ`); on tied scores csvnorm prefers cp1252
+- fix: CRLF output only when rows really end with CRLF (a CRLF inside a quoted field no longer turns every row into CRLF); bare CR inside fields preserved
+- fix: with `-o` the output is written to a temp file and moved at the end: a failure or a `--strict` stop never leaves a partial or overwritten file
+- change: in stdout mode the reject file goes to the system temp dir (`csvnorm_reject_errors_<id>.csv`, path on stderr) instead of `./reject_errors.csv`
+- docs: README explains the limits of automatic encoding detection; OpenSpec proposal `add-input-encoding-option` for a future `--encoding` option
 - fix: `--strict` with `-o` no longer writes the output file on validation errors; an existing output is left untouched, even with `--force`
 - fix: `python -m csvnorm` now returns the real exit code (was always 0)
 - fix: with `-V`, stdout carries only CSV data; verbose banner, debug log, CLI errors and warnings go to stderr

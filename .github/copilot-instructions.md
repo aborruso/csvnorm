@@ -71,7 +71,7 @@ csvnorm https://example.com/data.csv # remote URL
 - Type hints for all functions
 - Run `pytest tests/ -v` after edits
 - Run `ruff check .` for linting
-- Python 3.9+ compatibility
+- Python 3.11+ compatibility
 - Cross-platform (Linux, macOS, Windows)
 
 ### 6. External deps & integration points
