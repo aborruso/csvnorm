@@ -296,13 +296,23 @@ def supports_http_range(url: str, timeout: int = 10) -> bool:
 
 
 def has_crlf_line_endings(file_path: Path) -> bool:
-    """Return True if file uses CRLF line endings."""
+    """Return True if the first row terminator (LF outside quotes) is CRLF.
+
+    A CRLF inside a quoted field is cell content, not a row terminator.
+    """
     try:
         with open(file_path, "rb") as f:
             chunk = f.read(8192)
-        return b"\r\n" in chunk
     except OSError:
         return False
+
+    in_quotes = False
+    for i, b in enumerate(chunk):
+        if b == 0x22:  # "
+            in_quotes = not in_quotes
+        elif b == 0x0A and not in_quotes:  # \n outside quotes
+            return i > 0 and chunk[i - 1] == 0x0D
+    return False
 
 
 def get_row_count(file_path: Union[Path, str], delimiter: str = ",") -> int:

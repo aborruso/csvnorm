@@ -372,6 +372,16 @@ class TestCrlfPreservation:
         data = output_file.read_bytes()
         assert b"\r\n" not in data, "LF-only input should not produce CRLF output"
 
+    def test_lf_rows_with_in_cell_crlf_keep_lf_rows(self, output_dir):
+        """LF row terminators + CRLF inside quoted cells → rows stay LF."""
+        input_file = TEST_DIR / "alberi_messina_mojibake.csv"
+        output_file = output_dir / "out.csv"
+        process_csv(str(input_file), output_file)
+        data = output_file.read_bytes()
+        header_end = data.index(b"\n")
+        assert data[header_end - 1 : header_end] != b"\r", "Header row must end with LF"
+        assert data.count(b"\r\n") == input_file.read_bytes().count(b"\r\n")
+
     def test_crlf_input_stdout_always_lf(self, output_dir, capsys):
         """CRLF input to stdout mode outputs LF (Unix pipeline compatibility)."""
         input_file = TEST_DIR / "crlf_with_embedded_lf.csv"

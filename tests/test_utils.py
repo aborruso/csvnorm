@@ -340,6 +340,17 @@ class TestHasCrlfLineEndings:
         f.write_bytes(b'a,b\r\n1,"in\ncell"\r\n')
         assert has_crlf_line_endings(f) is True
 
+    def test_lf_rows_with_crlf_inside_quoted_field(self, tmp_path):
+        """A CRLF inside a quoted field is cell content, not the row terminator."""
+        f = tmp_path / "lf_rows.csv"
+        f.write_bytes(b'a,b\n1,"in\r\ncell"\n2,x\n')
+        assert has_crlf_line_endings(f) is False
+
+    def test_crlf_rows_after_quoted_field_with_crlf(self, tmp_path):
+        f = tmp_path / "crlf_rows.csv"
+        f.write_bytes(b'"multi\r\nline header",b\r\n1,2\r\n')
+        assert has_crlf_line_endings(f) is True
+
     def test_nonexistent_file(self, tmp_path):
         assert has_crlf_line_endings(tmp_path / "nope.csv") is False
 
