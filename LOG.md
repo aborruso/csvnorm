@@ -7,7 +7,8 @@
 - fix: Italian/Western latin1 files are no longer decoded as cp1250 (`Città` was becoming `Cittŕ`); on tied scores csvnorm prefers cp1252
 - fix: CRLF output only when rows really end with CRLF (a CRLF inside a quoted field no longer turns every row into CRLF); bare CR inside fields preserved
 - fix: with `-o` the output is written to a temp file and moved at the end: a failure or a `--strict` stop never leaves a partial or overwritten file
-- change: in stdout mode the reject file goes to the system temp dir (`csvnorm_reject_errors_<id>.csv`, path on stderr) instead of `./reject_errors.csv`
+- change: in stdout mode the reject file goes to the system temp dir (`csvnorm_reject_errors_<id>.csv`, path on stderr) instead of `./reject_errors.csv`; `--check` now prints its path too
+- fix: stdout output keeps bare CR inside fields
 - docs: README explains the limits of automatic encoding detection; OpenSpec proposal `add-input-encoding-option` for a future `--encoding` option
 - fix: `--strict` with `-o` no longer writes the output file on validation errors; an existing output is left untouched, even with `--force`
 - fix: `python -m csvnorm` now returns the real exit code (was always 0)
