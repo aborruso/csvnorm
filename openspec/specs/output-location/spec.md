@@ -24,9 +24,23 @@ The system SHALL write output to the exact path specified by `-o/--output-file`,
 - **THEN** the output file is created at `processed/output.txt`
 - **AND THEN** no validation is performed on the file extension
 
-### Requirement: Temp files in system directory
+### Requirement: Existing output file blocks without force
+The system SHALL stop and warn the user when the output file path already exists, unless `--force` is provided.
 
-The system SHALL create UTF-8 conversion temporary files in a system temp directory with auto-cleanup. Reject files SHALL be placed in the output directory for file mode, or in the current working directory for stdout mode.
+#### Scenario: Output exists without force
+- **WHEN** the output file path specified by `-o` already exists
+- **AND WHEN** `--force` is not provided
+- **THEN** the command exits without writing any output
+- **AND THEN** the user is warned that the output file already exists
+
+#### Scenario: Output exists with force
+- **WHEN** the output file path specified by `-o` already exists
+- **AND WHEN** `--force` is provided
+- **THEN** the output file is overwritten
+
+### Requirement: Temp and reject file locations
+
+The system SHALL create UTF-8 conversion temporary files in a system temp directory with auto-cleanup. Reject files SHALL be placed in the output directory for file mode, or in the system temp directory with a unique name for stdout mode.
 
 #### Scenario: Temp UTF8 file in system temp
 
@@ -41,25 +55,12 @@ The system SHALL create UTF-8 conversion temporary files in a system temp direct
 - **AND THEN** if an existing reject file exists, it is overwritten without warning
 - **AND THEN** if empty (only header), the reject file is removed after processing
 
-#### Scenario: Reject file in current directory (stdout mode)
+#### Scenario: Reject file in system temp directory (stdout mode)
 
 - **WHEN** validation errors occur during processing without `-o` (stdout mode)
-- **THEN** a reject file is created as `./reject_errors.csv` in the current working directory
-- **AND THEN** if an existing reject file exists, it is overwritten without warning
+- **THEN** a reject file is created in the system temp directory as `csvnorm_reject_errors_<id>.csv`, with a name unique to the run
+- **AND THEN** its full path is printed on stderr
+- **AND THEN** no file is created in the current working directory
 - **AND THEN** if empty (only header), the reject file is removed after processing
-- **AND THEN** the reject file persists after processing (not in temp directory)
-
-### Requirement: Existing output file blocks without force
-The system SHALL stop and warn the user when the output file path already exists, unless `--force` is provided.
-
-#### Scenario: Output exists without force
-- **WHEN** the output file path specified by `-o` already exists
-- **AND WHEN** `--force` is not provided
-- **THEN** the command exits without writing any output
-- **AND THEN** the user is warned that the output file already exists
-
-#### Scenario: Output exists with force
-- **WHEN** the output file path specified by `-o` already exists
-- **AND WHEN** `--force` is provided
-- **THEN** the output file is overwritten
+- **AND THEN** otherwise the reject file persists after processing
 

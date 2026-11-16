@@ -1,6 +1,13 @@
-## MODIFIED Requirements
+## REMOVED Requirements
 
 ### Requirement: Temp files in system directory
+
+**Reason**: its stdout-mode scenario placed the reject file in the current working directory; replaced by "Temp and reject file locations".
+**Migration**: scripts that read `./reject_errors.csv` after a stdout run take the path from stderr (`Details:`) or use `-o`.
+
+## ADDED Requirements
+
+### Requirement: Temp and reject file locations
 
 The system SHALL create UTF-8 conversion temporary files in a system temp directory with auto-cleanup. Reject files SHALL be placed in the output directory for file mode, or in the system temp directory with a unique name for stdout mode.
 
