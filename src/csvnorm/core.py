@@ -520,7 +520,7 @@ def _handle_post_validation(
             stderr_console.print("[green]✓ Valid CSV[/green]")
         return 1 if has_validation_errors else 0
 
-    if use_stdout and has_validation_errors:
+    if has_validation_errors and (use_stdout or strict):
         progress.stop()
         stderr_console = Console(stderr=True)
         show_validation_error_panel(reject_count, error_types, reject_file, stderr_console)

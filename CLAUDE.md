@@ -190,8 +190,9 @@ Test fixtures in `test/`:
    - With `-o`: file (with rich output)
 
 3. **Exit codes**:
-   - 0: Success (even with validation errors in file mode)
-   - 1: Fatal error (file not found, invalid args, etc.)
+   - 0: Success, no validation errors
+   - 1: Validation errors (any mode, also without `--strict`: accepted rows are still exported unless `--strict`) or fatal error (file not found, download failure, etc.)
+   - 2: Invalid CLI usage (argparse)
 
 4. **Error handling**:
    - Non-UTF-8 encodings → automatic conversion

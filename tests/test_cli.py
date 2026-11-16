@@ -418,6 +418,73 @@ class TestCLISubprocess:
             assert result.returncode == expected, command
 
 
+VALID_CSV = "a,b,c\n1,2,3\n4,5,6\n"
+INVALID_CSV = "a,b,c\n1,2,3\n4,5\n6,7,8,9\n7,8,9\n"
+
+
+class TestStrictMatrix:
+    """strict/non-strict x stdout/file x valid/invalid, run as a real process."""
+
+    def _run(self, tmp_path, args):
+        return subprocess.run(
+            [sys.executable, "-m", "csvnorm", *args],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd=tmp_path,
+        )
+
+    @pytest.mark.parametrize("strict", [False, True], ids=["permissive", "strict"])
+    @pytest.mark.parametrize("to_file", [False, True], ids=["stdout", "file"])
+    @pytest.mark.parametrize("valid", [True, False], ids=["valid", "invalid"])
+    def test_matrix(self, tmp_path, strict, to_file, valid):
+        test_csv = tmp_path / "input.csv"
+        test_csv.write_text(VALID_CSV if valid else INVALID_CSV)
+        output_file = tmp_path / "out.csv"
+        reject_file = (
+            tmp_path / "out_reject_errors.csv" if to_file
+            else tmp_path / "reject_errors.csv"
+        )
+
+        args = [str(test_csv)]
+        if to_file:
+            args += ["-o", str(output_file)]
+        if strict:
+            args.append("--strict")
+        result = self._run(tmp_path, args)
+
+        assert result.returncode == (0 if valid else 1)
+
+        blocked = strict and not valid
+        produced = output_file.read_text() if to_file and output_file.exists() else ""
+        if not to_file:
+            produced = result.stdout
+            assert not output_file.exists()
+        if blocked:
+            assert produced == ""
+            assert not output_file.exists()
+        else:
+            assert "1,2,3" in produced
+            assert "7,8,9" in produced or valid
+
+        assert reject_file.exists() == (not valid)
+
+    def test_strict_force_keeps_existing_output(self, tmp_path):
+        """With --strict --force and invalid input, an existing output stays untouched."""
+        test_csv = tmp_path / "input.csv"
+        test_csv.write_text(INVALID_CSV)
+        output_file = tmp_path / "out.csv"
+        output_file.write_bytes(b"previous,content\r\nkeep,me\n")
+
+        result = self._run(
+            tmp_path, [str(test_csv), "-o", str(output_file), "--strict", "--force"]
+        )
+
+        assert result.returncode == 1
+        assert output_file.read_bytes() == b"previous,content\r\nkeep,me\n"
+        assert (tmp_path / "out_reject_errors.csv").exists()
+
+
 class TestCheckMode:
     """Test --check flag functionality."""
 

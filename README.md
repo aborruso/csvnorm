@@ -81,7 +81,7 @@ csvnorm -                    # read from stdin
 | `-d, --delimiter CHAR` | Set custom output delimiter (default: `,`) |
 | `-s, --skip-rows N` | Skip first N rows of input file (useful for metadata/comments) |
 | `--fix-mojibake [N]` | Fix mojibake using ftfy (optional sample size `N`; use `0` to force repair) |
-| `--strict` | Exit with error code 1 if any validation errors occur (fail-fast mode) |
+| `--strict` | Write no output (stdout or file) if any validation errors occur; an existing output file is left untouched, even with `--force`. Exit code is 1 on validation errors with or without `--strict` |
 | `--check` | Validate CSV without processing or normalizing (exit code 0=valid, 1=invalid) |
 | `--download-remote` | Download remote CSV locally before processing (needed for remote .zip/.gz) |
 | `-V, --verbose` | Enable verbose output for debugging |
