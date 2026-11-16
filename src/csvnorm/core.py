@@ -763,9 +763,14 @@ def process_csv(
 
             progress.update(task, description="[green]✓[/green] CSV validated")
 
-            # Step 4: Normalize and write output
+            # Step 4: Normalize and write output. In file mode normalize into a
+            # temp file and move it over the output only at the end, so a failure
+            # or a --strict stop never leaves a partial or overwritten output.
             progress.update(task, description="[cyan]Normalizing and writing output...")
             logger.debug("Normalizing CSV...")
+            normalized_file = (
+                actual_output_file if use_stdout else temp_dir / "normalized.csv"
+            )
             try:
                 (
                     _,
@@ -773,7 +778,7 @@ def process_csv(
                     error_types,
                     has_validation_errors,
                 ) = _normalize_and_refresh_errors(
-                    working_file, actual_output_file, delimiter, keep_names,
+                    working_file, normalized_file, delimiter, keep_names,
                     is_remote, skip_rows, fallback_config, reject_file,
                     reject_count, error_types,
                 )
@@ -790,8 +795,18 @@ def process_csv(
                     show_error_panel(f"Normalization failed\n{error_msg}")
                 return 1
 
+            if strict and has_validation_errors:
+                progress.stop()
+                show_validation_error_panel(
+                    reject_count, error_types, reject_file, Console(stderr=True)
+                )
+                return 1
+
             if input_has_crlf and not use_stdout:
-                convert_row_endings_to_crlf(actual_output_file)
+                convert_row_endings_to_crlf(normalized_file)
+
+            if not use_stdout:
+                shutil.move(str(normalized_file), str(actual_output_file))
 
             logger.debug(f"Output written to: {actual_output_file}")
             progress.update(task, description="[green]✓[/green] Complete")

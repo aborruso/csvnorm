@@ -389,3 +389,61 @@ class TestCrlfPreservation:
         assert result == 0
         captured = capsys.readouterr()
         assert "\r\n" not in captured.out, "Stdout should never contain CRLF"
+
+
+class TestOutputWrittenAtTheEnd:
+    """With -o the output file is written only when processing completes."""
+
+    PREVIOUS = b"previous,content\nkeep,me\n"
+
+    def _existing_output(self, tmp_path):
+        output_file = tmp_path / "out.csv"
+        output_file.write_bytes(self.PREVIOUS)
+        return output_file
+
+    def test_strict_errors_found_during_normalization(self, tmp_path):
+        """Errors that appear only after normalization still block the output with --strict."""
+        output_file = self._existing_output(tmp_path)
+        real = core_module._normalize_and_refresh_errors
+
+        def late_errors(*args, **kwargs):
+            used, _, _, _ = real(*args, **kwargs)
+            return used, 2, ["Expected Number of Columns"], True
+
+        with patch.object(core_module, "_normalize_and_refresh_errors", late_errors):
+            result = process_csv(
+                str(TEST_DIR / "utf8_basic.csv"), output_file, force=True, strict=True
+            )
+
+        assert result == 1
+        assert output_file.read_bytes() == self.PREVIOUS
+
+    def test_strict_errors_found_during_normalization_new_output(self, tmp_path):
+        output_file = tmp_path / "new.csv"
+        real = core_module._normalize_and_refresh_errors
+
+        def late_errors(*args, **kwargs):
+            used, _, _, _ = real(*args, **kwargs)
+            return used, 2, ["Expected Number of Columns"], True
+
+        with patch.object(core_module, "_normalize_and_refresh_errors", late_errors):
+            result = process_csv(str(TEST_DIR / "utf8_basic.csv"), output_file, strict=True)
+
+        assert result == 1
+        assert not output_file.exists()
+
+    def test_normalization_crash_keeps_existing_output(self, tmp_path):
+        """A failure in the middle of writing never leaves a partial output."""
+        import duckdb
+
+        output_file = self._existing_output(tmp_path)
+
+        def crash(*args, output_path, **kwargs):
+            Path(output_path).write_bytes(b"partial")
+            raise duckdb.IOException("disk full")
+
+        with patch.object(core_module, "normalize_csv", side_effect=crash):
+            result = process_csv(str(TEST_DIR / "utf8_basic.csv"), output_file, force=True)
+
+        assert result == 1
+        assert output_file.read_bytes() == self.PREVIOUS
