@@ -17,9 +17,11 @@ csvnorm data.csv              # Created data.csv in current directory
 
 # v1.0 behavior (NEW)
 csvnorm data.csv              # Outputs to stdout
-csvnorm data.csv -o data.csv  # Explicitly save to file
-csvnorm data.csv > data.csv   # Or use shell redirect
+csvnorm data.csv -o clean.csv  # Explicitly save to file
+csvnorm data.csv > clean.csv   # Or use shell redirect
 ```
+
+Never redirect to the input file (`csvnorm data.csv > data.csv`): the shell empties `data.csv` before csvnorm starts, and the data is lost. csvnorm refuses to overwrite its input only when the output path is given with `-o`.
 
 This follows the Unix philosophy and matches tools like `jq`, `csvkit`, and `xsv`.
 
