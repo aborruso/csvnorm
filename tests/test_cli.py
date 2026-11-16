@@ -3,6 +3,7 @@
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -389,6 +390,32 @@ class TestCLISubprocess:
         assert result.returncode == 0
         combined = (result.stdout + result.stderr).lower()
         assert "broken pipe" not in combined
+
+    @pytest.mark.parametrize(
+        "content, extra_args, expected",
+        [
+            ("a,b\n1,2\n", [], 0),
+            ("a,b,c\n1,2,3\n4,5\n6,7,8,9\n", ["--strict"], 1),
+            (None, [], 1),
+        ],
+        ids=["valid", "invalid_strict", "missing_file"],
+    )
+    def test_exit_code_parity(self, tmp_path, content, extra_args, expected):
+        """python -m csvnorm and the installed command return the same exit code."""
+        script = shutil.which("csvnorm", path=str(Path(sys.executable).parent))
+        if script is None:
+            pytest.skip("csvnorm console script not installed in this environment")
+
+        test_csv = tmp_path / "input.csv"
+        if content is not None:
+            test_csv.write_text(content)
+        args = [str(test_csv), *extra_args]
+
+        for command in ([sys.executable, "-m", "csvnorm"], [script]):
+            result = subprocess.run(
+                command + args, capture_output=True, text=True, timeout=30, cwd=tmp_path
+            )
+            assert result.returncode == expected, command
 
 
 class TestCheckMode:
