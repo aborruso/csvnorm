@@ -5,6 +5,7 @@ import shutil
 import sys
 import tempfile
 import urllib.error
+import uuid
 import zipfile
 from urllib.parse import urlparse
 from pathlib import Path
@@ -86,9 +87,13 @@ def _setup_output_paths(
 ) -> tuple[Path, Path, Path]:
     """Determine output, reject, and temp UTF-8 paths."""
     if output_file is None:
-        # Stdout mode: place reject file in current working directory
+        # Stdout mode: reject file in the system temp dir, unique per run, so it
+        # does not clutter the working directory; its path is shown on stderr
         actual_output_file = temp_dir / "output.csv"
-        reject_file = Path.cwd() / "reject_errors.csv"
+        reject_file = (
+            Path(tempfile.gettempdir())
+            / f"csvnorm_reject_errors_{uuid.uuid4().hex[:8]}.csv"
+        )
         temp_utf8_file = temp_dir / "utf8.csv"
         return actual_output_file, reject_file, temp_utf8_file
 

@@ -162,7 +162,7 @@ csvnorm raw_data.csv --check || exit 1
 - Writes normalized CSV to stdout
 - Progress and errors go to stderr
 - Validation errors (if any) are shown to stderr **before** the output data
-- Reject file saved to `./reject_errors.csv` in current working directory
+- Reject file saved in the system temp directory as `csvnorm_reject_errors_<id>.csv`; its full path is shown on stderr (`Details:`). Nothing is written in the current directory
 - Perfect for piping to other tools or shell redirection
 
 **File output (with `-o`):**

@@ -1,5 +1,6 @@
 """Tests for CLI module."""
 
+import os
 import re
 import shutil
 import subprocess
@@ -481,10 +482,7 @@ class TestStrictMatrix:
         test_csv = tmp_path / "input.csv"
         test_csv.write_text(VALID_CSV if valid else INVALID_CSV)
         output_file = tmp_path / "out.csv"
-        reject_file = (
-            tmp_path / "out_reject_errors.csv" if to_file
-            else tmp_path / "reject_errors.csv"
-        )
+        reject_file = tmp_path / "out_reject_errors.csv"
 
         args = [str(test_csv)]
         if to_file:
@@ -509,7 +507,11 @@ class TestStrictMatrix:
             )
             assert produced == expected
 
-        assert reject_file.exists() == (not valid)
+        if to_file:
+            assert reject_file.exists() == (not valid)
+        else:
+            # stdout mode never writes a reject file in the working directory
+            assert not (tmp_path / "reject_errors.csv").exists()
 
     def test_strict_force_keeps_existing_output(self, tmp_path):
         """With --strict --force and invalid input, an existing output stays untouched."""
@@ -683,3 +685,43 @@ class TestSummaryRowCount:
 
         assert result.returncode == 0
         assert re.search(r"Rows:\s+2\b", result.stdout), result.stdout
+
+
+class TestStdoutRejectFileLocation:
+    """In stdout mode the reject file goes to the system temp directory."""
+
+    def _run(self, tmp_path, content):
+        work = tmp_path / "work"
+        tmpdir = tmp_path / "tmpdir"
+        work.mkdir()
+        tmpdir.mkdir()
+        test_csv = work / "input.csv"
+        test_csv.write_text(content)
+        result = subprocess.run(
+            [sys.executable, "-m", "csvnorm", str(test_csv)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd=work,
+            env={**os.environ, "TMPDIR": str(tmpdir)},
+        )
+        return result, work, tmpdir
+
+    def test_invalid_input_reject_in_temp_dir(self, tmp_path):
+        result, work, tmpdir = self._run(tmp_path, "a,b,c\n1,2,3\n4,5\n7,8,9\n")
+
+        assert result.returncode == 1
+        assert sorted(p.name for p in work.iterdir()) == ["input.csv"]
+        rejects = list(tmpdir.glob("csvnorm_reject_errors_*.csv"))
+        assert len(rejects) == 1
+        assert "4,5" in rejects[0].read_text()
+        # Rich may wrap a long path inside the panel: compare without layout chars
+        flat = re.sub(r"[\s│]", "", result.stderr)
+        assert rejects[0].name in flat
+
+    def test_valid_input_leaves_no_reject_file(self, tmp_path):
+        result, work, tmpdir = self._run(tmp_path, "a,b\n1,2\n")
+
+        assert result.returncode == 0
+        assert sorted(p.name for p in work.iterdir()) == ["input.csv"]
+        assert list(tmpdir.glob("csvnorm_reject_errors_*")) == []
