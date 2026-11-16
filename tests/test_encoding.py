@@ -77,6 +77,32 @@ class TestDetectEncoding:
         # All these require conversion to UTF-8
         assert needs_conversion(encoding) is True
 
+    @pytest.mark.skipif(
+        not (TEST_DIR / "latin1_semicolon.csv").exists(),
+        reason="Test fixtures not available",
+    )
+    def test_latin1_file_decodes_italian_text(self):
+        """Tied candidates (cp1250, cp1252, ...) must resolve to a Western codec."""
+        path = TEST_DIR / "latin1_semicolon.csv"
+        text = path.read_bytes().decode(detect_encoding(path))
+        assert "Città" in text
+        assert "più" in text
+        assert "caffè" in text
+
+    def test_ministry_file_decodes_italian_text(self):
+        """cp1252 has higher coherence than cp1250 here, but best() returns cp1250."""
+        path = TEST_DIR / "IMPORTAZIONI animali vivi 2025 luglio-dicembre.csv"
+        if not path.exists():
+            pytest.skip("Test fixture not available")
+        text = path.read_bytes().decode(detect_encoding(path))
+        assert "Quantità" in text
+
+    def test_short_latin1_western_text(self, tmp_path):
+        path = tmp_path / "w.csv"
+        path.write_bytes("Nom;Città\nCafé;Müller\n".encode("latin-1"))
+        text = path.read_bytes().decode(detect_encoding(path))
+        assert "Città" in text and "Café" in text and "Müller" in text
+
     def test_nonexistent_file(self):
         with pytest.raises(Exception):  # Can be ValueError or FileNotFoundError
             detect_encoding(Path("/nonexistent/file.csv"))

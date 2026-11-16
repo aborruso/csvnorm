@@ -20,6 +20,9 @@ ENCODING_ALIASES: dict[str, str] = {
 # Encodings that don't need conversion
 UTF8_ENCODINGS = frozenset({"utf-8", "ascii", "utf-8-sig"})
 
+# Preferred when charset_normalizer scores several codecs the same, in order
+WESTERN_ENCODINGS = ("cp1252", "latin_1", "iso8859_15")
+
 
 def normalize_encoding_name(encoding: str) -> str:
     """Normalize encoding name to Python codec name.
@@ -61,7 +64,17 @@ def detect_encoding(file_path: Path) -> str:
         logger.debug("charset_normalizer failed, cannot detect encoding")
         raise ValueError(f"Cannot detect encoding for: {file_path}")
 
-    encoding = best.encoding
+    # charset_normalizer's best() does not always return the most coherent
+    # candidate among those with the lowest chaos, and on a tie it picks the
+    # first one (e.g. cp1250 over cp1252 for Italian text). Pick the highest
+    # coherence among the least chaotic; on a tie prefer a Western codec.
+    least_chaotic = [m for m in result if m.chaos == best.chaos]
+    top_coherence = max(m.coherence for m in least_chaotic)
+    tied = [m.encoding for m in least_chaotic if m.coherence == top_coherence]
+    encoding = next((e for e in WESTERN_ENCODINGS if e in tied), tied[0])
+    if encoding != best.encoding:
+        logger.debug(f"Candidates {tied}: choosing {encoding} over {best.encoding}")
+
     logger.debug(f"Detected encoding: {encoding}")
 
     # Normalize the encoding name
