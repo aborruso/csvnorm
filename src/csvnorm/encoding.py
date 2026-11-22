@@ -28,9 +28,11 @@ WESTERN_ENCODINGS = ("cp1252", "latin_1", "iso8859_15")
 # Bytes read per step when converting to UTF-8
 CHUNK_SIZE = 4 * 2**20
 
-# Sampled detection: see docs/designs/speed-up-large-files.md, phase four
+# Sampled detection: see docs/designs/speed-up-large-files.md, phase four.
+# Files up to this size keep the full charset_normalizer detection (same
+# results as csvnorm 1.3.0, a few seconds at most); larger files are sampled.
+FULL_DETECTION_MAX_BYTES = 50 * 2**20
 SCAN_CHUNK = 4 * 2**20
-MAX_WINDOWS = 129  # first UTF-8 error + at most 128 high byte values
 WINDOW_HALF = 256  # bytes on each side of the target byte
 MAX_CUT_SEARCH = 64  # bytes searched outward on each side for a cut byte
 # A byte below 0x40 that is not a digit is never a later part of a character
@@ -107,46 +109,63 @@ def _detect_encoding_full(file_path: Path) -> str:
 def _window(f: BinaryIO, size: int, pos: int) -> tuple[int, int] | None:
     """Byte range around ``pos`` that starts and ends right after a cut byte.
 
-    The file start and end count as cut points. Returns None when no cut byte
-    is found within ``MAX_CUT_SEARCH`` bytes on a side.
+    Each side looks first outward, from ``WINDOW_HALF`` to ``WINDOW_HALF +
+    MAX_CUT_SEARCH`` bytes away, then inward toward ``pos`` (a smaller window).
+    The file start and end count as cut points. Returns None when a side has
+    no cut byte at all within that distance.
     """
-    lo = max(0, pos - WINDOW_HALF - MAX_CUT_SEARCH)
+    reach = WINDOW_HALF + MAX_CUT_SEARCH
+    lo = max(0, pos - reach - 1)
     f.seek(lo)
-    buf = f.read(min(size, pos + WINDOW_HALF + MAX_CUT_SEARCH + 1) - lo)
+    buf = f.read(min(size, pos + reach + 1) - lo)
 
-    left = pos - WINDOW_HALF
-    start: int | None
-    if left <= 0:
-        start = 0
+    def is_cut(k: int) -> bool:  # absolute file position k
+        return buf[k - lo] in CUT_BYTES
+
+    # Left: the window starts right after a cut byte at position k - 1
+    if pos - WINDOW_HALF <= 0:
+        start: int | None = 0
     else:
         start = None
-        for k in range(left, max(left - MAX_CUT_SEARCH, 0) - 1, -1):
-            if k == 0:
-                start = 0
-                break
-            if buf[k - 1 - lo] in CUT_BYTES:
+        outward = range(pos - WINDOW_HALF, max(pos - reach, 0) - 1, -1)
+        inward = range(pos - WINDOW_HALF + 1, pos + 1)
+        for k in (*outward, *inward):
+            if k == 0 or is_cut(k - 1):
                 start = k
                 break
         if start is None:
             return None
 
-    right = pos + WINDOW_HALF
-    end: int | None
-    if right >= size - 1:
-        end = size
+    # Right: the window ends right after a cut byte at position k
+    if pos + WINDOW_HALF >= size - 1:
+        end: int | None = size
     else:
         end = None
-        for k in range(right, min(right + MAX_CUT_SEARCH, size - 1) + 1):
+        outward = range(pos + WINDOW_HALF, min(pos + reach, size - 1) + 1)
+        inward = range(pos + WINDOW_HALF - 1, pos, -1)
+        for k in (*outward, *inward):
             if k == size - 1:
                 end = size
                 break
-            if buf[k - lo] in CUT_BYTES:
+            if is_cut(k):
                 end = k + 1
                 break
         if end is None:
             return None
     assert start is not None and end is not None
     return start, end
+
+
+def _has_7bit_escapes(f: BinaryIO) -> bool:
+    """True if an ASCII file may be ISO-2022 (ESC) or HZ (``~{``) encoded."""
+    f.seek(0)
+    tail = b""
+    while chunk := f.read(SCAN_CHUNK):
+        data = tail + chunk
+        if b"\x1b" in data or b"~{" in data:
+            return True
+        tail = chunk[-1:]
+    return False
 
 
 def _scan(file_path: Path) -> _ScanResult:
@@ -184,6 +203,8 @@ def _scan(file_path: Path) -> _ScanResult:
             except UnicodeDecodeError as e:
                 error_pos = offset - len(decoder.getstate()[0]) + e.start
         if error_pos is None:
+            if all_ascii and _has_7bit_escapes(f):
+                return _ScanResult("full", "7-bit escape sequences")
             return _ScanResult("ascii" if all_ascii and not has_bom else "utf-8")
         if has_bom:
             return _ScanResult("full", "utf-8 bom with invalid utf-8")
@@ -213,7 +234,9 @@ def _scan(file_path: Path) -> _ScanResult:
                             covered.add(value)
                             break
                         attempts += 1
-                        i = chunk.find(target, i + 1)
+                        # next try beyond this window: failures on the same
+                        # line are correlated
+                        i = chunk.find(target, i + WINDOW_HALF + MAX_CUT_SEARCH + 1)
                     if value not in covered and attempts >= MAX_ATTEMPTS:
                         return _ScanResult("full", f"no cut point for byte 0x{value:02X}")
                 offset += len(chunk)
@@ -260,11 +283,13 @@ def _prefer_western_if_same_text(encoding: str, sample: bytes) -> str:
 def detect_encoding(file_path: Path) -> str:
     """Detect the encoding of a file.
 
-    Valid UTF-8 and ASCII are recognised with a strict streaming decode. For
-    other files charset_normalizer examines a small sample with every high
-    byte value of the file, instead of decoding the whole file once per
-    candidate codec. Files with a UTF-16/32 BOM or NUL bytes use full-file
-    detection as before.
+    Files up to ``FULL_DETECTION_MAX_BYTES`` use full-file detection with
+    charset_normalizer, as before. For larger files, valid UTF-8 and ASCII
+    are recognised with a strict streaming decode; for other files
+    charset_normalizer examines a small sample with every high byte value of
+    the file, instead of decoding the whole file once per candidate codec.
+    Large files with a UTF-16/32 BOM, NUL bytes or 7-bit escape sequences use
+    full-file detection.
 
     Args:
         file_path: Path to the file to analyze.
@@ -276,6 +301,9 @@ def detect_encoding(file_path: Path) -> str:
         ValueError: If encoding cannot be detected.
     """
     logger.debug(f"Detecting encoding for: {file_path}")
+    if file_path.stat().st_size <= FULL_DETECTION_MAX_BYTES:
+        logger.debug("Encoding route: full (file below the sampling threshold)")
+        return _detect_encoding_full(file_path)
     scan = _scan(file_path)
 
     if scan.route == "sample":
@@ -339,11 +367,16 @@ def detect_and_convert(
     try:
         convert_to_utf8(input_path, output_path, encoding)
         return encoding
-    except UnicodeDecodeError:
+    except UnicodeDecodeError as error:
         logger.debug("Encoding fallback: full detection after conversion error")
+        first_error = error
+    first = encoding
     encoding = _detect_encoding_full(input_path)
     if on_detected is not None:
         on_detected(encoding)
+    if encoding == first:
+        # Same answer: converting again would fail the same way
+        raise first_error
     if needs_conversion(encoding):
         convert_to_utf8(input_path, output_path, encoding)
     return encoding

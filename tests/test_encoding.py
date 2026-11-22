@@ -249,7 +249,16 @@ WESTERN = {"cp1252", "latin-1", "iso8859-15"}
 
 
 class TestDetectEncodingSampled:
-    """Encoding detection without a full decode per candidate (phase four)."""
+    """Encoding detection without a full decode per candidate (phase four).
+
+    Synthetic files are small, so the sampling threshold is lowered to 0.
+    """
+
+    @pytest.fixture(autouse=True)
+    def sample_every_file(self, monkeypatch):
+        import csvnorm.encoding as enc
+
+        monkeypatch.setattr(enc, "FULL_DETECTION_MAX_BYTES", 0)
 
     def test_sparse_byte_in_the_middle(self, make_csv, tmp_path):
         src = make_csv(200_000, insert={100_000: b"caf\xe9"})
@@ -358,3 +367,65 @@ class TestDetectEncodingSampled:
         rows = "1,Città di Castello\n2,Forlì\n3,Cantù\n4,Agliè\n5,Rorà\n6,perché sì\n"
         body = b"id,nome\n" + b"9,x\n" * 50_000 + rows.encode("cp1252")
         assert detect_encoding(make_csv(body=body)) == "cp1252"
+
+
+class TestDetectionRoutes:
+    """Size threshold, 7-bit encodings, window edges, fallback."""
+
+    def test_files_below_threshold_use_full_detection(self, make_csv, caplog):
+        caplog.set_level(logging.DEBUG, logger="csvnorm")
+        src = make_csv(200_000, insert={100_000: b"caf\xe9"})
+        from csvnorm.encoding import _detect_encoding_full
+
+        assert detect_encoding(src) == _detect_encoding_full(src)
+        assert "below the sampling threshold" in caplog.text
+
+    @pytest.mark.parametrize("codec", ["iso2022_jp", "iso2022_kr", "hz"])
+    def test_7bit_escape_encodings_go_to_full_detection(self, make_csv, monkeypatch, codec):
+        import csvnorm.encoding as enc
+
+        monkeypatch.setattr(enc, "FULL_DETECTION_MAX_BYTES", 0)
+        text = {"iso2022_jp": "名前,東京\n", "iso2022_kr": "이름,서울\n", "hz": "名字,北京\n"}[codec]
+        src = make_csv(body=text.encode(codec))
+        assert enc._scan(src).route == "full"
+
+    def test_window_left_search_reads_the_right_byte(self, tmp_path):
+        from csvnorm.encoding import MAX_CUT_SEARCH, WINDOW_HALF, _window
+
+        data = bytearray(b"A" * 2000)
+        pos = 1000
+        data[pos + WINDOW_HALF + MAX_CUT_SEARCH] = ord(",")  # cut on the right only
+        path = tmp_path / "w.bin"
+        path.write_bytes(bytes(data))
+        with open(path, "rb") as f:
+            assert _window(f, len(data), pos) is None
+        data[pos - WINDOW_HALF - MAX_CUT_SEARCH - 1] = ord(",")  # farthest left cut
+        path.write_bytes(bytes(data))
+        with open(path, "rb") as f:
+            assert _window(f, len(data), pos) == (pos - WINDOW_HALF - MAX_CUT_SEARCH, pos + WINDOW_HALF + MAX_CUT_SEARCH + 1)
+
+    def test_long_cjk_fields_stay_on_the_sample_route(self, make_csv, monkeypatch):
+        import csvnorm.encoding as enc
+
+        monkeypatch.setattr(enc, "FULL_DETECTION_MAX_BYTES", 0)
+        field = "東京都大阪府名古屋市" * 20  # 200 characters, no cut byte inside
+        body = ("名前,住所\n" + "".join(f"{i},{field}\n" for i in range(5000))).encode("shift_jis")
+        assert enc._scan(make_csv(body=body)).route == "sample"
+
+    def test_fallback_does_not_repeat_the_same_conversion(self, make_csv, tmp_path, monkeypatch):
+        import csvnorm.encoding as enc
+
+        src = make_csv(10, insert={5: b"\x81"})
+        calls = []
+        real = enc.convert_to_utf8
+
+        def counting(*args):
+            calls.append(args)
+            return real(*args)
+
+        monkeypatch.setattr(enc, "detect_encoding", lambda path: "cp1252")
+        monkeypatch.setattr(enc, "_detect_encoding_full", lambda path: "cp1252")
+        monkeypatch.setattr(enc, "convert_to_utf8", counting)
+        with pytest.raises(UnicodeDecodeError):
+            enc.detect_and_convert(src, tmp_path / "out.csv")
+        assert len(calls) == 1
