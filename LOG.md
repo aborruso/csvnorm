@@ -1,6 +1,8 @@
 # Changelog
 
-## 2026-11-22 (perf/large-files)
+## 2026-11-22 (v1.4.0, perf/large-files)
+
+- release 1.4.0: 826 MB cp1252 file from 162.8 s to 47.8 s median (3.4x), same output; header fix with any delimiter; CR/CRLF kept in non-UTF-8 files; staged output with atomic rename and disk-full panel; sampled encoding detection above 50 MiB (known limit: non-Western single-byte text there can come out as cp1252); `normalize_csv(crlf=False)`. Release notes in `tmp/release_notes_v1.4.0.md`
 
 - plan: speed up large files, design in `docs/designs/speed-up-large-files.md`, OpenSpec change `speed-up-large-files`; `preserve-crlf-line-endings` archived
 - test: golden cases (`tests/test_golden.py`, 19 cases), hand-checked encoding expectations (`tests/test_encoding_equivalence.py`), `make_csv` fixture, `scripts/bench_large.py`; `duckdb>=2.0.0,<3`
