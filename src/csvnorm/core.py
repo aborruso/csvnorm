@@ -17,7 +17,7 @@ import duckdb
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, TaskID
 
-from csvnorm.encoding import convert_to_utf8, detect_encoding, needs_conversion
+from csvnorm.encoding import detect_and_convert, needs_conversion
 from csvnorm.mojibake import repair_file
 from csvnorm.ui import (
     show_error_panel,
@@ -248,19 +248,22 @@ def _handle_local_encoding(
 ) -> tuple[Union[str, Path], str]:
     """Detect encoding and convert to UTF-8 if needed."""
     progress.update(task, description="[cyan]Detecting encoding...")
-    encoding = detect_encoding(file_input_path)
-    logger.debug(f"Detected encoding: {encoding}")
-    progress.update(
-        task, description=f"[green]✓[/green] Detected encoding: {encoding}"
-    )
+
+    def on_detected(encoding: str) -> None:
+        logger.debug(f"Detected encoding: {encoding}")
+        progress.update(
+            task, description=f"[green]✓[/green] Detected encoding: {encoding}"
+        )
+        if needs_conversion(encoding):
+            progress.update(
+                task,
+                description=f"[cyan]Converting from {encoding} to UTF-8...",
+            )
+
+    encoding = detect_and_convert(file_input_path, temp_utf8_file, on_detected)
 
     working_file: Union[str, Path] = file_input_path
     if needs_conversion(encoding):
-        progress.update(
-            task,
-            description=f"[cyan]Converting from {encoding} to UTF-8...",
-        )
-        convert_to_utf8(file_input_path, temp_utf8_file, encoding)
         working_file = temp_utf8_file
         temp_files.append(temp_utf8_file)
         progress.update(task, description="[green]✓[/green] Converted to UTF-8")

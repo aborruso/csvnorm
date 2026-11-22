@@ -567,7 +567,9 @@ class TestDiskWarningEdgeCases:
     def test_decode_error_names_the_source_encoding(self, tmp_path, capsys):
         src = tmp_path / "in.csv"
         src.write_bytes(b"a,b\n1,\x81\n")
-        with patch.object(core_module, "detect_encoding", return_value="cp1252"):
+        with patch("csvnorm.encoding.detect_encoding", return_value="cp1252"), patch(
+            "csvnorm.encoding._detect_encoding_full", return_value="cp1252"
+        ):
             result = process_csv(str(src), tmp_path / "out.csv")
         assert result == 1
         err = capsys.readouterr().err

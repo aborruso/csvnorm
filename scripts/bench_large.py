@@ -16,7 +16,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from csvnorm.encoding import convert_to_utf8, detect_encoding, needs_conversion
+from csvnorm.encoding import detect_and_convert, detect_encoding, needs_conversion
 from csvnorm.utils import get_column_count, get_row_count, has_crlf_line_endings
 from csvnorm.validation import normalize_csv, validate_csv
 
@@ -55,15 +55,15 @@ def stage_times(src: Path, work: Path) -> None:
         return result
 
     crlf = has_crlf_line_endings(src)
-    encoding = timed("detect_encoding", lambda: detect_encoding(src))
-    working = src
-    if needs_conversion(encoding):
-        working = work / "utf8.csv"
-        timed("convert_to_utf8", lambda: convert_to_utf8(src, working, encoding))
+    timed("detect_encoding", lambda: detect_encoding(src))
+    utf8 = work / "utf8.csv"
+    encoding = timed("detect_and_convert", lambda: detect_and_convert(src, utf8))
+    working = utf8 if needs_conversion(encoding) else src
     timed("validate_csv", lambda: validate_csv(working, work / "rejects.csv"))
     out = work / "stage_out.csv"
     timed("normalize_csv", lambda: normalize_csv(
         input_path=working, output_path=out, delimiter=",", normalize_names=True,
+        crlf=crlf,
     ))
     if working != src:
         working.unlink()

@@ -1,5 +1,6 @@
 """Tests for encoding module."""
 
+import logging
 import tempfile
 from pathlib import Path
 
@@ -242,3 +243,118 @@ class TestConvertToUTF8Chunked:
         finally:
             tracemalloc.stop()
         assert peak < 24 * 2**20
+
+
+WESTERN = {"cp1252", "latin-1", "iso8859-15"}
+
+
+class TestDetectEncodingSampled:
+    """Encoding detection without a full decode per candidate (phase four)."""
+
+    def test_sparse_byte_in_the_middle(self, make_csv, tmp_path):
+        src = make_csv(200_000, insert={100_000: b"caf\xe9"})
+        enc = detect_encoding(src)
+        assert enc in WESTERN
+        out = tmp_path / "out.csv"
+        convert_to_utf8(src, out, enc)
+        assert "café" in out.read_text(encoding="utf-8")
+
+    def test_cuj2_byte_only_in_last_row_without_final_newline(self, make_csv):
+        src = make_csv(200_000, insert={200_000: b"caf\xe9"})
+        src.write_bytes(src.read_bytes().rstrip(b"\n"))
+        assert detect_encoding(src) in WESTERN
+
+    def test_sample_that_looks_like_utf8_is_not_utf8(self, make_csv, tmp_path):
+        # 0x92 first appears inside a valid UTF-8 sequence, later alone (cp1252 ’)
+        body = b"a,b\n1,caf\xc3\xa9 \xe2\x80\x99\n" + b"2,x\n" * 1000 + b"3,it\x92s\n"
+        src = make_csv(body=body)
+        enc = detect_encoding(src)
+        assert enc != "utf-8"
+        out = tmp_path / "out.csv"
+        convert_to_utf8(src, out, enc)
+
+    def test_byte_0x81_excludes_cp1252(self, make_csv):
+        src = make_csv(1000, insert={10: b"caf\xe9", 500: b"x\x81y"})
+        assert detect_encoding(src) != "cp1252"
+
+    def test_binary_file_goes_to_full_detection(self, caplog):
+        caplog.set_level(logging.DEBUG, logger="csvnorm")
+        with pytest.raises(ValueError, match="Cannot detect encoding"):
+            detect_encoding(TEST_DIR / "binary_file.bin")
+        assert "Encoding route: full (nul byte)" in caplog.text
+
+    @pytest.mark.parametrize("bom", [b"\xff\xfe", b"\xfe\xff", b"\xff\xfe\x00\x00", b"\x00\x00\xfe\xff"])
+    def test_utf16_utf32_bom_goes_to_full_detection(self, make_csv, caplog, bom):
+        caplog.set_level(logging.DEBUG, logger="csvnorm")
+        src = make_csv(body=bom + "a,b\n1,città\n".encode("utf-16-le"))
+        try:
+            detect_encoding(src)
+        except ValueError:
+            pass
+        assert "Encoding route: full (utf-16/32 bom)" in caplog.text
+
+    def test_utf8_bom_and_empty_file(self, make_csv):
+        assert detect_encoding(make_csv(body=b"\xef\xbb\xbfa,b\n1,citt\xc3\xa0\n")) == "utf-8"
+        assert detect_encoding(make_csv(body=b"")) == "utf-8"
+
+    def test_shift_jis_windows_never_split_characters(self, make_csv):
+        from csvnorm.encoding import _scan
+
+        body = ("名前,住所\n" + "東京都,大阪府の住所\n" * 60_000).encode("shift_jis")
+        src = make_csv(body=body)
+        result = _scan(src)
+        assert result.route == "sample"
+        for window in result.sample.split(b"\n"):
+            window.decode("shift_jis")
+        assert detect_encoding(src) in {"shift-jis", "cp932"}
+
+    def test_scan_is_deterministic(self, make_csv):
+        from csvnorm.encoding import _scan
+
+        src = make_csv(50_000, insert={7: b"caf\xe9", 40_000: b"na\xefve"})
+        assert _scan(src) == _scan(src)
+
+    def test_whole_sample_is_examined(self):
+        from charset_normalizer import from_bytes
+
+        sample = b"\xe9" * 3000 + b"\x81" + b"\xe9" * 1095
+        results = from_bytes(sample, steps=1, chunk_size=len(sample))
+        assert "cp1252" not in {m.encoding for m in results}
+
+    def test_fallback_to_full_detection_after_conversion_error(
+        self, make_csv, tmp_path, monkeypatch
+    ):
+        import csvnorm.encoding as enc
+
+        src = make_csv(100, insert={50: b"caf\xe9 \xfd"})
+        calls = []
+        real_full = enc._detect_encoding_full
+
+        def full(path):
+            calls.append(path)
+            return real_full(path)
+
+        monkeypatch.setattr(enc, "detect_encoding", lambda path: "shift-jis")
+        monkeypatch.setattr(enc, "_detect_encoding_full", full)
+        out = tmp_path / "out.csv"
+        used = enc.detect_and_convert(src, out)
+        assert len(calls) == 1
+        assert used != "shift-jis"
+        assert "café" in out.read_text(encoding="utf-8")
+
+    def test_route_messages(self, make_csv, caplog):
+        caplog.set_level(logging.DEBUG, logger="csvnorm")
+        detect_encoding(make_csv(10))
+        detect_encoding(make_csv(body="città\n".encode("utf-8")))
+        detect_encoding(make_csv(100, insert={5: b"caf\xe9"}))
+        assert "Encoding route: ascii" in caplog.text
+        assert "Encoding route: utf-8" in caplog.text
+        assert "Encoding route: sample (" in caplog.text
+
+    def test_italian_with_grave_accents_is_cp1252_not_cp1258(self, make_csv):
+        # charset_normalizer alone prefers cp1258 here (ì and ò become
+        # combining marks); the sample route prefers a Western codec among
+        # the least chaotic candidates.
+        rows = "1,Città di Castello\n2,Forlì\n3,Cantù\n4,Agliè\n5,Rorà\n6,perché sì\n"
+        body = b"id,nome\n" + b"9,x\n" * 50_000 + rows.encode("cp1252")
+        assert detect_encoding(make_csv(body=body)) == "cp1252"
