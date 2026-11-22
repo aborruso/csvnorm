@@ -1,0 +1,159 @@
+# Golden cases: csvnorm run as a subprocess, output compared byte for byte.
+# Expected files in expected/ were generated with csvnorm 1.3.0 on Linux
+# (2026-11-22), except cases with xfail_until, written by hand with the
+# behavior expected after that phase of docs/designs/speed-up-large-files.md.
+
+[[case]]
+name = "utf8_basic"
+input = "test/utf8_basic.csv"
+args = []
+exit_code = 0
+output = true
+rejects = false
+
+[[case]]
+name = "latin1_semicolon"
+input = "test/latin1_semicolon.csv"
+args = []
+exit_code = 0
+output = true
+rejects = false
+
+[[case]]
+name = "windows1252_quotes"
+input = "test/windows1252_quotes.csv"
+args = []
+exit_code = 0
+output = true
+rejects = false
+
+[[case]]
+name = "utf8_sig_bom"
+input = "test/utf8_sig_bom.csv"
+args = []
+exit_code = 0
+output = true
+rejects = false
+
+[[case]]
+name = "pipe_mixed_headers"
+input = "test/pipe_mixed_headers.csv"
+args = []
+exit_code = 0
+output = true
+rejects = false
+
+[[case]]
+name = "malformed_rows"
+input = "test/malformed_rows.csv"
+args = []
+exit_code = 1
+output = true
+rejects = true
+
+[[case]]
+name = "crlf_with_embedded_lf"
+input = "test/crlf_with_embedded_lf.csv"
+args = []
+exit_code = 0
+output = true
+rejects = false
+
+[[case]]
+name = "empty_file"
+input = "test/empty_file.csv"
+args = []
+exit_code = 0
+output = true
+rejects = false
+
+[[case]]
+name = "header_only"
+input = "tests/fixtures/golden/inputs/header_only.csv"
+args = []
+exit_code = 0
+output = true
+rejects = false
+
+[[case]]
+name = "keywords_comma"
+input = "tests/fixtures/golden/inputs/keywords_comma.csv"
+args = []
+exit_code = 0
+output = true
+rejects = false
+
+[[case]]
+name = "keywords_semicolon"
+input = "tests/fixtures/golden/inputs/keywords_comma.csv"
+args = ["-d", ";"]
+exit_code = 0
+output = true
+rejects = false
+xfail_until = 2
+
+[[case]]
+name = "delim_pipe"
+input = "test/utf8_basic.csv"
+args = ["-d", "|"]
+exit_code = 0
+output = true
+rejects = false
+
+[[case]]
+name = "delim_tab"
+input = "test/utf8_basic.csv"
+args = ["-d", "\t"]
+exit_code = 0
+output = true
+rejects = false
+
+[[case]]
+name = "cp1252_cr_in_cell"
+input = "tests/fixtures/golden/inputs/cp1252_cr_in_cell.csv"
+args = []
+exit_code = 0
+output = true
+rejects = false
+xfail_until = 3
+
+[[case]]
+name = "latin1_crlf_in_cell"
+input = "tests/fixtures/golden/inputs/latin1_crlf_in_cell.csv"
+args = []
+exit_code = 0
+output = true
+rejects = false
+xfail_until = 3
+
+[[case]]
+name = "ascii_rrn"
+input = "tests/fixtures/golden/inputs/ascii_rrn.csv"
+args = []
+exit_code = 0
+output = true
+rejects = false
+
+[[case]]
+name = "cp1252_rrn"
+input = "tests/fixtures/golden/inputs/cp1252_rrn.csv"
+args = []
+exit_code = 0
+output = true
+rejects = false
+
+[[case]]
+name = "cp1252_cr_only"
+input = "tests/fixtures/golden/inputs/cp1252_cr_only.csv"
+args = []
+exit_code = 0
+output = true
+rejects = false
+
+[[case]]
+name = "cp1252_mixed_endings"
+input = "tests/fixtures/golden/inputs/cp1252_mixed_endings.csv"
+args = []
+exit_code = 0
+output = true
+rejects = false

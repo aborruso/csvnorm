@@ -1,0 +1,115 @@
+"""Benchmark csvnorm on a large CSV.
+
+Usage: uv run python scripts/bench_large.py <file.csv> [--runs 3]
+
+Prints the median wall time of the CLI (after one warm-up run), the time of
+each pipeline stage measured around the library calls, and the peak RSS.
+All outputs go to a temporary directory that is removed at the end.
+"""
+
+import argparse
+import shutil
+import statistics
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+from csvnorm.encoding import convert_to_utf8, detect_encoding, needs_conversion
+from csvnorm.utils import get_column_count, get_row_count, has_crlf_line_endings
+from csvnorm.validation import normalize_csv, validate_csv
+
+
+def check_environment(src: Path, tmp: Path) -> None:
+    size = src.stat().st_size
+    free = shutil.disk_usage(tmp).free
+    if free < 3 * size:
+        sys.exit(f"Not enough free space in {tmp}: {free >> 20} MiB, need {3 * size >> 20} MiB")
+    fstype = subprocess.run(
+        ["findmnt", "-n", "-o", "FSTYPE", "-T", str(tmp)],
+        capture_output=True, text=True,
+    ).stdout.strip()
+    if fstype == "tmpfs":
+        sys.exit(f"{tmp} is on tmpfs: set TMPDIR to a directory on disk")
+    print(f"temp dir: {tmp} ({fstype or 'unknown fs'}), free {free >> 20} MiB")
+
+
+def cli_run(src: Path, out: Path) -> float:
+    start = time.perf_counter()
+    result = subprocess.run(
+        ["uv", "run", "csvnorm", str(src), "-o", str(out), "--force"],
+        check=False, capture_output=True,
+    )
+    elapsed = time.perf_counter() - start
+    if result.returncode not in (0, 1):
+        sys.exit(f"csvnorm failed with exit {result.returncode}:\n{result.stderr.decode()}")
+    return elapsed
+
+
+def stage_times(src: Path, work: Path) -> None:
+    def timed(name, fn):
+        start = time.perf_counter()
+        result = fn()
+        print(f"  {name:22s} {time.perf_counter() - start:7.1f} s", flush=True)
+        return result
+
+    crlf = has_crlf_line_endings(src)
+    encoding = timed("detect_encoding", lambda: detect_encoding(src))
+    working = src
+    if needs_conversion(encoding):
+        working = work / "utf8.csv"
+        timed("convert_to_utf8", lambda: convert_to_utf8(src, working, encoding))
+    timed("validate_csv", lambda: validate_csv(working, work / "rejects.csv"))
+    out = work / "stage_out.csv"
+    timed("normalize_csv", lambda: normalize_csv(
+        input_path=working, output_path=out, delimiter=",", normalize_names=True,
+    ))
+    if working != src:
+        working.unlink()
+    timed("counts", lambda: (get_row_count(out), get_column_count(out)))
+    print(f"  encoding: {encoding}, input CRLF: {crlf}")
+
+
+def peak_rss(src: Path, out: Path) -> None:
+    time_bin = shutil.which("time") or "/usr/bin/time"
+    if not Path(time_bin).exists():
+        print("peak RSS: /usr/bin/time not available")
+        return
+    result = subprocess.run(
+        [time_bin, "-v", "uv", "run", "csvnorm", str(src), "-o", str(out), "--force"],
+        capture_output=True, text=True,
+    )
+    for line in result.stderr.splitlines():
+        if "Maximum resident set size" in line:
+            print(f"peak RSS: {int(line.split(':')[1]) >> 10} MiB")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("file", type=Path)
+    parser.add_argument("--runs", type=int, default=3)
+    args = parser.parse_args()
+
+    tmp = Path(tempfile.gettempdir())
+    check_environment(args.file, tmp)
+    work = Path(tempfile.mkdtemp(prefix="csvnorm_bench_"))
+    try:
+        out = work / "out.csv"
+        print("warm-up run...", flush=True)
+        cli_run(args.file, out)
+        times = []
+        for i in range(args.runs):
+            times.append(cli_run(args.file, out))
+            print(f"run {i + 1}: {times[-1]:.1f} s", flush=True)
+        print(f"median: {statistics.median(times):.1f} s")
+        out.unlink(missing_ok=True)
+        print("stages:")
+        stage_times(args.file, work)
+        peak_rss(args.file, out)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+if __name__ == "__main__":
+    main()
