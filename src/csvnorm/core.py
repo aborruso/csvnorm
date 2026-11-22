@@ -36,7 +36,7 @@ from csvnorm.utils import (
     validate_delimiter,
     validate_url,
 )
-from csvnorm.validation import convert_row_endings_to_crlf, normalize_csv, validate_csv
+from csvnorm.validation import normalize_csv, validate_csv
 
 logger = logging.getLogger("csvnorm")
 console = Console()
@@ -321,6 +321,8 @@ def _normalize_and_refresh_errors(
     reject_file: Path,
     reject_count: int,
     error_types: list[str],
+    *,
+    crlf: bool = False,
 ) -> tuple[Optional[dict[str, Union[str, int]]], int, list[str], bool]:
     """Normalize CSV and update reject counts if fallback differs."""
     used_fallback = normalize_csv(
@@ -332,6 +334,7 @@ def _normalize_and_refresh_errors(
         skip_rows=skip_rows,
         fallback_config=fallback_config,
         reject_file=reject_file,
+        crlf=crlf,
     )
 
     has_validation_errors = reject_count > 1
@@ -788,6 +791,7 @@ def process_csv(
                     working_file, normalized_file, delimiter, keep_names,
                     is_remote, skip_rows, fallback_config, reject_file,
                     reject_count, error_types,
+                    crlf=input_has_crlf and not use_stdout,
                 )
             except duckdb.Error as e:
                 progress.stop()
@@ -808,9 +812,6 @@ def process_csv(
                     reject_count, error_types, reject_file, Console(stderr=True)
                 )
                 return 1
-
-            if input_has_crlf and not use_stdout:
-                convert_row_endings_to_crlf(normalized_file)
 
             if not use_stdout:
                 shutil.move(str(normalized_file), str(actual_output_file))

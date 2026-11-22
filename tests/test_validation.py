@@ -11,7 +11,6 @@ from csvnorm.validation import (
     _count_lines,
     _detect_header_anomaly,
     _ensure_zipfs_extension,
-    _fix_duckdb_keyword_prefix,
     _get_error_types,
     _try_read_csv_with_config,
     normalize_csv,
@@ -149,50 +148,6 @@ class TestGetErrorTypes:
             reject_file.write_bytes(b"\xff\xfe\xfa")
             result = _get_error_types(reject_file)
             assert result == []
-
-
-class TestFixDuckdbKeywordPrefix:
-    """Tests for _fix_duckdb_keyword_prefix internal function."""
-
-    def test_removes_keyword_prefix_from_header(self):
-        """Test removing underscore prefix from DuckDB SQL keywords only."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            test_file = Path(tmpdir) / "test.csv"
-            test_file.write_text("_value,_location,_data,bar\n1,2,3,4\n")
-
-            _fix_duckdb_keyword_prefix(test_file)
-
-            with open(test_file, "r") as f:
-                header = f.readline().strip()
-                data = f.readline().strip()
-
-            assert header == "value,location,data,bar"
-            assert data == "1,2,3,4"
-
-    def test_preserves_non_keyword_underscore_columns(self):
-        """Test that non-keyword columns like _id are preserved."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            test_file = Path(tmpdir) / "test.csv"
-            test_file.write_text("_id,_value,_source,_order\n1,2,3,4\n")
-
-            _fix_duckdb_keyword_prefix(test_file)
-
-            with open(test_file, "r") as f:
-                header = f.readline().strip()
-                data = f.readline().strip()
-
-            # _id and _source are NOT DuckDB keywords -> preserved
-            # _value and _order ARE DuckDB keywords -> stripped
-            assert header == "_id,value,_source,order"
-            assert data == "1,2,3,4"
-
-    def test_empty_file_no_change(self):
-        """Test that empty file is handled gracefully."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            test_file = Path(tmpdir) / "empty.csv"
-            test_file.touch()
-            _fix_duckdb_keyword_prefix(test_file)
-            assert test_file.read_text() == ""
 
 
 class TestDetectHeaderAnomaly:
@@ -372,39 +327,61 @@ class TestNormalizeCsv:
         assert result == {"delim": ";", "skip": 1}
 
 
-class TestConvertRowEndingsToCrlf:
-    """Tests for convert_row_endings_to_crlf function."""
+class TestNormalizeCsvHeaderAndLineEndings:
+    """Header keyword fix and CRLF rows written by DuckDB during the COPY.
 
-    def test_lf_row_terminators_become_crlf(self, tmp_path):
-        from csvnorm.validation import convert_row_endings_to_crlf
-        f = tmp_path / "out.csv"
-        f.write_bytes(b"a,b\nc,d\n")
-        convert_row_endings_to_crlf(f)
-        assert f.read_bytes() == b"a,b\r\nc,d\r\n"
+    Expected outputs with the comma delimiter are the 1.3.0 ones (2026-11-22).
+    """
 
-    def test_in_cell_lf_preserved(self, tmp_path):
-        from csvnorm.validation import convert_row_endings_to_crlf
-        f = tmp_path / "out.csv"
-        f.write_bytes(b'a,b\n1,"in\ncell"\n')
-        convert_row_endings_to_crlf(f)
-        result = f.read_bytes()
-        assert result == b'a,b\r\n1,"in\ncell"\r\n'
+    def _run(self, tmp_path, data: bytes, **kwargs) -> bytes:
+        src = tmp_path / "in.csv"
+        src.write_bytes(data)
+        out = tmp_path / "out.csv"
+        normalize_csv(src, out, **kwargs)
+        return out.read_bytes()
 
-    def test_quoted_escaped_quote_preserves_state(self, tmp_path):
-        from csvnorm.validation import convert_row_endings_to_crlf
-        f = tmp_path / "out.csv"
-        # Field with embedded "" (escaped quote) and in-cell \n
-        f.write_bytes(b'a\n"say ""hi""\nbye"\n')
-        convert_row_endings_to_crlf(f)
-        result = f.read_bytes()
-        assert result == b'a\r\n"say ""hi""\nbye"\r\n'
+    def test_keywords_lose_duckdb_prefix(self, tmp_path):
+        out = self._run(tmp_path, b"select,value,order,bar\n1,2,3,4\n")
+        assert out == b"select,value,order,bar\n1,2,3,4\n"
 
-    def test_already_crlf_becomes_double_cr(self, tmp_path):
-        # CRLF input: \r\n → the \n is outside quotes, becomes \r\r\n. Not a realistic input.
-        # This tests the function doesn't crash; real CRLF inputs go through DuckDB first.
-        from csvnorm.validation import convert_row_endings_to_crlf
-        f = tmp_path / "out.csv"
-        f.write_bytes(b"a,b\r\nc,d\r\n")
-        convert_row_endings_to_crlf(f)
-        # \r is passed through, \n → \r\n → result \r\r\n
-        assert f.read_bytes() == b"a,b\r\r\nc,d\r\r\n"
+    def test_underscore_user_columns_kept(self, tmp_path):
+        # _id and _source are not keywords; a user column _value is
+        # indistinguishable from DuckDB's prefix and becomes value, as today.
+        out = self._run(tmp_path, b"_id,_source,_value\n1,2,3\n")
+        assert out == b"_id,_source,value\n1,2,3\n"
+
+    def test_duplicate_keyword_column_and_order(self, tmp_path):
+        out = self._run(tmp_path, b"select,_id,From,a b,_select\n1,2,3,4,5\n")
+        assert out == b"select,_id,from,a_b,_select_1\n1,2,3,4,5\n"
+
+    def test_empty_file(self, tmp_path):
+        assert self._run(tmp_path, b"") == b"column0\n"
+
+    def test_escaped_quotes_inside_field(self, tmp_path):
+        out = self._run(tmp_path, b'a,b\n1,"say ""hi"""\n')
+        assert out == b'a,b\n1,"say ""hi"""\n'
+
+    @pytest.mark.parametrize("delim", [";", "|", "\t"])
+    def test_keyword_fix_with_any_delimiter(self, tmp_path, delim):
+        out = self._run(
+            tmp_path, b"select,_id,From,a b,_select\n1,2,3,4,5\n", delimiter=delim
+        )
+        d = delim.encode()
+        header = d.join([b"select", b"_id", b"from", b"a_b", b"_select_1"])
+        assert out == header + b"\n" + d.join(b"12345"[i:i + 1] for i in range(5)) + b"\n"
+
+    def test_crlf_rows_keep_in_cell_lf(self, tmp_path):
+        out = self._run(tmp_path, b'a,b\n1,"in\ncell"\n2,x\n', crlf=True)
+        assert out == b'a,b\r\n1,"in\ncell"\r\n2,x\r\n'
+
+    def test_crlf_rows_keep_in_cell_crlf(self, tmp_path):
+        out = self._run(tmp_path, b'a,b\r\n1,"in\r\ncell"\r\n', crlf=True)
+        assert out == b'a,b\r\n1,"in\r\ncell"\r\n'
+
+    def test_lf_rows_by_default(self, tmp_path):
+        out = self._run(tmp_path, b'a,b\n1,"in\ncell"\n2,x\n')
+        assert out == b'a,b\n1,"in\ncell"\n2,x\n'
+
+    def test_keep_names_selects_all_columns_as_is(self, tmp_path):
+        out = self._run(tmp_path, b"Select,My Value\n1,2\n", normalize_names=False)
+        assert out == b"Select,My Value\n1,2\n"

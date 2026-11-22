@@ -27,6 +27,7 @@ def run_case(case: dict, out_dir: Path) -> subprocess.CompletedProcess:
         ],
         cwd=out_dir,
         capture_output=True,
+        check=False,
     )
 
 

@@ -712,3 +712,21 @@ class TestStdinInput:
             )
             assert result == 0
             assert output_file.exists()
+
+
+def test_normalize_and_refresh_errors_passes_crlf(monkeypatch, tmp_path):
+    """The crlf flag reaches normalize_csv."""
+    from csvnorm import core
+
+    seen = {}
+
+    def fake_normalize_csv(**kwargs):
+        seen.update(kwargs)
+        return None
+
+    monkeypatch.setattr(core, "normalize_csv", fake_normalize_csv)
+    core._normalize_and_refresh_errors(
+        tmp_path / "in.csv", tmp_path / "out.csv", ",", False, False, 0,
+        None, tmp_path / "rejects.csv", 0, [], crlf=True,
+    )
+    assert seen["crlf"] is True

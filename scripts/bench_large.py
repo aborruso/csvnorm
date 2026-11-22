@@ -28,7 +28,7 @@ def check_environment(src: Path, tmp: Path) -> None:
         sys.exit(f"Not enough free space in {tmp}: {free >> 20} MiB, need {3 * size >> 20} MiB")
     fstype = subprocess.run(
         ["findmnt", "-n", "-o", "FSTYPE", "-T", str(tmp)],
-        capture_output=True, text=True,
+        capture_output=True, text=True, check=False,
     ).stdout.strip()
     if fstype == "tmpfs":
         sys.exit(f"{tmp} is on tmpfs: set TMPDIR to a directory on disk")

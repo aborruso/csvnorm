@@ -90,7 +90,6 @@ args = ["-d", ";"]
 exit_code = 0
 output = true
 rejects = false
-xfail_until = 2
 
 [[case]]
 name = "delim_pipe"

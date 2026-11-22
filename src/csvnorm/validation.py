@@ -31,7 +31,8 @@ FALLBACK_CONFIGS: list[ConfigDict] = [
 COMMON_DELIMITERS: list[str] = [",", ";", "|", "\t"]
 
 # SQL keywords that DuckDB prefixes with underscore when using normalize_names=true.
-# Only these are stripped by _fix_duckdb_keyword_prefix; user columns like _id are kept.
+# DuckDB keywords whose `_` prefix is removed in the COPY select list; user
+# columns like _id are kept.
 _DUCKDB_KEYWORD_SET: frozenset[str] = frozenset({
     "absolute", "action", "all", "alter", "and", "any", "as", "asc",
     "cascade", "case", "check", "column", "constraint", "create", "cross",
@@ -45,6 +46,30 @@ _DUCKDB_KEYWORD_SET: frozenset[str] = frozenset({
     "select", "set", "start", "table", "then", "type", "union", "unique",
     "update", "user", "value", "when", "where", "with", "year",
 })
+
+
+def _select_list(normalize_names: bool) -> str:
+    """Select list for the normalization COPY.
+
+    With normalized names, a single COLUMNS expression renames the columns that
+    DuckDB prefixed with ``_`` because they are SQL keywords (``_select`` ->
+    ``select``) and keeps every other column, in file order. It works on column
+    names, so the output delimiter does not matter.
+    """
+    if not normalize_names:
+        return "*"
+    keywords = "|".join(re.escape(k) for k in sorted(_DUCKDB_KEYWORD_SET))
+    return rf"COLUMNS('^(?:_({keywords})|(.*))$') AS '\1\2'"
+
+
+def _copy_options(delimiter: str, crlf: bool) -> str:
+    """COPY ... TO options: CSV with header, output delimiter, row terminator."""
+    opts = "header true, format csv"
+    if delimiter != ",":
+        opts += f", delimiter '{delimiter}'"
+    if crlf:
+        opts += r", new_line '\r\n'"
+    return opts
 
 
 def _needs_zipfs(file_path: Union[Path, str]) -> bool:
@@ -282,6 +307,7 @@ def normalize_csv(
     skip_rows: int = 0,
     fallback_config: Optional[ConfigDict] = None,
     reject_file: Optional[Path] = None,
+    crlf: bool = False,
 ) -> Optional[ConfigDict]:
     """Normalize CSV file using DuckDB.
 
@@ -294,6 +320,7 @@ def normalize_csv(
         skip_rows: Number of rows to skip at the beginning of the file (user-provided).
         fallback_config: Optional fallback configuration from validate_csv.
         reject_file: Optional path to write rejected rows (for fallback mode).
+        crlf: If True, rows end with CRLF in the output (in-cell newlines kept).
 
     Returns:
         Fallback config used if different from input, None otherwise.
@@ -345,16 +372,14 @@ def normalize_csv(
         if fallback_config and fallback_config.get("strict_mode") is False:
             read_opts += ", strict_mode=false"
 
-        # Build copy options
-        copy_opts = "header true, format csv"
-        if delimiter != ",":
-            copy_opts += f", delimiter '{delimiter}'"
+        copy_opts = _copy_options(delimiter, crlf)
+        select_list = _select_list(normalize_names)
 
         # Try to normalize with current config
         try:
             query = f"""
                 COPY (
-                    SELECT * FROM read_csv('{_sql_escape(input_path)}', {read_opts})
+                    SELECT {select_list} FROM read_csv('{_sql_escape(input_path)}', {read_opts})
                 ) TO '{_sql_escape(output_path)}' ({copy_opts})
             """
 
@@ -404,7 +429,7 @@ def normalize_csv(
 
                         query = f"""
                             COPY (
-                                SELECT * FROM read_csv('{_sql_escape(input_path)}', {read_opts})
+                                SELECT {select_list} FROM read_csv('{_sql_escape(input_path)}', {read_opts})
                             ) TO '{_sql_escape(output_path)}' ({copy_opts})
                         """
 
@@ -426,7 +451,7 @@ def normalize_csv(
                         read_opts_strict = f"{read_opts}, strict_mode=false"
                         query = f"""
                             COPY (
-                                SELECT * FROM read_csv('{_sql_escape(input_path)}', {read_opts_strict})
+                                SELECT {select_list} FROM read_csv('{_sql_escape(input_path)}', {read_opts_strict})
                             ) TO '{_sql_escape(output_path)}' ({copy_opts})
                         """
                         logger.debug(f"DuckDB query with strict_mode=false: {query}")
@@ -440,46 +465,9 @@ def normalize_csv(
     finally:
         conn.close()
 
-    if normalize_names:
-        _fix_duckdb_keyword_prefix(output_path)
-
     logger.debug(f"Normalized file written to: {output_path}")
 
     return used_fallback_config
-
-
-def _fix_duckdb_keyword_prefix(file_path: Path) -> None:
-    """Remove underscore prefix from DuckDB-prefixed SQL keywords in header.
-
-    DuckDB's normalize_names option prefixes SQL keywords with an underscore to
-    avoid conflicts. This function removes those prefixes from the header row only.
-    Only known DuckDB keywords are stripped; user columns like ``_id`` are preserved.
-
-    Args:
-        file_path: Path to CSV file to fix.
-    """
-    # newline="" keeps bare CRs inside quoted fields (text mode would turn them into LF)
-    with open(file_path, "r", encoding="utf-8", newline="") as f:
-        first_line = f.readline()
-        rest = f.read()
-
-    if not first_line:
-        return
-
-    header = first_line
-
-    def _strip_keyword_prefix(m: re.Match[str]) -> str:
-        prefix: str = m.group(1)  # '' or ','
-        name: str = m.group(2)    # word after '_'
-        if name in _DUCKDB_KEYWORD_SET:
-            return prefix + name
-        return str(m.group(0))
-
-    header = re.sub(r"(^|,)_([A-Za-z0-9]+)\b", _strip_keyword_prefix, header)
-
-    with open(file_path, "w", encoding="utf-8", newline="") as f:
-        f.write(header)
-        f.write(rest)
 
 
 def _count_lines(file_path: Path) -> int:
@@ -640,25 +628,6 @@ def _detect_header_anomaly(
     except OSError as e:
         logger.debug(f"Header anomaly detection failed: {e}")
         return None
-
-
-def convert_row_endings_to_crlf(file_path: Path) -> None:
-    """Rewrite file so row terminators are CRLF while in-cell LF stays LF.
-
-    Uses a byte-level state machine to avoid altering DuckDB's quoting style.
-    """
-    data = file_path.read_bytes()
-    out = bytearray()
-    in_quotes = False
-    for b in data:
-        if b == 0x22:  # "
-            in_quotes = not in_quotes
-            out.append(b)
-        elif b == 0x0A and not in_quotes:  # \n outside quotes → \r\n
-            out.extend(b"\r\n")
-        else:
-            out.append(b)
-    file_path.write_bytes(bytes(out))
 
 
 def _get_error_types(reject_file: Path) -> list[str]:
