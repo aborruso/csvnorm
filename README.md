@@ -172,7 +172,7 @@ csvnorm raw_data.csv --check || exit 1
   - Normalized column names (unless `--keep-names` is specified)
 - Error report if any invalid rows are found (saved as `{output_name}_reject_errors.csv` in the same directory)
 - Shows success table with statistics (rows, columns, file sizes)
-- Row endings are kept: CRLF input gives CRLF rows (newlines inside quoted cells stay as they are)
+- Row endings are kept: CRLF input gives CRLF rows (newlines inside quoted cells stay as they are). Non-UTF-8 files keep their CR and CRLF too, also inside quoted cells, with the same output on every operating system
 - The output is written to a hidden `.{output_name}.csvnorm-partial` file next to it and renamed at the end, so an error never leaves a partial output and never touches an existing one
 - If the disk fills up, csvnorm stops with `No space left on device` and exit code 1; it warns before starting when free space looks too small
 - Supports absolute and relative paths

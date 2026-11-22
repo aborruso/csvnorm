@@ -1,7 +1,9 @@
 # Golden cases: csvnorm run as a subprocess, output compared byte for byte.
 # Expected files in expected/ were generated with csvnorm 1.3.0 on Linux
-# (2026-11-22), except cases with xfail_until, written by hand with the
-# behavior expected after that phase of docs/designs/speed-up-large-files.md.
+# (2026-11-22), except keywords_semicolon, cp1252_cr_in_cell and
+# latin1_crlf_in_cell, written by hand with the behavior fixed in phases two
+# and three of docs/designs/speed-up-large-files.md. A case may carry
+# xfail_until = <phase> while that phase is not done.
 
 [[case]]
 name = "utf8_basic"

@@ -29,7 +29,7 @@ Questo design ha l'obiettivo di portare quel file sotto i 60 s, con soglia di ri
 
 La soluzione proposta in breve:
 
-- rilevamento dell'encoding con una decodifica UTF-8 stretta; se fallisce, `charset_normalizer` su un campione che contiene ogni valore di byte non ASCII del file, esaminato per intero;
+- rilevamento dell'encoding: fino a 50 MiB sull'intero file, come oggi; sopra, una decodifica UTF-8 stretta e, se fallisce, `charset_normalizer` su un campione che contiene ogni valore di byte non ASCII del file, esaminato per intero;
 - CRLF scritto da DuckDB con `NEW_LINE '\r\n'`, header corretto da DuckDB con alias nella `SELECT`;
 - conversione UTF-8 a blocchi, conservando CR e CRLF.
 
@@ -51,6 +51,10 @@ Differenze dal piano, decise durante l'implementazione:
 - **Rilevamento ibrido per dimensione.** Una revisione su file sintetici ha mostrato che il campione peggiora il rilevamento per alcune lingue rispetto al file intero (turco cp1254 da 8/8 a 0/8, polacco cp1250 da 6/8 a 0/8, peggioramenti anche per lituano e ungherese). Deciso con l'autore: fino a 50 MiB (`FULL_DETECTION_MAX_BYTES`) resta il rilevamento sull'intero file, con gli stessi risultati della 1.3.0 e un costo di qualche secondo al massimo; il campione vale solo sopra. Sopra la soglia il rischio resta, accettato, e la via d'uscita è `--encoding`.
 - **Preferenza occidentale sul campione.** Sul file da 826 MB il campione dava cp1258 (limite noto di `charset_normalizer` sull'italiano). Fra i candidati con caos minimo vince una codifica occidentale (cp1252, latin-1, iso8859-15); in più, una codifica occidentale che decodifica il campione allo stesso testo è preferita.
 - **Finestre.** Si leggono con un `seek` per finestra invece di tenere finestre in sospeso fra blocchi; se nella fascia esterna non c'è un punto di taglio, la finestra si stringe verso il byte. Al massimo 8 occorrenze tentate per valore, ciascuna oltre la finestra fallita, poi rilevamento completo.
+- **Tetto dei tentativi.** Le 8 occorrenze si contano per blocco da 4 MiB, non per l'intero file; un valore che a fine file non ha nessuna finestra manda comunque al rilevamento completo. La costante `MAX_WINDOWS` del piano non esiste: c'è `MAX_ATTEMPTS = 8`. La finestra del primo errore UTF-8 si aggiunge solo se ha un punto di taglio; il byte dell'errore resta coperto dalla finestra del suo valore.
+- **Nomi e messaggi.** `_pick_encoding(result, file_path)`; log `Encoding route: sample (N windows, M byte values, B bytes)`, `Encoding route: full (file below the sampling threshold)`, `Encoding route: full (no candidate for the sample)`, `Encoding route: full (7-bit escape sequences)`; pannello «No space left on device. Free some space on the output disk or on the temp disk (or set TMPDIR to another disk), then retry.»; un `OSError` diverso da `ENOSPC` in conversione dà «File error during encoding conversion»; l'avviso preventivo riceve la directory temporanea come directory di output in modalità stdout e nessuna directory di output con `--check`, e ignora gli errori del controllo; l'errore di decodifica nomina la codifica sorgente invece di `charmap`.
+- **Casi di riferimento.** `empty_file` con la 1.3.0 produce un output (`column0`) ed esce con 0: registrato così. `windows1252_quotes.csv` ha come codifica attesa cp1252 ma oggi dà cp437 (limite 7.1b): `xfail` non stretto.
+- **Script di misura.** Picco di memoria con `resource.getrusage`, perché `/usr/bin/time` manca; la colonna «Rilevamento» viene da una chiamata separata a `detect_encoding` prima di `detect_and_convert`.
 - **Altri instradamenti al rilevamento completo.** Campione senza candidati (per esempio testo misto UTF-8 e cp1252) e file ASCII con sequenze ISO-2022 o HZ (`ESC`, `~{`).
 - **Ricaduta.** Se il rilevamento completo restituisce la stessa codifica già fallita, l'errore si propaga senza una seconda conversione.
 
@@ -88,7 +92,7 @@ Quattro problemi ne derivano:
 ## Obiettivi
 
 - **Tempo:** sul file da 826 MB, mediana di tre esecuzioni dopo un riscaldamento, sotto i 60 s, contro circa 220 s di oggi; soglia di rilascio 3 volte più veloce della base misurata. Protocollo di misura e tempi per fase nello script di benchmark della fase uno del piano dettagliato.
-- **Memoria:** la memoria dei passaggi Python del percorso su file locale resta sotto i 24 MiB qualunque sia la dimensione del file, escluso DuckDB. Fanno eccezione i casi che vanno sul rilevamento di oggi, descritti nel piano tecnico: BOM UTF-16 o UTF-32, BOM UTF-8 seguito da UTF-8 non valido, byte NUL, conversione fallita. Lì restano tempo e memoria di oggi.
+- **Memoria:** la memoria dei passaggi Python del percorso su file locale resta sotto i 24 MiB qualunque sia la dimensione del file, escluso DuckDB. Fanno eccezione i casi che vanno sul rilevamento di oggi, descritti nel piano tecnico: file fino a 50 MiB, BOM UTF-16 o UTF-32, BOM UTF-8 seguito da UTF-8 non valido, byte NUL, sequenze ISO-2022 o HZ, valori di byte senza punto di taglio, campione senza candidati, conversione fallita. Lì restano tempo e memoria di oggi.
 - **Disco:** il picco resta quello di oggi: l'input, `utf8.csv` per i file non UTF-8 (fino al doppio dell'input con cp1252) e l'output provvisorio. Cambiano due cose: l'output provvisorio sta accanto a quello finale e diventa definitivo con una rinomina atomica, quindi un errore non lascia mai un output parziale né distrugge quello esistente; e lo spazio esaurito ha un avviso prima di partire, il pannello «spazio su disco esaurito» ed exit 1 quando succede, temporanei cancellati.
 - **Correttezza dell'encoding:** su ogni file di prova il nuovo rilevamento dà lo stesso risultato di oggi, oppure coincide con la codifica attesa dichiarata a mano per quel file dove oggi non coincide. Sul percorso della CLI nessuna codifica che non sa decodificare il file viene mai usata: la conversione stretta lo verifica e, se fallisce, scatta la ricaduta. `detect_encoding` usata da sola dà la stessa garanzia per le codifiche a un byte.
 - **Validazione completa:** ogni riga resta controllata. Il file degli scarti ha gli stessi numeri di riga, le stesse colonne e gli stessi tipi d'errore di oggi. Le posizioni in byte possono cambiare nei file non UTF-8, perché DuckDB vede i fine riga originali. Per i file non UTF-8 con righe a solo CR, con fine riga misti o con `\r\r\n` possono cambiare anche gli scarti: oggi la modalità testo trasforma questi fine riga prima di DuckDB (`\r\r\n` diventa `\n\n`, con una riga vuota in più). I risultati attesi si misurano e si fissano nella fase uno, uno per caso.
@@ -208,7 +212,7 @@ Spariscono due passaggi Python che leggono e riscrivono tutto il file. Gli altri
 
 `detect_encoding(file_path)` conserva firma e valori restituiti di oggi: `"utf-8"` (anche con il BOM, come oggi), `"ascii"` o il nome normalizzato di un'altra codifica.
 
-La strategia ha tre passi:
+Fino a 50 MiB (`FULL_DETECTION_MAX_BYTES`) il rilevamento resta quello di oggi, sull'intero file. Sopra la soglia la strategia ha tre passi (le scelte fatte durante l'implementazione sono in «Esito dell'implementazione»):
 
 - **Casi che restano sul percorso di oggi.** Un BOM UTF-16 o UTF-32, un BOM UTF-8 seguito da UTF-8 non valido, un byte NUL in qualsiasi punto del file, oppure un valore di byte alto per cui non si trova una finestra valida, portano al rilevamento di oggi sull'intero file. Il campione romperebbe l'allineamento a 2 o 4 byte di UTF-16 e UTF-32, che contengono NUL anche senza BOM, e un file binario deve continuare a dare `ValueError` come oggi.
 - **UTF-8 stretto.** Una passata a blocchi con un decoder UTF-8 stretto, che si ferma al primo errore. Se il file è tutto ASCII il risultato è `ascii`, se è UTF-8 valido è `utf-8`; un file vuoto dà `utf-8`, come oggi.
@@ -266,7 +270,7 @@ La posizione riportata da un `UnicodeDecodeError` diventa relativa al blocco: la
 - Output su stdout: nessun CRLF, come oggi. La lettura del temporaneo con `f.read()` a `core.py:359-360` resta.
 - `--fix-mojibake`: ftfy lavora sull'intero testo, come oggi.
 - Exit code e messaggi, tranne il log di `--verbose` sulla strada del rilevamento, il nuovo pannello per lo spazio esaurito e l'avviso preventivo.
-- Se il campione non dà candidati, `ValueError` come oggi (`encoding.py:63-65`). Una colonna che l'utente ha chiamato davvero `_select` viene rinominata come oggi.
+- Se il campione non dà candidati si passa al rilevamento completo, che come oggi solleva `ValueError` se non trova nulla. Una colonna che l'utente ha chiamato davvero `_select` viene rinominata come oggi.
 
 ## Rischi e mitigazioni
 
@@ -340,9 +344,11 @@ La posizione riportata da un `UnicodeDecodeError` diventa relativa al blocco: la
 
 ## Piano di implementazione dettagliato
 
+Questo piano descrive il lavoro come era stato pianificato prima dell'implementazione. Dove differisce dal codice, vale la sezione «Esito dell'implementazione».
+
 ### Decisioni prese per questo piano (2026-11-22)
 
-- **Validazione e normalizzazione in un solo `COPY`:** fase condizionale (fase cinque). Si fa solo se, finita la fase quattro, la mediana sul file da 826 MB resta sopra i 60 s. La soglia di rilascio, 3 volte più veloce della base, è raggiungibile senza questa fase secondo la stima del piano tecnico (54-62 s contro circa 73 s, cioè 220 s / 3).
+- **Validazione e normalizzazione in un solo `COPY`:** fase condizionale (fase cinque). Si fa solo se, finita la fase quattro, la mediana sul file da 826 MB resta sopra i 60 s. La soglia di rilascio, 3 volte più veloce della base, è raggiungibile senza questa fase secondo la stima del piano tecnico (54-62 s contro circa 73 s, cioè 220 s / 3; con la base misurata, 162,8 s, la soglia è diventata 54 s).
 - **Ordine:** questo lavoro va prima di `add-input-encoding-option`, la cui proposta andrà aggiornata dopo.
 - **Soglia:** si rilascia se il miglioramento è di almeno 3 volte rispetto alla base misurata nella fase uno. I 60 s restano l'obiettivo dichiarato.
 - **Interruttore per il rilevamento completo:** nessuno. La via d'uscita sarà `--encoding`.
@@ -706,7 +712,7 @@ Ogni fase è uno o più commit con i suoi test e una voce in `LOG.md`; dalla fas
 
 #### `openspec/changes/speed-up-large-files/` (archiviato dopo il rilascio)
 
-- **Comando:** `openspec archive speed-up-large-files --yes`, che aggiorna le spec di base `encoding-detection`, `processing-pipeline` ed `error-handling`.
+- **Comando:** `openspec archive speed-up-large-files --yes`, che aggiorna le spec di base `encoding-detection`, `processing-pipeline`, `error-handling` e `output-location`.
 
 ### Piano di verifica
 

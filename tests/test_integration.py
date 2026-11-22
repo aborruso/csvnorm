@@ -575,3 +575,25 @@ class TestDiskWarningEdgeCases:
         err = capsys.readouterr().err
         assert "cp1252 cannot decode byte 0x81 at file offset 6" in err
         assert "charmap" not in err
+
+
+def test_disk_full_inside_convert_to_utf8(tmp_path, capsys, monkeypatch):
+    """ENOSPC raised by the real conversion path reaches the disk-full panel."""
+    import errno
+
+    import csvnorm.encoding as enc
+
+    output_file = tmp_path / "out.csv"
+    output_file.write_bytes(b"previous\n")
+
+    def full_disk(*args):
+        raise OSError(errno.ENOSPC, "No space left on device")
+
+    monkeypatch.setattr(enc, "convert_to_utf8", full_disk)
+    result = process_csv(str(TEST_DIR / "latin1_semicolon.csv"), output_file, force=True)
+
+    assert result == 1
+    err = capsys.readouterr().err
+    assert "No space left on device" in err
+    assert "File error" not in err
+    assert output_file.read_bytes() == b"previous\n"

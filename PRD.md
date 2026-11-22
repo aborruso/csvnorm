@@ -52,7 +52,7 @@ FR-11 The tool SHALL pre-validate first 5 lines to detect header anomalies (titl
 
 ## 8. Non-Functional Requirements
 NFR-1 Execution time for a 100 MB file SHOULD be < 60 s on a 4-core machine.
-NFR-2 On local file input with file output, Python passes SHOULD stay under 24 MiB of memory plus the detection sample, whatever the file size. Excluded: DuckDB, stdin input, stdout output, `--fix-mojibake`, and whole-file encoding detection (files up to 50 MiB, UTF-16/32 BOM, NUL bytes, 7-bit escape encodings, conversion fallback).
+NFR-2 On local file input with file output, Python passes SHOULD stay under 24 MiB of memory plus the detection sample, whatever the file size. Excluded: DuckDB, stdin input, stdout output, `--fix-mojibake`, and whole-file encoding detection (files up to 50 MiB, UTF-16/32 BOM, UTF-8 BOM with invalid UTF-8, NUL bytes, 7-bit escape encodings, high bytes without a cut point, sample without candidates, conversion fallback).
 NFR-3 The package SHALL target Python 3.11+ and run cross-platform (Linux, macOS, Windows).
 NFR-4 The code SHALL use type hints, pass ruff linting, and maintain pytest test coverage.
 
