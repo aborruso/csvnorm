@@ -333,23 +333,24 @@ class TestDetectEncodingSampled:
     def test_fallback_to_full_detection_after_conversion_error(
         self, make_csv, tmp_path, monkeypatch
     ):
+        # The first guess (shift-jis) cannot decode the file: full detection
+        # runs once and its answer is used for the second conversion.
         import csvnorm.encoding as enc
 
         src = make_csv(100, insert={50: b"caf\xe9 \xfd"})
         calls = []
-        real_full = enc._detect_encoding_full
 
         def full(path):
             calls.append(path)
-            return real_full(path)
+            return "cp1252"
 
         monkeypatch.setattr(enc, "detect_encoding", lambda path: "shift-jis")
         monkeypatch.setattr(enc, "_detect_encoding_full", full)
         out = tmp_path / "out.csv"
         used = enc.detect_and_convert(src, out)
-        assert len(calls) == 1
-        assert used != "shift-jis"
-        assert "café" in out.read_text(encoding="utf-8")
+        assert calls == [src]
+        assert used == "cp1252"
+        assert "café ý" in out.read_text(encoding="utf-8")
 
     def test_route_messages(self, make_csv, caplog):
         caplog.set_level(logging.DEBUG, logger="csvnorm")
