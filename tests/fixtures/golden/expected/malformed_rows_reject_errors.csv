@@ -1,0 +1,3 @@
+scan_id,file_id,line,line_byte_position,byte_position,column_idx,column_name,error_type,csv_line,error_message
+1,0,3,13,16,2,c,MISSING COLUMNS,"4,5",Expected Number of Columns: 3 Found: 2
+1,0,4,17,22,4,,TOO MANY COLUMNS,"6,7,8,9",Expected Number of Columns: 3 Found: 4
