@@ -138,6 +138,10 @@ def convert_to_utf8(input_path: Path, output_path: Path, source_encoding: str) -
                 _decode_into(decoder, chunk, offset, dst)
                 offset += len(chunk)
             _decode_into(decoder, b"", offset, dst, final=True)
+    except UnicodeDecodeError as e:
+        output_path.unlink(missing_ok=True)
+        e.source_encoding = source_encoding  # type: ignore[attr-defined]
+        raise
     except BaseException:
         output_path.unlink(missing_ok=True)
         raise

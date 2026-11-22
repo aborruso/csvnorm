@@ -45,7 +45,8 @@ console = Console()
 
 DISK_FULL_MESSAGE = (
     "No space left on device\n\n"
-    "Free some space or set TMPDIR to another disk, then retry."
+    "Free some space on the output disk or on the temp disk "
+    "(or set TMPDIR to another disk), then retry."
 )
 
 
@@ -66,9 +67,20 @@ def _warn_if_low_disk_space(
 
     Estimates: twice the input for the UTF-8 copy in the temp dir (when a
     conversion may be needed) and twice the input for the output. In stdout
-    mode the output is staged in the temp dir too. Needs on the same
-    filesystem are added up.
+    mode the caller passes the temp dir as ``output_dir``; with ``--check``
+    nothing is written and ``output_dir`` is None.
+    Needs on the same filesystem are added up. Any error while checking is
+    ignored: the real run reports it.
     """
+    try:
+        _check_disk_space(input_path, temp_dir, output_dir, may_convert)
+    except OSError as e:
+        logger.debug(f"Disk space check skipped: {e}")
+
+
+def _check_disk_space(
+    input_path: Path, temp_dir: Path, output_dir: Optional[Path], may_convert: bool
+) -> None:
     size = input_path.stat().st_size
     needs: dict[int, tuple[Path, int]] = {}
 
@@ -79,7 +91,8 @@ def _warn_if_low_disk_space(
 
     if may_convert:
         add(temp_dir, 2 * size)
-    add(output_dir if output_dir is not None else temp_dir, 2 * size)
+    if output_dir is not None:
+        add(output_dir, 2 * size)
 
     for directory, need in needs.values():
         free = shutil.disk_usage(directory).free
@@ -91,9 +104,12 @@ def _warn_if_low_disk_space(
 
 
 def _may_need_conversion(input_path: Path) -> bool:
-    """True if the first 64 KiB contain a non-ASCII byte."""
-    with open(input_path, "rb") as f:
-        return not f.read(64 * 2**10).isascii()
+    """True if the first 64 KiB contain a non-ASCII byte (or cannot be read)."""
+    try:
+        with open(input_path, "rb") as f:
+            return not f.read(64 * 2**10).isascii()
+    except OSError:
+        return True
 
 
 def _resolve_input_path(
@@ -533,7 +549,8 @@ def _prepare_working_file(
         offset = getattr(e, "file_offset", None)
         if isinstance(e, UnicodeDecodeError) and offset is not None:
             bad = e.object[e.start:e.start + 1].hex().upper()
-            detail = f"{e.encoding} cannot decode byte 0x{bad} at file offset {offset}"
+            name = getattr(e, "source_encoding", e.encoding)
+            detail = f"{name} cannot decode byte 0x{bad} at file offset {offset}"
         show_error_panel(f"Encoding conversion failed\n{detail}")
         return None
     except OSError as e:
@@ -541,7 +558,7 @@ def _prepare_working_file(
         if _is_disk_full(e):
             show_error_panel(DISK_FULL_MESSAGE)
         else:
-            show_error_panel(f"Cannot write temporary file\n{e}")
+            show_error_panel(f"File error during encoding conversion\n{e}")
         return None
     except ValueError as e:
         progress.stop()
@@ -807,11 +824,14 @@ def process_csv(
     )
 
     if isinstance(input_path, Path) and compressed_type is None:
+        if check_only:
+            output_dir = None
+        elif use_stdout:
+            output_dir = temp_dir
+        else:
+            output_dir = actual_output_file.parent
         _warn_if_low_disk_space(
-            input_path,
-            temp_dir,
-            None if use_stdout else actual_output_file.parent,
-            _may_need_conversion(input_path),
+            input_path, temp_dir, output_dir, _may_need_conversion(input_path)
         )
 
     progress_console = Console(stderr=True) if use_stdout else console

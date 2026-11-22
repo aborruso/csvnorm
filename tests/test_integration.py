@@ -535,7 +535,7 @@ class TestDiskFull:
             )
 
         assert result == 1
-        assert "Cannot write temporary file" in capsys.readouterr().err
+        assert "File error during encoding conversion" in capsys.readouterr().err
         self._assert_untouched(tmp_path, output_file)
 
     def test_decode_error_panel_has_title_and_offset(self, tmp_path, capsys):
@@ -552,3 +552,24 @@ class TestDiskFull:
         assert "Encoding conversion failed" in err
         assert "1234" in err
         self._assert_untouched(tmp_path, output_file)
+
+
+class TestDiskWarningEdgeCases:
+    """The low-disk-space warning is advisory: it never breaks a run."""
+
+    def test_output_in_missing_directory_gives_panel_not_traceback(self, tmp_path, capsys):
+        result = process_csv(
+            str(TEST_DIR / "utf8_basic.csv"), tmp_path / "nodir" / "out.csv"
+        )
+        assert result == 1
+        assert "Traceback" not in capsys.readouterr().err
+
+    def test_decode_error_names_the_source_encoding(self, tmp_path, capsys):
+        src = tmp_path / "in.csv"
+        src.write_bytes(b"a,b\n1,\x81\n")
+        with patch.object(core_module, "detect_encoding", return_value="cp1252"):
+            result = process_csv(str(src), tmp_path / "out.csv")
+        assert result == 1
+        err = capsys.readouterr().err
+        assert "cp1252 cannot decode byte 0x81 at file offset 6" in err
+        assert "charmap" not in err
