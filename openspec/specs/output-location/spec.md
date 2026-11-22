@@ -40,13 +40,20 @@ The system SHALL stop and warn the user when the output file path already exists
 
 ### Requirement: Temp and reject file locations
 
-The system SHALL create UTF-8 conversion temporary files in a system temp directory with auto-cleanup. Reject files SHALL be placed in the output directory for file mode, or in the system temp directory with a unique name for stdout mode.
+The system SHALL create UTF-8 conversion temporary files in a system temp directory with auto-cleanup. In file mode the normalized output SHALL be written to a hidden staging file next to the final output, `.{output_name}.csvnorm-partial`, and SHALL become the final output with an atomic rename. Reject files SHALL be placed in the output directory for file mode, or in the system temp directory with a unique name for stdout mode.
 
 #### Scenario: Temp UTF8 file in system temp
 
 - **WHEN** encoding conversion is required
 - **THEN** a temp UTF-8 file is created in system temp directory (e.g., `/tmp/csvnorm_xxxxx/`)
 - **AND THEN** the temp directory is automatically cleaned up after processing
+
+#### Scenario: Staged output next to the final output (file mode)
+
+- **WHEN** the user runs csvnorm with `-o output.csv`
+- **THEN** the normalized data is written to `.output.csv.csvnorm-partial` in the same directory
+- **AND THEN** on success it is renamed to `output.csv` atomically
+- **AND THEN** on error or `--strict` stop the staging file is removed and an existing `output.csv` is unchanged
 
 #### Scenario: Reject file in output directory (file mode)
 

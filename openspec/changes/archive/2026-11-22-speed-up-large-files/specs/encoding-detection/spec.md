@@ -3,6 +3,15 @@
 ### Requirement: Primary encoding detection uses charset_normalizer
 The system SHALL detect the input encoding with `charset_normalizer`. For files up to 50 MiB it SHALL run `charset_normalizer` on the whole file. For larger files it SHALL first decode the file as strict UTF-8 in chunks; a file that is valid UTF-8 is `utf-8` (also with a UTF-8 BOM), a pure ASCII file is `ascii`. For a larger file that is not valid UTF-8 the system SHALL build a sample with a window around the first usable occurrence of every byte value `>= 0x80` in the file (and around the first UTF-8 error when possible), SHALL pass it to `charset_normalizer` so that the whole sample is examined, excluding `utf_8` and `ascii`, and SHALL prefer a Western codec (cp1252, latin-1, iso8859-15) among the least chaotic candidates. A UTF-16 or UTF-32 BOM, a UTF-8 BOM followed by invalid UTF-8, a NUL byte, ISO-2022 or HZ escape sequences in an ASCII file, a high byte value without a usable window, or a sample with no candidate SHALL route the file to whole-file detection.
 
+#### Scenario: Primary detector succeeds
+- **WHEN** `charset_normalizer` returns a usable encoding label
+- **THEN** the system uses that label for subsequent conversion logic
+
+#### Scenario: Primary detector fails
+- **WHEN** `charset_normalizer` returns no usable encoding label on the whole file
+- **THEN** the system stops with "Cannot detect encoding" and exit code 1
+- **AND** no other detector is used (there is no `file -b --mime-encoding` fallback)
+
 #### Scenario: File up to 50 MiB
 - **WHEN** the input is 50 MiB or smaller
 - **THEN** the encoding is detected by `charset_normalizer` on the whole file, as in version 1.3.0
