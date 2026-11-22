@@ -6,6 +6,7 @@
 - test: golden cases (`tests/test_golden.py`, 19 cases), hand-checked encoding expectations (`tests/test_encoding_equivalence.py`), `make_csv` fixture, `scripts/bench_large.py`; `duckdb>=2.0.0,<3`
 - bench baseline (826 MB cp1252 CRLF, WSL2, ext4 temp): CLI median 162.8 s (154.2, 162.8, 169.1); stages detect_encoding 87.7 s, convert_to_utf8 5.5 s, validate_csv 15.8 s, normalize_csv incl. header rewrite 21.2 s, counts 1.0 s; CRLF pass not in the stage list (about 30 s by difference). Release threshold (3x): 54 s
 - perf: header keyword fix and CRLF rows written by DuckDB during the COPY (`COLUMNS(...) AS`, `NEW_LINE`); the two full-file Python rewrites are gone; keyword fix now works with any delimiter; `normalize_csv` gains optional `crlf`. Bench: CLI median 131.0 s (128.6, 131.0, 140.4), was 162.8 s; stages detect 91.5 s, convert 7.1 s, validate 17.0 s, normalize 22.0 s, counts 1.6 s; peak RSS 3211 MiB
+- perf: chunked UTF-8 conversion (4 MiB) keeping CR/LF/CRLF; file output staged as `.<name>.csvnorm-partial` and made final with `os.replace`; one `No space left on device` panel for conversion, validation/reject export and normalization; low-disk-space warning. Bench: CLI median 140.1 s (141.8, 140.1, 135.1), within the run-to-run spread of phase two (128.6-140.4); convert_to_utf8 3.0 s (was 7.1); detect_encoding 94.6 s; peak RSS still 3204 MiB, most likely from `charset_normalizer.from_path` reading the whole file (phase four)
 
 ## 2026-11-16 (after v1.3.0)
 
