@@ -39,7 +39,7 @@ Many open data portals and legacy systems publish CSV files with inconsistent en
 
 ## 7. Functional Requirements
 FR-1 The tool SHALL accept an input CSV path, HTTP/HTTPS URL, or `-` for stdin as the first positional argument.
-FR-2 The tool SHALL detect file encoding using `charset_normalizer` library.
+FR-2 The tool SHALL detect file encoding using the `charset_normalizer` library: on the whole file up to 50 MiB; above, with a strict UTF-8 pass and a sample holding every non-ASCII byte value of the file, falling back to whole-file detection if the conversion fails.
 FR-3 If encoding ≠ UTF-8/ASCII/UTF-8-SIG, the tool SHALL convert the file to UTF-8 using Python codecs.
 FR-4 The tool SHALL validate the CSV with DuckDB's `read_csv` and store rejects to `<basename>_reject_errors.csv`.
 FR-5 If validation errors are present, the tool SHALL display error summary and exit with code 1.
@@ -52,7 +52,7 @@ FR-11 The tool SHALL pre-validate first 5 lines to detect header anomalies (titl
 
 ## 8. Non-Functional Requirements
 NFR-1 Execution time for a 100 MB file SHOULD be < 60 s on a 4-core machine.
-NFR-2 Memory footprint SHOULD not exceed 2× input file size.
+NFR-2 On local file input with file output, Python passes SHOULD stay under 24 MiB of memory plus the detection sample, whatever the file size. Excluded: DuckDB, stdin input, stdout output, `--fix-mojibake`, and whole-file encoding detection (files up to 50 MiB, UTF-16/32 BOM, NUL bytes, 7-bit escape encodings, conversion fallback).
 NFR-3 The package SHALL target Python 3.11+ and run cross-platform (Linux, macOS, Windows).
 NFR-4 The code SHALL use type hints, pass ruff linting, and maintain pytest test coverage.
 

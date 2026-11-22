@@ -12,6 +12,8 @@ Automatic detection with `charset_normalizer` (3.4.7) is unreliable for the sing
 
 Heuristic tie-breaking (shipped in 1.3.0 for equal scores) helps only some cases, and every stronger heuristic penalizes some other encoding. When the user knows the encoding, the only reliable fix is to let them say it.
 
+Update 2026-11-22 (change `speed-up-large-files`, release 1.4.0): files up to 50 MiB are still detected on the whole file, so the cases above are unchanged. Above 50 MiB detection uses a sample with every non-ASCII byte value and prefers Western codecs: it is fast (1.2 s instead of 94 s on 826 MB) but can return a Western codec for Turkish, Polish, Baltic or Hungarian text without any error, which is one more case where `--encoding` is the reliable fix.
+
 ## What Changes
 
 - New option `-e/--encoding <name>`: the input is decoded with the declared encoding and automatic detection is skipped.

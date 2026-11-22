@@ -1,7 +1,7 @@
 # csvnorm veloce sui file grandi
 
 * **Autore:** aborruso
-* **Stato:** Proposed
+* **Stato:** Implemented (branch `perf/large-files`, 2026-11-22)
 * **Data:** 2026-11-22
 
 ---
@@ -9,6 +9,7 @@
 ## Indice
 
 - Overview
+- Esito dell'implementazione
 - Il problema
 - Obiettivi
 - Non obiettivi
@@ -31,6 +32,27 @@ La soluzione proposta in breve:
 - rilevamento dell'encoding con una decodifica UTF-8 stretta; se fallisce, `charset_normalizer` su un campione che contiene ogni valore di byte non ASCII del file, esaminato per intero;
 - CRLF scritto da DuckDB con `NEW_LINE '\r\n'`, header corretto da DuckDB con alias nella `SELECT`;
 - conversione UTF-8 a blocchi, conservando CR e CRLF.
+
+## Esito dell'implementazione
+
+Misure del 2026-11-22 con `scripts/bench_large.py` sul file da 826 MB, mediana di tre esecuzioni dopo un riscaldamento:
+
+| Fase completata | Mediana | Rilevamento | Note |
+| --- | --- | --- | --- |
+| Base (1.3.0) | 162,8 s | 87,7 s | |
+| Header e CRLF in DuckDB | 131,0 s | 91,5 s | |
+| Conversione a blocchi, disco | 140,1 s | 94,6 s | conversione 3,0 s (era 7,1); differenza dovuta alla variabilità del rilevamento |
+| Rilevamento a campione | 47,8 s | 2,8 s | 3,4 volte più veloce della base |
+
+La soglia di rilascio, 3 volte la base cioè 54 s, e l'obiettivo dei 60 s sono raggiunti; la fase cinque non è servita. Il picco di memoria del processo resta 2,8 GB, ma è di DuckDB: misurate in processi separati, conversione 94 MiB, validazione 876 MiB, normalizzazione 2.894 MiB.
+
+Differenze dal piano, decise durante l'implementazione:
+
+- **Rilevamento ibrido per dimensione.** Una revisione su file sintetici ha mostrato che il campione peggiora il rilevamento per alcune lingue rispetto al file intero (turco cp1254 da 8/8 a 0/8, polacco cp1250 da 6/8 a 0/8, peggioramenti anche per lituano e ungherese). Deciso con l'autore: fino a 50 MiB (`FULL_DETECTION_MAX_BYTES`) resta il rilevamento sull'intero file, con gli stessi risultati della 1.3.0 e un costo di qualche secondo al massimo; il campione vale solo sopra. Sopra la soglia il rischio resta, accettato, e la via d'uscita è `--encoding`.
+- **Preferenza occidentale sul campione.** Sul file da 826 MB il campione dava cp1258 (limite noto di `charset_normalizer` sull'italiano). Fra i candidati con caos minimo vince una codifica occidentale (cp1252, latin-1, iso8859-15); in più, una codifica occidentale che decodifica il campione allo stesso testo è preferita.
+- **Finestre.** Si leggono con un `seek` per finestra invece di tenere finestre in sospeso fra blocchi; se nella fascia esterna non c'è un punto di taglio, la finestra si stringe verso il byte. Al massimo 8 occorrenze tentate per valore, ciascuna oltre la finestra fallita, poi rilevamento completo.
+- **Altri instradamenti al rilevamento completo.** Campione senza candidati (per esempio testo misto UTF-8 e cp1252) e file ASCII con sequenze ISO-2022 o HZ (`ESC`, `~{`).
+- **Ricaduta.** Se il rilevamento completo restituisce la stessa codifica già fallita, l'errore si propaga senza una seconda conversione.
 
 ## Il problema
 
@@ -250,7 +272,7 @@ La posizione riportata da un `UnicodeDecodeError` diventa relativa al blocco: la
 
 - **Dipendenza da DuckDB 2.0.0.** `COLUMNS(...) AS '\1\2'` e `NEW_LINE` sono verificati su DuckDB 2.0.0, ma `pyproject.toml` chiede `duckdb>=2.0.0` senza limite superiore. Mitigazione: i test di riferimento coprono entrambi i comportamenti e falliscono se una versione nuova li cambia; limite superiore alla prossima versione maggiore.
 - **Dipendenza dal comportamento di `charset-normalizer`.** Parametri come `steps` e `chunk_size` e il punteggio possono cambiare fra versioni (`>=3.0.0`). Mitigazione: test di equivalenza con la codifica attesa per ogni file di prova.
-- **Campione non rappresentativo.** Una codifica a un byte sbagliata che decodifica tutti i byte presenti può essere scelta. Mitigazione: una finestra per ogni valore di byte alto, esaminata per intero; file di prova sintetici con poche differenze fra codifiche simili; via d'uscita per l'utente con `--encoding`.
+- **Campione non rappresentativo.** Una codifica a un byte sbagliata che decodifica tutti i byte presenti può essere scelta; la revisione del codice lo ha misurato per turco, polacco, lituano e ungherese. Mitigazione: campione solo sopra 50 MiB, una finestra per ogni valore di byte alto esaminata per intero, file di prova sintetici; via d'uscita per l'utente con `--encoding`.
 - **Codifiche a più byte.** Una finestra che spezza un carattere farebbe scartare la codifica giusta. Mitigazione: tagli solo dopo un byte inferiore a 0x40 che non sia una cifra, test con un file Shift_JIS, e la ricaduta in conversione.
 - **Regressioni sui fine riga.** DuckDB vede ora i fine riga originali dei file non UTF-8: un file con solo CR, con fine riga misti o con `\r\r\n` potrebbe essere letto con un altro dialetto e dare scarti diversi. Mitigazione: eccezione dichiarata nell'obiettivo «Validazione completa» e risultati attesi misurati e fissati nella fase uno.
 - **Disco.** Il picco resta quello di oggi. Con `/tmp` su tmpfs `utf8.csv` occupa RAM. Mitigazione: verifica nella fase uno (domanda aperta), avviso preventivo e pannello «spazio su disco esaurito». Il caso delle directory su filesystem diversi sparisce con la rinomina atomica.

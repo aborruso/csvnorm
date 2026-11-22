@@ -58,7 +58,7 @@ This tool prepares CSV files for **basic exploratory data analysis (EDA)**, not 
 
 - **CSV Validation**: Checks for common CSV errors and inconsistencies using DuckDB
 - **Delimiter Normalization**: Converts all field separators to standard commas (`,`)
-- **Field Name Normalization**: Converts column headers to snake_case format
+- **Field Name Normalization**: Converts column headers to snake_case format (SQL keywords such as `select` keep their name, with any output delimiter)
 - **Encoding Normalization**: Auto-detects encoding and converts to UTF-8 when needed (ASCII is already UTF-8 compatible)
 - **Processing Summary**: Displays comprehensive statistics (rows, columns, file sizes) and error details
 - **Error Reporting**: Exports detailed error file for invalid rows with summary panel
@@ -172,6 +172,9 @@ csvnorm raw_data.csv --check || exit 1
   - Normalized column names (unless `--keep-names` is specified)
 - Error report if any invalid rows are found (saved as `{output_name}_reject_errors.csv` in the same directory)
 - Shows success table with statistics (rows, columns, file sizes)
+- Row endings are kept: CRLF input gives CRLF rows (newlines inside quoted cells stay as they are)
+- The output is written to a hidden `.{output_name}.csvnorm-partial` file next to it and renamed at the end, so an error never leaves a partial output and never touches an existing one
+- If the disk fills up, csvnorm stops with `No space left on device` and exit code 1; it warns before starting when free space looks too small
 - Supports absolute and relative paths
 - Any file extension is allowed (not limited to `.csv`)
 
@@ -186,6 +189,7 @@ csvnorm raw_data.csv --check || exit 1
 
 **Encoding detection limits:**
 - Non-UTF-8 encodings are detected automatically with charset-normalizer, which can confuse single-byte encodings that share most characters (for example cp1252 with cp1250 or cp1258, or cp850 with cp1250). When scores tie, csvnorm prefers Western European encodings (cp1252).
+- Files larger than 50 MiB are not analysed as a whole: csvnorm checks for valid UTF-8 in one pass and, for other files, lets charset-normalizer examine a small sample that contains every non-ASCII byte value of the file, preferring Western European encodings. This takes seconds instead of minutes, but on such large files Turkish, Polish, Baltic or Hungarian text can be detected as Western European without any error. Files up to 50 MiB are detected as in previous versions.
 - Check accented and typographic characters (`à`, `ì`, `“ ”`, `€`) in the output of non-UTF-8 files. If they are wrong, convert the file to UTF-8 yourself before running csvnorm, for example `iconv -f cp1252 -t utf-8 data.csv > data_utf8.csv`.
 
 **Mojibake repair (`--fix-mojibake [N]`):**
