@@ -3,6 +3,7 @@
 import codecs
 import logging
 from pathlib import Path
+from typing import BinaryIO
 
 from charset_normalizer import from_path
 
@@ -22,6 +23,9 @@ UTF8_ENCODINGS = frozenset({"utf-8", "ascii", "utf-8-sig"})
 
 # Preferred when charset_normalizer scores several codecs the same, in order
 WESTERN_ENCODINGS = ("cp1252", "latin_1", "iso8859_15")
+
+# Bytes read per step when converting to UTF-8
+CHUNK_SIZE = 4 * 2**20
 
 
 def normalize_encoding_name(encoding: str) -> str:
@@ -99,7 +103,10 @@ def needs_conversion(encoding: str) -> bool:
 
 
 def convert_to_utf8(input_path: Path, output_path: Path, source_encoding: str) -> Path:
-    """Convert file from source encoding to UTF-8.
+    """Convert file from source encoding to UTF-8, in fixed-size chunks.
+
+    Line breaks (CR, LF, CRLF) are kept byte for byte, also inside quoted
+    fields, so the result is the same on every operating system.
 
     Args:
         input_path: Path to input file.
@@ -111,22 +118,50 @@ def convert_to_utf8(input_path: Path, output_path: Path, source_encoding: str) -
 
     Raises:
         UnicodeDecodeError: If file cannot be decoded with the specified encoding.
+            The ``file_offset`` attribute holds the position of the bad byte
+            in the input file. The partial output is removed.
         LookupError: If the encoding is not supported.
     """
     logger.debug(f"Converting from {source_encoding} to UTF-8")
 
-    # Validate encoding exists
+    # Validate encoding exists, before any file is opened
     try:
         codecs.lookup(source_encoding)
     except LookupError as e:
         raise LookupError(f"Unknown encoding: {source_encoding}") from e
 
-    # Read with source encoding, write as UTF-8
-    with open(input_path, "r", encoding=source_encoding, errors="strict") as f:
-        content = f.read()
-
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write(content)
+    decoder = codecs.getincrementaldecoder(source_encoding)(errors="strict")
+    offset = 0
+    try:
+        with open(input_path, "rb") as src, open(output_path, "wb") as dst:
+            while chunk := src.read(CHUNK_SIZE):
+                _decode_into(decoder, chunk, offset, dst)
+                offset += len(chunk)
+            _decode_into(decoder, b"", offset, dst, final=True)
+    except BaseException:
+        output_path.unlink(missing_ok=True)
+        raise
 
     logger.debug(f"Converted file written to: {output_path}")
     return output_path
+
+
+def _decode_into(
+    decoder: codecs.IncrementalDecoder,
+    chunk: bytes,
+    offset: int,
+    dst: BinaryIO,
+    final: bool = False,
+) -> None:
+    """Decode one chunk and write it as UTF-8; on error record the file offset.
+
+    ``offset`` is the number of input bytes read before ``chunk``. Bytes still
+    held by the decoder from earlier chunks come before ``chunk`` in the file,
+    so they are subtracted from the error position.
+    """
+    pending = len(decoder.getstate()[0])
+    try:
+        dst.write(decoder.decode(chunk, final=final).encode("utf-8"))
+    except UnicodeDecodeError as e:
+        e.file_offset = offset - pending + e.start  # type: ignore[attr-defined]
+        raise

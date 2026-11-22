@@ -167,3 +167,78 @@ class TestConvertToUTF8:
 
             with pytest.raises(LookupError, match="Unknown encoding"):
                 convert_to_utf8(input_file, output_file, "fake-encoding-xyz")
+
+
+class TestConvertToUTF8Chunked:
+    """Chunked conversion: line breaks kept, file offsets on errors, bounded memory."""
+
+    def test_cr_and_crlf_inside_cells_kept(self, tmp_path):
+        src = tmp_path / "in.csv"
+        src.write_bytes(b'id,nota\r\n1,"caff\xe8\rlatte"\r\n2,"citt\xe0\r\nnuova"\r\n')
+        out = tmp_path / "out.csv"
+        convert_to_utf8(src, out, "latin-1")
+        assert out.read_bytes() == (
+            b'id,nota\r\n1,"caff\xc3\xa8\rlatte"\r\n2,"citt\xc3\xa0\r\nnuova"\r\n'
+        )
+
+    def test_lf_only_file_unchanged_from_1_3_0(self, tmp_path):
+        src = tmp_path / "in.csv"
+        src.write_bytes(b"a,b\n1,caff\xe8\n")
+        out = tmp_path / "out.csv"
+        convert_to_utf8(src, out, "cp1252")
+        assert out.read_bytes() == b"a,b\n1,caff\xc3\xa8\n"
+
+    def test_multibyte_char_split_across_chunks(self, tmp_path, monkeypatch):
+        import csvnorm.encoding as enc
+
+        monkeypatch.setattr(enc, "CHUNK_SIZE", 7)
+        text = "名前,住所\n東京,大阪\n"
+        src = tmp_path / "in.csv"
+        src.write_bytes(text.encode("shift_jis"))
+        out = tmp_path / "out.csv"
+        convert_to_utf8(src, out, "shift_jis")
+        assert out.read_text(encoding="utf-8") == text
+
+    def test_undecodable_byte_reports_file_offset_and_removes_partial(self, tmp_path):
+        data = b"a,b\n" + b"1,ok\n" * 1000 + b"2,\x81\n"
+        src = tmp_path / "in.csv"
+        src.write_bytes(data)
+        out = tmp_path / "out.csv"
+        with pytest.raises(UnicodeDecodeError) as exc:
+            convert_to_utf8(src, out, "cp1252")
+        assert exc.value.file_offset == data.index(b"\x81")
+        assert not out.exists()
+
+    def test_offset_with_pending_bytes_across_chunks(self, tmp_path, monkeypatch):
+        import csvnorm.encoding as enc
+
+        monkeypatch.setattr(enc, "CHUNK_SIZE", 7)
+        data = b"abcdef\x81\x20xyz\n"  # 0x81 ends the first 7-byte chunk
+        src = tmp_path / "in.csv"
+        src.write_bytes(data)
+        out = tmp_path / "out.csv"
+        with pytest.raises(UnicodeDecodeError) as exc:
+            convert_to_utf8(src, out, "shift_jis")
+        assert exc.value.file_offset == data.index(b"\x81")
+
+    def test_unknown_encoding_checked_before_opening_output(self, tmp_path):
+        src = tmp_path / "in.csv"
+        src.write_bytes(b"a\n")
+        out = tmp_path / "out.csv"
+        with pytest.raises(LookupError, match="Unknown encoding"):
+            convert_to_utf8(src, out, "fake-encoding-xyz")
+        assert not out.exists()
+
+    def test_memory_stays_bounded(self, make_csv, tmp_path):
+        import tracemalloc
+
+        src = make_csv(1_200_000, insert={i: b"caf\xe9" for i in range(1, 1_200_001, 100)})
+        assert src.stat().st_size > 40 * 2**20
+        out = tmp_path / "out.csv"
+        tracemalloc.start()
+        try:
+            convert_to_utf8(src, out, "cp1252")
+            _, peak = tracemalloc.get_traced_memory()
+        finally:
+            tracemalloc.stop()
+        assert peak < 24 * 2**20

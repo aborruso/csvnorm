@@ -447,3 +447,108 @@ class TestOutputWrittenAtTheEnd:
 
         assert result == 1
         assert output_file.read_bytes() == self.PREVIOUS
+        assert not list(tmp_path.glob(".*.csvnorm-partial"))
+
+
+class TestDiskFull:
+    """Disk-full errors: one panel, exit 1, input and existing output untouched."""
+
+    PREVIOUS = b"previous,content\n"
+    ENOSPC_DUCKDB = 'IO Error: Could not write file "x": No space left on device","errno":"28"'
+
+    def _setup(self, tmp_path):
+        output_file = tmp_path / "out.csv"
+        output_file.write_bytes(self.PREVIOUS)
+        return output_file
+
+    def _assert_untouched(self, tmp_path, output_file):
+        assert output_file.read_bytes() == self.PREVIOUS
+        assert not list(tmp_path.glob(".*.csvnorm-partial"))
+
+    def test_cuj5_disk_full_during_normalization(self, tmp_path, capsys, monkeypatch):
+        import duckdb
+
+        output_file = self._setup(tmp_path)
+        monkeypatch.setattr(
+            core_module.shutil, "disk_usage",
+            lambda path: core_module.shutil._ntuple_diskusage(10, 9, 1),
+        )
+        with patch.object(
+            core_module, "normalize_csv",
+            side_effect=duckdb.IOException(self.ENOSPC_DUCKDB),
+        ):
+            result = process_csv(
+                str(TEST_DIR / "latin1_semicolon.csv"), output_file, force=True
+            )
+
+        assert result == 1
+        err = capsys.readouterr().err
+        assert "Low disk space" in err
+        assert "No space left on device" in err
+        assert "Normalization failed" not in err
+        self._assert_untouched(tmp_path, output_file)
+
+    def test_disk_full_during_conversion(self, tmp_path, capsys):
+        import errno
+
+        output_file = self._setup(tmp_path)
+        with patch.object(
+            core_module, "_handle_local_encoding",
+            side_effect=OSError(errno.ENOSPC, "No space left on device"),
+        ):
+            result = process_csv(
+                str(TEST_DIR / "latin1_semicolon.csv"), output_file, force=True
+            )
+
+        assert result == 1
+        assert "No space left on device" in capsys.readouterr().err
+        self._assert_untouched(tmp_path, output_file)
+
+    def test_disk_full_during_reject_export(self, tmp_path, capsys):
+        import duckdb
+
+        output_file = self._setup(tmp_path)
+        with patch.object(
+            core_module, "validate_csv",
+            side_effect=duckdb.IOException(self.ENOSPC_DUCKDB),
+        ):
+            result = process_csv(
+                str(TEST_DIR / "malformed_rows.csv"), output_file, force=True
+            )
+
+        assert result == 1
+        err = capsys.readouterr().err
+        assert "No space left on device" in err
+        assert "Validation failed" not in err
+        self._assert_untouched(tmp_path, output_file)
+
+    def test_other_os_error_during_conversion(self, tmp_path, capsys):
+        import errno
+
+        output_file = self._setup(tmp_path)
+        with patch.object(
+            core_module, "_handle_local_encoding",
+            side_effect=OSError(errno.EACCES, "Permission denied"),
+        ):
+            result = process_csv(
+                str(TEST_DIR / "latin1_semicolon.csv"), output_file, force=True
+            )
+
+        assert result == 1
+        assert "Cannot write temporary file" in capsys.readouterr().err
+        self._assert_untouched(tmp_path, output_file)
+
+    def test_decode_error_panel_has_title_and_offset(self, tmp_path, capsys):
+        output_file = self._setup(tmp_path)
+        error = UnicodeDecodeError("cp1252", b"\x81", 0, 1, "character maps to <undefined>")
+        error.file_offset = 1234
+        with patch.object(core_module, "_handle_local_encoding", side_effect=error):
+            result = process_csv(
+                str(TEST_DIR / "latin1_semicolon.csv"), output_file, force=True
+            )
+
+        assert result == 1
+        err = capsys.readouterr().err
+        assert "Encoding conversion failed" in err
+        assert "1234" in err
+        self._assert_untouched(tmp_path, output_file)

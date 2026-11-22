@@ -114,7 +114,6 @@ args = []
 exit_code = 0
 output = true
 rejects = false
-xfail_until = 3
 
 [[case]]
 name = "latin1_crlf_in_cell"
@@ -123,7 +122,6 @@ args = []
 exit_code = 0
 output = true
 rejects = false
-xfail_until = 3
 
 [[case]]
 name = "ascii_rrn"

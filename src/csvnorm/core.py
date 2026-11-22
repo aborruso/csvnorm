@@ -1,6 +1,8 @@
 """Core processing logic for csvnorm."""
 
+import errno
 import logging
+import os
 import shutil
 import sys
 import tempfile
@@ -40,6 +42,58 @@ from csvnorm.validation import normalize_csv, validate_csv
 
 logger = logging.getLogger("csvnorm")
 console = Console()
+
+DISK_FULL_MESSAGE = (
+    "No space left on device\n\n"
+    "Free some space or set TMPDIR to another disk, then retry."
+)
+
+
+def _is_disk_full(exc: BaseException) -> bool:
+    """True if the error means the disk is full (Python or DuckDB)."""
+    if isinstance(exc, OSError):
+        return exc.errno == errno.ENOSPC
+    if isinstance(exc, duckdb.Error):
+        message = str(exc)
+        return '"errno":"28"' in message or "No space left" in message
+    return False
+
+
+def _warn_if_low_disk_space(
+    input_path: Path, temp_dir: Path, output_dir: Optional[Path], may_convert: bool
+) -> None:
+    """Warn, without stopping, when free space looks too small for this run.
+
+    Estimates: twice the input for the UTF-8 copy in the temp dir (when a
+    conversion may be needed) and twice the input for the output. In stdout
+    mode the output is staged in the temp dir too. Needs on the same
+    filesystem are added up.
+    """
+    size = input_path.stat().st_size
+    needs: dict[int, tuple[Path, int]] = {}
+
+    def add(directory: Path, amount: int) -> None:
+        dev = os.stat(directory).st_dev
+        path, total = needs.get(dev, (directory, 0))
+        needs[dev] = (path, total + amount)
+
+    if may_convert:
+        add(temp_dir, 2 * size)
+    add(output_dir if output_dir is not None else temp_dir, 2 * size)
+
+    for directory, need in needs.values():
+        free = shutil.disk_usage(directory).free
+        if free < need:
+            show_warning_panel(
+                f"Low disk space: about {need >> 20} MiB needed, "
+                f"{free >> 20} MiB free in {directory}"
+            )
+
+
+def _may_need_conversion(input_path: Path) -> bool:
+    """True if the first 64 KiB contain a non-ASCII byte."""
+    with open(input_path, "rb") as f:
+        return not f.read(64 * 2**10).isascii()
 
 
 def _resolve_input_path(
@@ -84,8 +138,12 @@ def _setup_output_paths(
     output_file: Optional[Path],
     force: bool,
     temp_dir: Path,
-) -> tuple[Path, Path, Path]:
-    """Determine output, reject, and temp UTF-8 paths."""
+) -> tuple[Path, Path, Path, Optional[Path]]:
+    """Determine output, reject, temp UTF-8 and staged output paths.
+
+    The staged output (file mode only) sits next to the final output, so the
+    final step is an atomic rename on the same filesystem.
+    """
     if output_file is None:
         # Stdout mode: reject file in the system temp dir, unique per run, so it
         # does not clutter the working directory; its path is shown on stderr
@@ -95,7 +153,7 @@ def _setup_output_paths(
             / f"csvnorm_reject_errors_{uuid.uuid4().hex[:8]}.csv"
         )
         temp_utf8_file = temp_dir / "utf8.csv"
-        return actual_output_file, reject_file, temp_utf8_file
+        return actual_output_file, reject_file, temp_utf8_file, None
 
     output_dir = output_file.parent
     actual_output_file = output_file
@@ -113,7 +171,8 @@ def _setup_output_paths(
     if reject_file.exists():
         reject_file.unlink()
 
-    return actual_output_file, reject_file, temp_utf8_file
+    partial_output = output_dir / f".{output_file.name}.csvnorm-partial"
+    return actual_output_file, reject_file, temp_utf8_file, partial_output
 
 
 def _download_remote_if_needed(
@@ -256,6 +315,10 @@ def _validate_csv_with_http_handling(
     except duckdb.Error as e:
         progress.stop()
         error_msg = str(e)
+
+        if _is_disk_full(e):
+            show_error_panel(DISK_FULL_MESSAGE)
+            raise
 
         if "zipfs" in error_msg.lower():
             show_error_panel(
@@ -464,13 +527,25 @@ def _prepare_working_file(
         working_file, encoding = _handle_local_encoding(
             file_input_path, temp_utf8_file, progress, task, temp_files,
         )
+    except (UnicodeDecodeError, LookupError) as e:
+        progress.stop()
+        detail = str(e)
+        offset = getattr(e, "file_offset", None)
+        if isinstance(e, UnicodeDecodeError) and offset is not None:
+            bad = e.object[e.start:e.start + 1].hex().upper()
+            detail = f"{e.encoding} cannot decode byte 0x{bad} at file offset {offset}"
+        show_error_panel(f"Encoding conversion failed\n{detail}")
+        return None
+    except OSError as e:
+        progress.stop()
+        if _is_disk_full(e):
+            show_error_panel(DISK_FULL_MESSAGE)
+        else:
+            show_error_panel(f"Cannot write temporary file\n{e}")
+        return None
     except ValueError as e:
         progress.stop()
         show_error_panel(str(e))
-        return None
-    except (UnicodeDecodeError, LookupError) as e:
-        progress.stop()
-        show_error_panel(f"Encoding conversion failed\n{e}")
         return None
 
     mojibake_repaired = False
@@ -684,7 +759,7 @@ def process_csv(
     temp_dir = Path(tempfile.mkdtemp(prefix="csvnorm_"))
 
     try:
-        actual_output_file, reject_file, temp_utf8_file = _setup_output_paths(
+        actual_output_file, reject_file, temp_utf8_file, partial_output = _setup_output_paths(
             output_file, force, temp_dir
         )
     except FileExistsError:
@@ -730,6 +805,14 @@ def process_csv(
         and compressed_type is None
         and has_crlf_line_endings(input_path)
     )
+
+    if isinstance(input_path, Path) and compressed_type is None:
+        _warn_if_low_disk_space(
+            input_path,
+            temp_dir,
+            None if use_stdout else actual_output_file.parent,
+            _may_need_conversion(input_path),
+        )
 
     progress_console = Console(stderr=True) if use_stdout else console
 
@@ -778,9 +861,11 @@ def process_csv(
             # or a --strict stop never leaves a partial or overwritten output.
             progress.update(task, description="[cyan]Normalizing and writing output...")
             logger.debug("Normalizing CSV...")
-            normalized_file = (
-                actual_output_file if use_stdout else temp_dir / "normalized.csv"
-            )
+            if use_stdout or partial_output is None:
+                normalized_file = actual_output_file
+            else:
+                normalized_file = partial_output
+                temp_files.append(partial_output)
             try:
                 (
                     _,
@@ -796,7 +881,9 @@ def process_csv(
             except duckdb.Error as e:
                 progress.stop()
                 error_msg = str(e)
-                if "zipfs" in error_msg.lower():
+                if _is_disk_full(e):
+                    show_error_panel(DISK_FULL_MESSAGE)
+                elif "zipfs" in error_msg.lower():
                     show_error_panel(
                         "Failed to load DuckDB zipfs extension for zip input\n\n"
                         f"{error_msg}\n\n"
@@ -813,8 +900,10 @@ def process_csv(
                 )
                 return 1
 
-            if not use_stdout:
-                shutil.move(str(normalized_file), str(actual_output_file))
+            if normalized_file != actual_output_file:
+                # Atomic: same directory, so never a partial or overwritten output
+                os.replace(normalized_file, actual_output_file)
+                temp_files.remove(normalized_file)
 
             logger.debug(f"Output written to: {actual_output_file}")
             progress.update(task, description="[green]✓[/green] Complete")

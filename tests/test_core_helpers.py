@@ -730,3 +730,19 @@ def test_normalize_and_refresh_errors_passes_crlf(monkeypatch, tmp_path):
         None, tmp_path / "rejects.csv", 0, [], crlf=True,
     )
     assert seen["crlf"] is True
+
+
+class TestIsDiskFull:
+    """_is_disk_full recognizes ENOSPC from Python and from DuckDB messages."""
+
+    def test_cases(self):
+        import errno
+
+        from csvnorm.core import _is_disk_full
+
+        assert _is_disk_full(OSError(errno.ENOSPC, "No space left on device"))
+        assert not _is_disk_full(OSError(errno.EACCES, "Permission denied"))
+        assert _is_disk_full(duckdb.IOException('Could not write file "x": "errno":"28"'))
+        assert _is_disk_full(duckdb.IOException("Could not write: No space left on device"))
+        assert not _is_disk_full(duckdb.IOException("Could not open file"))
+        assert not _is_disk_full(ValueError("No space left"))
