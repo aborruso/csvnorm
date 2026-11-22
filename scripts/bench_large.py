@@ -72,17 +72,15 @@ def stage_times(src: Path, work: Path) -> None:
 
 
 def peak_rss(src: Path, out: Path) -> None:
-    time_bin = shutil.which("time") or "/usr/bin/time"
-    if not Path(time_bin).exists():
-        print("peak RSS: /usr/bin/time not available")
-        return
-    result = subprocess.run(
-        [time_bin, "-v", "uv", "run", "csvnorm", str(src), "-o", str(out), "--force"],
-        capture_output=True, text=True,
+    """Peak RSS of one CLI run, from the kernel accounting of child processes."""
+    import resource
+
+    subprocess.run(
+        [sys.executable, "-m", "csvnorm", str(src), "-o", str(out), "--force"],
+        check=False, capture_output=True,
     )
-    for line in result.stderr.splitlines():
-        if "Maximum resident set size" in line:
-            print(f"peak RSS: {int(line.split(':')[1]) >> 10} MiB")
+    kib = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
+    print(f"peak RSS (largest child process): {kib >> 10} MiB")
 
 
 def main() -> None:

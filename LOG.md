@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-22 (perf/large-files)
+
+- plan: speed up large files, design in `docs/designs/speed-up-large-files.md`, OpenSpec change `speed-up-large-files`; `preserve-crlf-line-endings` archived
+- test: golden cases (`tests/test_golden.py`, 19 cases), hand-checked encoding expectations (`tests/test_encoding_equivalence.py`), `make_csv` fixture, `scripts/bench_large.py`; `duckdb>=2.0.0,<3`
+- bench baseline (826 MB cp1252 CRLF, WSL2, ext4 temp): CLI median 162.8 s (154.2, 162.8, 169.1); stages detect_encoding 87.7 s, convert_to_utf8 5.5 s, validate_csv 15.8 s, normalize_csv incl. header rewrite 21.2 s, counts 1.0 s; CRLF pass not in the stage list (about 30 s by difference). Release threshold (3x): 54 s
+
 ## 2026-11-16 (after v1.3.0)
 
 - test: regression test for issue #29 (reject file not valid UTF-8). Cause: DuckDB < 2.0 truncates `csv_line` in the reject table by bytes and can split a multibyte char (`uniformit\xc3`); DuckDB 2.0.0 cuts on character boundaries. Fixed in 1.3.0 by `duckdb>=2.0.0`; the stdout-mode part of the issue (reject file in the working directory) fixed by the temp-dir change
