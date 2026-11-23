@@ -62,6 +62,7 @@ Examples:
   csvnorm data.csv --strict | process.sh           Fail-fast pipeline
   csvnorm data.csv -d ';' -o output.csv            Custom delimiter
   csvnorm data.csv --skip-rows 2 -o out.csv        Skip metadata rows
+  csvnorm data.csv -e cp1252 -o out.csv           Declare the input encoding
   cat data.csv | csvnorm -                         Read from stdin
   csvnorm https://example.com/data.csv -o out.csv  Remote URL
 """

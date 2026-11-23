@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-23 (feat/encoding-option)
+
+- feat: `-e/--encoding NAME` declares the input encoding and skips detection; any Python text codec, unknown or non-text names exit 1 before reading; no fallback: an undecodable byte exits 1 with codec, byte and file offset; `-e utf-8` checks the file without converting it; works with stdin, URLs, zip, gzip (decompressed to temp only with `-e`) and `--check`; summary shows `(declared)`. OpenSpec change `add-input-encoding-option`
+
 ## 2026-11-22 (v1.4.0, perf/large-files)
 
 - release 1.4.0: 826 MB cp1252 file from 162.8 s to 47.8 s median (3.4x), same output; header fix with any delimiter; CR/CRLF kept in non-UTF-8 files; staged output with atomic rename and disk-full panel; sampled encoding detection above 50 MiB (known limit: non-Western single-byte text there can come out as cp1252); `normalize_csv(crlf=False)`. Release notes in `tmp/release_notes_v1.4.0.md`

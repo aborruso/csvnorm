@@ -516,6 +516,7 @@ def _emit_stdout_output(
             output_display=summary["output_display"],
             out_console=stderr_console,
             reject_count=summary.get("reject_count", 0),
+            declared=summary.get("declared", False),
         )
 
     # Return exit code 1 if validation errors occurred (warning already shown before output)
@@ -713,6 +714,7 @@ def _compute_and_show_output(
     reject_count: int,
     error_types: list[str],
     reject_file: Path,
+    declared: bool = False,
 ) -> int:
     """Compute statistics and display output for stdout or file mode.
 
@@ -744,6 +746,7 @@ def _compute_and_show_output(
             "keep_names": keep_names,
             "output_display": "stdout",
             "reject_count": reject_count - 1 if has_validation_errors else 0,
+            "declared": declared,
         }
         return _emit_stdout_output(
             actual_output_file,
@@ -766,6 +769,7 @@ def _compute_and_show_output(
         delimiter=delimiter,
         keep_names=keep_names,
         reject_count=reject_count - 1 if has_validation_errors else 0,
+        declared=declared,
     )
 
     if has_validation_errors:
@@ -851,6 +855,7 @@ def process_csv(
     if stdin_temp_file is not None:
         temp_files.append(stdin_temp_file.parent)
 
+    declared_encoding = encoding is not None
     compressed_type: Optional[str] = None
     compressed_input_path: Union[str, Path] = input_path
 
@@ -1011,6 +1016,7 @@ def process_csv(
             input_file, local_input_path, working_file, actual_output_file,
             encoding, is_remote, mojibake_repaired, delimiter, keep_names,
             use_stdout, has_validation_errors, reject_count, error_types, reject_file,
+            declared=declared_encoding,
         )
 
     finally:

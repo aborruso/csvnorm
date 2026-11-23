@@ -1,5 +1,6 @@
 """UI formatting functions for csvnorm terminal output."""
 
+import codecs
 from pathlib import Path
 from typing import Optional
 
@@ -51,6 +52,7 @@ def show_success_table(
     output_display: Optional[str] = None,
     out_console: Optional[Console] = None,
     reject_count: int = 0,
+    declared: bool = False,
 ) -> None:
     """Display success summary table with processing results.
 
@@ -66,6 +68,7 @@ def show_success_table(
         output_size: Output file size in bytes.
         delimiter: Output delimiter character.
         keep_names: Whether original column names were kept.
+        declared: Whether the encoding was declared with --encoding.
     """
     table = Table(show_header=False, box=None, padding=(0, 1))
     if reject_count > 0:
@@ -77,7 +80,12 @@ def show_success_table(
     table.add_row("Output:", f"[cyan]{output_value}[/cyan]")
 
     # Encoding info (only for local files)
-    if not is_remote:
+    if not is_remote and declared:
+        if needs_conversion(codecs.lookup(encoding).name):
+            table.add_row("Encoding:", f"{encoding} → UTF-8 [dim](declared)[/dim]")
+        else:
+            table.add_row("Encoding:", f"{encoding} [dim](declared)[/dim]")
+    elif not is_remote:
         if needs_conversion(encoding):
             table.add_row("Encoding:", f"{encoding} → UTF-8 [dim](converted)[/dim]")
         else:

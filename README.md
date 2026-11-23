@@ -81,6 +81,7 @@ csvnorm -                    # read from stdin
 | `-f, --force` | Force overwrite of existing output file (when `-o` is specified) |
 | `-k, --keep-names` | Keep original column names (disable snake_case) |
 | `-d, --delimiter CHAR` | Set custom output delimiter (default: `,`) |
+| `-e, --encoding NAME` | Declare the input encoding (any Python codec name, e.g. `cp1252`, `latin-1`, `cp850`) and skip automatic detection; exit code 1 if the input cannot be decoded with it |
 | `-s, --skip-rows N` | Skip first N rows of input file (useful for metadata/comments) |
 | `--fix-mojibake [N]` | Fix mojibake using ftfy (optional sample size `N`; use `0` to force repair) |
 | `--strict` | Write no output (stdout or file) if any validation errors occur; an existing output file is left untouched, even with `--force`. Exit code is 1 on validation errors with or without `--strict` |
@@ -127,6 +128,9 @@ csvnorm data.csv --keep-names -o output.csv
 
 # Skip first 2 rows (metadata or comments)
 csvnorm data.csv --skip-rows 2 -o output.csv
+
+# Declare the input encoding instead of detecting it
+csvnorm data.csv -e cp1252 -o output.csv
 
 # Force overwrite with verbose output
 csvnorm data.csv -f -V -o processed.csv
@@ -190,7 +194,13 @@ csvnorm raw_data.csv --check || exit 1
 **Encoding detection limits:**
 - Non-UTF-8 encodings are detected automatically with charset-normalizer, which can confuse single-byte encodings that share most characters (for example cp1252 with cp1250 or cp1258, or cp850 with cp1250). When scores tie, csvnorm prefers Western European encodings (cp1252).
 - Files larger than 50 MiB are not analysed as a whole: csvnorm checks for valid UTF-8 in one pass and, for other files, lets charset-normalizer examine a small sample that contains every non-ASCII byte value of the file, preferring Western European encodings. This takes seconds instead of minutes, but on such large files Turkish, Polish, Baltic or Hungarian text can be detected as Western European without any error. Files up to 50 MiB are detected as in previous versions.
-- Check accented and typographic characters (`à`, `ì`, `“ ”`, `€`) in the output of non-UTF-8 files. If they are wrong, convert the file to UTF-8 yourself before running csvnorm, for example `iconv -f cp1252 -t utf-8 data.csv > data_utf8.csv`.
+- Check accented and typographic characters (`à`, `ì`, `“ ”`, `€`) in the output of non-UTF-8 files. If they are wrong, declare the encoding with `-e` (see below).
+
+**Declaring the input encoding (`-e, --encoding NAME`):**
+- When you know the encoding of the file, `-e` skips detection and converts from that encoding. Use it when detection gets it wrong (for example `“Libro”` coming out as `ôLibroö`, or Turkish and Polish text in files above 50 MiB), or to save the detection time on large files.
+- Any Python codec name works: `cp1252`, `latin-1`, `cp850`, `cp1250`, `utf-8`. An unknown name stops csvnorm with exit code 1 before the file is read.
+- There is no fallback: if a byte cannot be decoded with the declared encoding, csvnorm stops with exit code 1 and reports the byte and its position in the file. With `-e utf-8` the file is only checked, not converted.
+- Works with local files, stdin, URLs, `.zip` and `.gz` inputs, and with `--check`. A `.gz` input is decompressed to a temporary file first, since DuckDB would read it as UTF-8.
 
 **Mojibake repair (`--fix-mojibake [N]`):**
 - Mojibake is garbled text produced by decoding bytes with the wrong character encoding (e.g., `CittÃ ` instead of `Città`).

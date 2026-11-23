@@ -153,3 +153,30 @@ def test_downloaded_url_uses_declared_encoding(tmp_path, monkeypatch):
     result = core.process_csv("https://example.org/data.csv", out, encoding="cp1252")
     assert result == 0
     assert "Forlì" in out.read_text(encoding="utf-8")
+
+
+class TestSummary:
+    """The summary says the encoding was declared, not detected."""
+
+    def test_file_mode(self, tmp_path):
+        src = tmp_path / "it.csv"
+        src.write_bytes("id,nome\n1,Forlì\n".encode("cp1252"))
+        r = run(str(src), "-e", "cp1252", "-o", str(_out(tmp_path)), cwd=tmp_path)
+        assert r.returncode == 0, r.stderr.decode()
+        assert "cp1252 → UTF-8 (declared)" in r.stdout.decode()
+
+    def test_stdout_mode(self, tmp_path):
+        src = tmp_path / "it.csv"
+        src.write_bytes("id,nome\n1,Forlì\n".encode("cp1252"))
+        r = run(str(src), "-e", "cp1252", cwd=tmp_path)
+        assert r.returncode == 0, r.stderr.decode()
+        assert "cp1252 → UTF-8 (declared)" in r.stderr.decode()
+        assert "declared" not in r.stdout.decode()
+
+    def test_utf8_family(self, tmp_path):
+        r = run(str(TEST_DIR / "utf8_basic.csv"), "-e", "utf8",
+                "-o", str(_out(tmp_path)), cwd=tmp_path)
+        assert r.returncode == 0, r.stderr.decode()
+        out = r.stdout.decode()
+        assert "utf8 (declared)" in out
+        assert "→" not in out

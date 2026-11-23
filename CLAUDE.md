@@ -63,6 +63,7 @@ csvnorm test/utf8_basic.csv -o out.csv   # Write to file
 csvnorm test/latin1_semicolon.csv -V     # Verbose mode
 csvnorm input.csv -s 2 -o output.csv     # Skip first 2 rows
 csvnorm input.csv --fix-mojibake -o out.csv  # Fix mojibake
+csvnorm input.csv -e cp1252 -o out.csv       # Declared encoding, no detection
 cat data.csv | csvnorm -                    # Read from stdin
 ```
 
@@ -142,7 +143,10 @@ FALLBACK_CONFIGS = [
 - `detect_encoding(path)` - charset_normalizer on the whole file up to 50 MiB (`FULL_DETECTION_MAX_BYTES`); above, streaming strict UTF-8 pass, then charset_normalizer on a sample holding every high byte value (`_scan`, `_window`), Western codec preferred among the least chaotic
 - `detect_and_convert(input, output, on_detected)` - detect, convert, one fallback to full detection if conversion fails; used by `core._handle_local_encoding`
 - `convert_to_utf8(input, output, encoding)` - 4 MiB chunks, CR/LF/CRLF kept, `file_offset` on decode errors
+- `check_decodes(input, encoding)` - chunked strict decode with no output (declared UTF-8/ASCII); same `file_offset` as `convert_to_utf8`
 - `needs_conversion(encoding)` - Check if encoding ∈ {utf-8, ascii, utf-8-sig}
+
+**Declared encoding** (`-e/--encoding`, `process_csv(encoding=...)`): `cli.main` rejects unknown and non-text codecs (exit 1); `core._handle_declared_encoding` skips `detect_and_convert` and calls `convert_to_utf8`, or `check_decodes` for the UTF-8 family; no fallback to detection. A `.gz` input is decompressed to temp first (`_gunzip_to_temp`); without `-e` it still goes straight to DuckDB. The summary shows `(declared)`
 
 **mojibake.py**:
 - `detect_mojibake(text, sample_size)` - ftfy badness heuristic
@@ -217,7 +221,7 @@ Test fixtures in `test/`:
 ## Key Files
 
 - `src/csvnorm/` - Python package
-- `tests/` - Test suite (327 tests); `tests/test_golden.py` compares CLI output byte for byte with `tests/fixtures/golden/`
+- `tests/` - Test suite (345 tests); `tests/test_golden.py` compares CLI output byte for byte with `tests/fixtures/golden/`
 - `scripts/bench_large.py` - Benchmark on a large CSV (median of runs, per-stage times, peak RSS)
 - `docs/designs/speed-up-large-files.md` - Design of the large-file speed-up
 - `test/` - CSV fixtures
