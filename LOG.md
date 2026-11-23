@@ -2,7 +2,7 @@
 
 ## 2026-11-23 (ci/test-workflow)
 
-- ci: `.github/workflows/tests.yml` runs pytest and mypy on every PR and push to `main` (Python 3.11-3.13, same steps as the `test` job in `publish-pypi.yml`); before, tests ran in CI only on release tags
+- ci: `.github/workflows/tests.yml` runs pytest and mypy on every PR and push to `main` (Python 3.11-3.13, same steps as the `test` job in `publish-pypi.yml`, with `actions/checkout` and `actions/setup-python` on v7 for Node.js 24); before, tests ran in CI only on release tags
 
 ## 2026-11-23 (chore/remove-gemini-workflows)
 
