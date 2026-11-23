@@ -7,10 +7,10 @@
 
 ## 2. Pipeline
 
-- [ ] 2.1 Pass the declared encoding through `process_csv` to `_prepare_working_file`; skip `detect_encoding` when set
+- [ ] 2.1 Pass the declared encoding through `process_csv` to `_handle_local_encoding`; skip `detect_and_convert` when set; UTF-8 family: chunked decode check, no converted file
 - [ ] 2.2 Convert with the declared encoding; on `UnicodeDecodeError` stop with exit 1 and report encoding, byte offset and byte
-- [ ] 2.3 Compressed inputs: implement the option chosen in `design.md`
-- [ ] 2.4 Tests (subprocess): `test/windows1252_quotes.csv -e cp1252` gives `“Libro”` and `10€`; Italian cp1252 sample with `ì` decodes correctly; cp850 sample with `-e cp850`; stdin with `-e`; undecodable input with declared encoding exits 1; without `-e` output unchanged
+- [ ] 2.3 gzip with `--encoding`: decompress in chunks to a temp file, then convert; without `--encoding` unchanged. Zip: nothing new (already extracted)
+- [ ] 2.4 Tests (subprocess): `test/windows1252_quotes.csv -e cp1252` gives `“Libro”` and `10€`; Italian cp1252 sample with `ì` decodes correctly; cp850 sample with `-e cp850`; stdin with `-e`; gzip and zip with `-e`; `--check -e`; undecodable input with declared encoding exits 1; without `-e` output unchanged
 
 ## 3. Summary and docs
 

@@ -2,7 +2,7 @@
 
 ## Context
 
-Today the encoding step runs only for plain local files (`_prepare_working_file` in `core.py`). Remote URLs are downloaded first and then treated as local files. Compressed inputs (gzip, zip) skip detection: DuckDB reads them directly and assumes UTF-8.
+Updated 2026-11-23, after release 1.4.0. Plain local files, stdin (saved to a temp file), downloaded URLs and zip inputs (extracted to a temp file) all go through `_handle_local_encoding` in `core.py`, which calls `detect_and_convert` in `encoding.py`: detection (whole file up to 50 MiB, sampled above), chunked strict conversion with `convert_to_utf8`, one fallback to whole-file detection if the conversion fails. Only gzip inputs skip this step: DuckDB reads them directly and assumes UTF-8.
 
 ## Decisions
 
@@ -22,11 +22,23 @@ If the declared encoding is UTF-8 compatible (`utf-8`, `ascii`, `utf-8-sig`), no
 
 The message reports the declared encoding, the byte offset and the offending byte, for example: `Input is not valid cp1252: byte 0x81 at offset 1234`. It suggests running without `--encoding` to see the detected one.
 
-## Open points (to settle before apply)
+### Compressed inputs (decided 2026-11-23)
 
-- **Compressed inputs.** Options: (1) decompress to a temp file and convert like a local file; (2) pass the encoding to DuckDB `read_csv(encoding=...)`, which natively supports only `utf-8`, `utf-16` and `latin-1` (more through the `encodings` extension); (3) reject `--encoding` with compressed input for now. Proposal: (1), it reuses the existing path and supports every Python codec.
-- **Short flag `-e`.** Free today. Proposal: use it.
-- **`--check` with `--encoding`.** Proposal: allowed; validation uses the declared encoding.
+With `--encoding`, a gzip input is decompressed in chunks to a temp file and then converted like a local file, so every Python codec works. Without `--encoding` gzip keeps going straight to DuckDB. Zip inputs need nothing new: they are already extracted to a temp file.
+
+### Short flag (decided 2026-11-23)
+
+`-e` is the short form of `--encoding`.
+
+### `--check` with `--encoding` (decided 2026-11-23)
+
+Allowed: validation reads the input decoded with the declared encoding.
+
+### Implementation notes
+
+- `--encoding` skips `detect_and_convert` entirely and calls `convert_to_utf8` with the declared name; there is no fallback.
+- For the UTF-8 family no converted file is written, but the input is checked to decode in chunks, with the same `file_offset` reporting as the conversion. A UTF-8 file with BOM declared as `utf-8` is handled as today.
+- An invalid name exits with code 1 after argument parsing (not argparse's exit code 2).
 
 ## Risks
 

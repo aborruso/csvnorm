@@ -18,6 +18,19 @@ The system SHALL accept an optional `-e/--encoding NAME` option. When it is give
 - **AND** the error message reports the declared encoding, the byte offset and the offending byte
 - **AND** the system does not fall back to automatic detection
 
+#### Scenario: Compressed input with a declared encoding
+- **WHEN** the user runs `csvnorm data.csv.gz -e cp1252`
+- **THEN** the input is decompressed to a temporary file and decoded as cp1252
+- **AND** the output is UTF-8
+
+#### Scenario: Check mode with a declared encoding
+- **WHEN** the user runs `csvnorm data.csv --check -e cp1252`
+- **THEN** validation reads the input decoded as cp1252
+
+#### Scenario: Short flag
+- **WHEN** the user runs `csvnorm data.csv -e cp1252`
+- **THEN** the behaviour is the same as `--encoding cp1252`
+
 #### Scenario: No option given
 - **WHEN** `--encoding` is not given
 - **THEN** the system detects the encoding automatically as before
