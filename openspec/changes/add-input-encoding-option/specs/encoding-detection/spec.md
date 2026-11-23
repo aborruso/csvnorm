@@ -10,11 +10,11 @@ The system SHALL accept an optional `-e/--encoding NAME` option. When it is give
 
 #### Scenario: Unknown encoding name
 - **WHEN** the user passes an encoding name that is not a Python codec
-- **THEN** the system prints an error on stderr and exits with code 1 before reading the input
+- **THEN** the system prints an error on stderr and exits with code 2 before reading the input
 
 #### Scenario: Input not decodable with the declared encoding
 - **WHEN** the input contains bytes that the declared encoding cannot decode
-- **THEN** the system exits with code 1
+- **THEN** the system exits with code 2
 - **AND** the error message reports the declared encoding, the byte offset and the offending byte
 - **AND** the system does not fall back to automatic detection
 

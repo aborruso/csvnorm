@@ -3,6 +3,7 @@
 ## 2026-11-23 (feat/encoding-option)
 
 - feat: `-e/--encoding NAME` declares the input encoding and skips detection; any Python text codec, unknown or non-text names exit 1 before reading; no fallback: an undecodable byte exits 1 with codec, byte and file offset; `-e utf-8` checks the file without converting it; works with stdin, URLs, zip, gzip (decompressed to temp only with `-e`) and `--check`; summary shows `(declared)`. OpenSpec change `add-input-encoding-option`
+- feat: help readable by an agent (what it does and does not do, Start here, Output, Exit codes, Limits, Encoding names); `--version` one line off-terminal; plain `Error:` lines instead of boxes when stderr is not a terminal; remedies in error messages. BREAKING exit codes grep style: 0 clean, 1 rows rejected, 2 could not complete (fatal errors were 1); unexpected exceptions exit 2. OpenSpec change `agent-readable-cli`
 
 ## 2026-11-22 (v1.4.0, perf/large-files)
 

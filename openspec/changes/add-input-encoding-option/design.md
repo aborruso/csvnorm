@@ -8,7 +8,7 @@ Updated 2026-11-23, after release 1.4.0. Plain local files, stdin (saved to a te
 
 ### Declared encoding replaces detection, never falls back
 
-With `--encoding`, `detect_encoding()` is not called. If decoding fails, the run stops with exit code 1. A silent fallback to detection would hide exactly the error the user tried to avoid.
+With `--encoding`, `detect_encoding()` is not called. If decoding fails, the run stops with exit code 2 (the code for runs that could not complete, see change `agent-readable-cli`). A silent fallback to detection would hide exactly the error the user tried to avoid.
 
 ### Validation before any work
 
@@ -38,7 +38,7 @@ Allowed: validation reads the input decoded with the declared encoding.
 
 - `--encoding` skips `detect_and_convert` entirely and calls `convert_to_utf8` with the declared name; there is no fallback.
 - For the UTF-8 family no converted file is written, but the input is checked to decode in chunks, with the same `file_offset` reporting as the conversion. A UTF-8 file with BOM declared as `utf-8` is handled as today.
-- An invalid name exits with code 1 after argument parsing (not argparse's exit code 2).
+- An invalid name exits with code 2 after argument parsing, like other invalid command lines.
 
 ## Risks
 

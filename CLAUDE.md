@@ -196,9 +196,11 @@ Test fixtures in `test/`:
    - With `-o`: file (with rich output)
 
 3. **Exit codes**:
-   - 0: Success, no validation errors
-   - 1: Validation errors (any mode, also without `--strict`: accepted rows are still exported unless `--strict`) or fatal error (file not found, download failure, etc.)
-   - 2: Invalid CLI usage (argparse)
+   - 0: Success, no validation errors (`EXIT_OK` in `core.py`)
+   - 1: Rows rejected (any mode; accepted rows are still exported unless `--strict`) (`EXIT_INVALID`)
+   - 2: Could not complete: invalid CLI usage, file not found, download failure, encoding, disk full, unexpected exception caught in `cli.main` (`EXIT_ERROR`). Fatal errors exited with 1 before 1.5.0
+   - Help (`_DESCRIPTION`, `_EPILOG` in `cli.py`) documents these and is tested in `tests/test_agent_help.py`: keep it in sync with behavior
+   - Off-terminal, `ui._print_boxed` prints plain lines instead of panels; `--version` prints one line
 
 4. **Error handling**:
    - Non-UTF-8 encodings → automatic conversion
@@ -221,7 +223,7 @@ Test fixtures in `test/`:
 ## Key Files
 
 - `src/csvnorm/` - Python package
-- `tests/` - Test suite (345 tests); `tests/test_golden.py` compares CLI output byte for byte with `tests/fixtures/golden/`
+- `tests/` - Test suite (359 tests); `tests/test_golden.py` compares CLI output byte for byte with `tests/fixtures/golden/`
 - `scripts/bench_large.py` - Benchmark on a large CSV (median of runs, per-stage times, peak RSS)
 - `docs/designs/speed-up-large-files.md` - Design of the large-file speed-up
 - `test/` - CSV fixtures
