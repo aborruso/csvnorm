@@ -177,7 +177,7 @@ class TestMainFunction:
     def test_nonexistent_file(self):
         """Test processing nonexistent file returns error."""
         exit_code = main(["/nonexistent/file.csv"])
-        assert exit_code == 1
+        assert exit_code == 2
 
     def test_stdout_default(self, tmp_path, capsys):
         """Test default output is stdout (no -o flag)."""
@@ -200,7 +200,7 @@ class TestMainFunction:
         exit_code = main([str(test_csv), "-o", str(test_csv), "--force"])
 
         # Should fail with error
-        assert exit_code == 1
+        assert exit_code == 2
         # Original file should still exist and be unchanged
         assert test_csv.exists()
         assert "Col1,Col2" in test_csv.read_text()
@@ -251,7 +251,7 @@ class TestMainFunction:
         exit_code = main(["nonexistent.csv", "--skip-rows", "-1"])
 
         # Should fail with error
-        assert exit_code == 1
+        assert exit_code == 2
 
     def test_skip_rows_zero_default(self, tmp_path):
         """Test --skip-rows=0 (default) doesn't skip any rows."""
@@ -398,7 +398,7 @@ class TestCLISubprocess:
         [
             ("a,b\n1,2\n", [], 0),
             ("a,b,c\n1,2,3\n4,5\n6,7,8,9\n", ["--strict"], 1),
-            (None, [], 1),
+            (None, [], 2),
         ],
         ids=["valid", "invalid_strict", "missing_file"],
     )
@@ -645,7 +645,7 @@ class TestCheckMode:
         test_file = Path("test/utf8_basic.csv")
         output_file = tmp_path / "output.csv"
         result = main([str(test_file), "--check", "-o", str(output_file)])
-        assert result == 1
+        assert result == 2
 
     def test_check_mode_with_strict_warns(self, capsys):
         """Test --check with --strict shows warning."""

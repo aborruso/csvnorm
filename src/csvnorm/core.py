@@ -1,6 +1,8 @@
 """Core processing logic for csvnorm."""
 
+import codecs
 import errno
+import gzip
 import logging
 import os
 import shutil
@@ -17,7 +19,12 @@ import duckdb
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, TaskID
 
-from csvnorm.encoding import detect_and_convert, needs_conversion
+from csvnorm.encoding import (
+    check_decodes,
+    convert_to_utf8,
+    detect_and_convert,
+    needs_conversion,
+)
 from csvnorm.mojibake import repair_file
 from csvnorm.ui import (
     show_error_panel,
@@ -42,6 +49,12 @@ from csvnorm.validation import normalize_csv, validate_csv
 
 logger = logging.getLogger("csvnorm")
 console = Console()
+
+# Exit codes, grep style: 0 clean, 1 rows rejected (output still written
+# unless --strict), 2 csvnorm could not complete (usage or fatal error)
+EXIT_OK = 0
+EXIT_INVALID = 1
+EXIT_ERROR = 2
 
 DISK_FULL_MESSAGE = (
     "No space left on device\n\n"
@@ -128,11 +141,15 @@ def _resolve_input_path(
 
     file_path = Path(input_file)
     if not file_path.exists():
-        show_error_panel(f"Input file not found\n{file_path}")
+        show_error_panel(
+            f"Input file not found\n{file_path}\n\n"
+            f"Check the path (relative paths start from {Path.cwd()}); "
+            "use - to read from stdin."
+        )
         raise FileNotFoundError(str(file_path))
 
     if not file_path.is_file():
-        show_error_panel(f"Not a file\n{file_path}")
+        show_error_panel(f"Not a file\n{file_path}\n\nPass the path of a CSV file, not a directory.")
         raise IsADirectoryError(str(file_path))
 
     if output_file is not None:
@@ -177,10 +194,9 @@ def _setup_output_paths(
     temp_utf8_file = temp_dir / f"{output_file.stem}_utf8.csv"
 
     if output_file.exists() and not force:
-        show_warning_panel(
-            f"Output file already exists\n\n"
-            f"{output_file}\n\n"
-            f"Use [bold]--force[/bold] to overwrite."
+        show_error_panel(
+            f"Output file already exists\n{output_file}\n\n"
+            "Use --force to overwrite it, or choose another path with -o."
         )
         raise FileExistsError(str(output_file))
 
@@ -214,7 +230,10 @@ def _download_remote_if_needed(
         download_path = temp_dir / f"remote_download{suffix}"
         download_url_to_file(input_file, download_path)
     except (OSError, urllib.error.URLError) as e:
-        show_error_panel(f"Failed to download remote file\n{e}")
+        show_error_panel(
+            f"Failed to download remote file\n{e}\n\n"
+            "Check the URL and the network, or download the file and pass the local path."
+        )
         raise
 
     temp_files.append(download_path)
@@ -245,8 +264,18 @@ def _handle_local_encoding(
     progress: Progress,
     task: TaskID,
     temp_files: list[Path],
+    declared: Optional[str] = None,
 ) -> tuple[Union[str, Path], str]:
-    """Detect encoding and convert to UTF-8 if needed."""
+    """Detect encoding and convert to UTF-8 if needed.
+
+    With ``declared`` set, detection is skipped: the file is converted from
+    that encoding, or only checked when it is UTF-8 or ASCII.
+    """
+    if declared:
+        return _handle_declared_encoding(
+            file_input_path, temp_utf8_file, progress, task, temp_files, declared
+        )
+
     progress.update(task, description="[cyan]Detecting encoding...")
 
     def on_detected(encoding: str) -> None:
@@ -279,6 +308,42 @@ def _handle_local_encoding(
         )
 
     return working_file, encoding
+
+
+def _handle_declared_encoding(
+    file_input_path: Path,
+    temp_utf8_file: Path,
+    progress: Progress,
+    task: TaskID,
+    temp_files: list[Path],
+    declared: str,
+) -> tuple[Union[str, Path], str]:
+    """Convert from the declared encoding, with no fallback to detection."""
+    if not needs_conversion(codecs.lookup(declared).name):
+        progress.update(task, description=f"[cyan]Checking {declared} input...")
+        check_decodes(file_input_path, declared)
+        progress.update(
+            task, description=f"[green]✓[/green] Encoding: {declared} (declared)"
+        )
+        return file_input_path, declared
+
+    progress.update(
+        task, description=f"[cyan]Converting from {declared} to UTF-8 (declared)..."
+    )
+    convert_to_utf8(file_input_path, temp_utf8_file, declared)
+    temp_files.append(temp_utf8_file)
+    progress.update(
+        task, description=f"[green]✓[/green] Converted from {declared} (declared)"
+    )
+    return temp_utf8_file, declared
+
+
+def _gunzip_to_temp(gz_path: Path, temp_dir: Path) -> Path:
+    """Decompress a gzip file into ``temp_dir``, in chunks."""
+    output_path = temp_dir / (gz_path.stem or "input.csv")
+    with gzip.open(gz_path, "rb") as source, open(output_path, "wb") as target:
+        shutil.copyfileobj(source, target, 4 * 1024 * 1024)
+    return output_path
 
 
 def _handle_mojibake_if_needed(
@@ -421,10 +486,11 @@ def _normalize_and_refresh_errors(
 
     has_validation_errors = reject_count > 1
     if used_fallback and used_fallback != fallback_config:
-        reject_count = sum(1 for _ in open(reject_file, "rb")) if reject_file.exists() else 0
+        from csvnorm.validation import _count_lines, _get_error_types
+
+        reject_count = _count_lines(reject_file)
         has_validation_errors = reject_count > 1
         if has_validation_errors:
-            from csvnorm.validation import _get_error_types
 
             error_types = _get_error_types(reject_file)
 
@@ -463,10 +529,11 @@ def _emit_stdout_output(
             output_display=summary["output_display"],
             out_console=stderr_console,
             reject_count=summary.get("reject_count", 0),
+            declared=summary.get("declared", False),
         )
 
     # Return exit code 1 if validation errors occurred (warning already shown before output)
-    return 1 if has_validation_errors else 0
+    return EXIT_INVALID if has_validation_errors else EXIT_OK
 
 
 def _cleanup_temp_artifacts(
@@ -515,6 +582,7 @@ def _prepare_working_file(
     progress: Progress,
     task: TaskID,
     temp_files: list[Path],
+    declared: Optional[str] = None,
 ) -> Optional[tuple[Union[str, Path], str, bool]]:
     """Resolve encoding and apply mojibake repair.
 
@@ -545,6 +613,7 @@ def _prepare_working_file(
     try:
         working_file, encoding = _handle_local_encoding(
             file_input_path, temp_utf8_file, progress, task, temp_files,
+            declared,
         )
     except (UnicodeDecodeError, LookupError) as e:
         progress.stop()
@@ -554,6 +623,11 @@ def _prepare_working_file(
             bad = e.object[e.start:e.start + 1].hex().upper()
             name = getattr(e, "source_encoding", e.encoding)
             detail = f"{name} cannot decode byte 0x{bad} at file offset {offset}"
+            if declared:
+                detail += (
+                    "\nCheck the declared encoding, or run without --encoding "
+                    "to detect it automatically."
+                )
         show_error_panel(f"Encoding conversion failed\n{detail}")
         return None
     except OSError as e:
@@ -623,14 +697,14 @@ def _handle_post_validation(
             stderr_console.print(f"Details: {reject_file}", soft_wrap=True)
         else:
             stderr_console.print("[green]✓ Valid CSV[/green]")
-        return 1 if has_validation_errors else 0
+        return EXIT_INVALID if has_validation_errors else EXIT_OK
 
     if has_validation_errors and (use_stdout or strict):
         progress.stop()
         stderr_console = Console(stderr=True)
         show_validation_error_panel(reject_count, error_types, reject_file, stderr_console)
         if strict:
-            return 1
+            return EXIT_INVALID
         progress.start()
     elif has_validation_errors:
         progress.stop()
@@ -653,6 +727,7 @@ def _compute_and_show_output(
     reject_count: int,
     error_types: list[str],
     reject_file: Path,
+    declared: bool = False,
 ) -> int:
     """Compute statistics and display output for stdout or file mode.
 
@@ -684,6 +759,7 @@ def _compute_and_show_output(
             "keep_names": keep_names,
             "output_display": "stdout",
             "reject_count": reject_count - 1 if has_validation_errors else 0,
+            "declared": declared,
         }
         return _emit_stdout_output(
             actual_output_file,
@@ -706,11 +782,12 @@ def _compute_and_show_output(
         delimiter=delimiter,
         keep_names=keep_names,
         reject_count=reject_count - 1 if has_validation_errors else 0,
+        declared=declared,
     )
 
     if has_validation_errors:
         show_validation_error_panel(reject_count, error_types, reject_file)
-        return 1
+        return EXIT_INVALID
 
     return 0
 
@@ -727,6 +804,7 @@ def process_csv(
     download_remote: bool = False,
     strict: bool = False,
     check_only: bool = False,
+    encoding: Optional[str] = None,
 ) -> int:
     """Main CSV processing pipeline.
 
@@ -741,6 +819,7 @@ def process_csv(
         fix_mojibake_sample: Sample size for mojibake detection, None to disable.
         strict: If True, exit with error code 1 if validation errors occur.
         check_only: If True, only validate CSV without processing or normalizing.
+        encoding: Declared input encoding (Python codec name); skips detection.
 
     Returns:
         Exit code: 0 for success, 1 for error.
@@ -750,13 +829,13 @@ def process_csv(
 
     if fix_mojibake_sample is not None and fix_mojibake_sample < 0:
         show_error_panel("--fix-mojibake must be non-negative (use 0 to force repair)")
-        return 1
+        return EXIT_ERROR
 
     # Handle stdin input (csvnorm -)
     if input_file == "-":
         if sys.stdin.isatty():
             show_error_panel("No input data on stdin\n\nUsage: cat data.csv | csvnorm -")
-            return 1
+            return EXIT_ERROR
         stdin_data = sys.stdin.buffer.read()
         stdin_temp_dir = Path(tempfile.mkdtemp(prefix="csvnorm_stdin_"))
         stdin_temp_file = stdin_temp_dir / "stdin_input.csv"
@@ -767,13 +846,13 @@ def process_csv(
         try:
             input_path, is_remote = _resolve_input_path(input_file, output_file)
         except (ValueError, FileNotFoundError, IsADirectoryError):
-            return 1
+            return EXIT_ERROR
 
     try:
         validate_delimiter(delimiter)
     except ValueError as e:
         show_error_panel(str(e))
-        return 1
+        return EXIT_ERROR
 
     # Setup paths
     temp_dir = Path(tempfile.mkdtemp(prefix="csvnorm_"))
@@ -783,12 +862,13 @@ def process_csv(
             output_file, force, temp_dir
         )
     except FileExistsError:
-        return 1
+        return EXIT_ERROR
 
     temp_files: list[Path] = [temp_dir]
     if stdin_temp_file is not None:
         temp_files.append(stdin_temp_file.parent)
 
+    declared_encoding = encoding is not None
     compressed_type: Optional[str] = None
     compressed_input_path: Union[str, Path] = input_path
 
@@ -801,7 +881,7 @@ def process_csv(
                 input_file, input_path, is_remote, download_remote, temp_dir, temp_files,
             )
         except (OSError, urllib.error.URLError):
-            return 1
+            return EXIT_ERROR
 
         # Handle compressed input
         compressed_input_path = input_path
@@ -813,11 +893,24 @@ def process_csv(
                     input_path = extracted_path
                     local_input_path = extracted_path
                     temp_files.append(extracted_path)
+                elif is_gzip_path(local_input_path) and encoding:
+                    # A declared encoding needs a local conversion: DuckDB
+                    # would read the gzip as UTF-8
+                    gunzipped = _gunzip_to_temp(local_input_path, temp_dir)
+                    temp_files.append(gunzipped)
+                    input_path = gunzipped
+                    local_input_path = gunzipped
                 elif is_gzip_path(local_input_path):
                     compressed_type = "gzip"
+            except (OSError, EOFError) as e:
+                if _is_disk_full(e):
+                    show_error_panel(DISK_FULL_MESSAGE)
+                else:
+                    show_error_panel(f"Cannot read compressed input\n{e}")
+                return EXIT_ERROR
             except ValueError as e:
                 show_error_panel(str(e))
-                return 1
+                return EXIT_ERROR
 
     # Detect CRLF before any processing so file output can preserve it
     input_has_crlf = (
@@ -852,10 +945,10 @@ def process_csv(
             result = _prepare_working_file(
                 input_path, is_remote, compressed_type, compressed_input_path,
                 temp_utf8_file, temp_dir, fix_mojibake_sample, check_only,
-                progress, task, temp_files,
+                progress, task, temp_files, encoding,
             )
             if result is None:
-                return 1
+                return EXIT_ERROR
             working_file, encoding, mojibake_repaired = result
 
             # Step 3: Validate CSV
@@ -867,7 +960,7 @@ def process_csv(
                     )
                 )
             except duckdb.Error:
-                return 1
+                return EXIT_ERROR
 
             has_validation_errors = reject_count > 1
             exit_code = _handle_post_validation(
@@ -914,14 +1007,14 @@ def process_csv(
                     )
                 else:
                     show_error_panel(f"Normalization failed\n{error_msg}")
-                return 1
+                return EXIT_ERROR
 
             if strict and has_validation_errors:
                 progress.stop()
                 show_validation_error_panel(
                     reject_count, error_types, reject_file, Console(stderr=True)
                 )
-                return 1
+                return EXIT_INVALID
 
             if normalized_file != actual_output_file:
                 # Atomic: same directory, so never a partial or overwritten output
@@ -936,6 +1029,7 @@ def process_csv(
             input_file, local_input_path, working_file, actual_output_file,
             encoding, is_remote, mojibake_repaired, delimiter, keep_names,
             use_stdout, has_validation_errors, reject_count, error_types, reject_file,
+            declared=declared_encoding,
         )
 
     finally:

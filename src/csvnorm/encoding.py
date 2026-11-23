@@ -2,6 +2,7 @@
 
 import codecs
 import logging
+import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import BinaryIO, Literal, NamedTuple
@@ -441,6 +442,29 @@ def convert_to_utf8(input_path: Path, output_path: Path, source_encoding: str) -
 
     logger.debug(f"Converted file written to: {output_path}")
     return output_path
+
+
+def check_decodes(input_path: Path, encoding: str) -> None:
+    """Decode the whole file with ``encoding``, in chunks, without writing it.
+
+    Used when the declared encoding needs no conversion (UTF-8, ASCII): the
+    file is still checked, so a wrong declaration stops the run.
+
+    Raises:
+        UnicodeDecodeError: With ``file_offset`` and ``source_encoding`` set,
+            as in :func:`convert_to_utf8`.
+    """
+    decoder = codecs.getincrementaldecoder(encoding)(errors="strict")
+    offset = 0
+    try:
+        with open(input_path, "rb") as src, open(os.devnull, "wb") as sink:
+            while chunk := src.read(CHUNK_SIZE):
+                _decode_into(decoder, chunk, offset, sink)
+                offset += len(chunk)
+            _decode_into(decoder, b"", offset, sink, final=True)
+    except UnicodeDecodeError as e:
+        e.source_encoding = encoding  # type: ignore[attr-defined]
+        raise
 
 
 def _decode_into(

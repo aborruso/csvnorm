@@ -17,8 +17,8 @@ Update 2026-11-22 (change `speed-up-large-files`, release 1.4.0): files up to 50
 ## What Changes
 
 - New option `-e/--encoding <name>`: the input is decoded with the declared encoding and automatic detection is skipped.
-- The name is validated as a Python codec before processing; an unknown name exits with code 1 and a clear error.
-- If the input bytes cannot be decoded with the declared encoding, csvnorm exits with code 1 and reports the byte offset of the first failure; it never falls back to detection silently.
+- The name is validated as a Python codec before processing; an unknown name exits with code 2 and a clear error.
+- If the input bytes cannot be decoded with the declared encoding, csvnorm exits with code 2 and reports the byte offset of the first failure; it never falls back to detection silently.
 - The processing summary shows the encoding as declared (e.g. `cp1252 → UTF-8 (declared)`) instead of detected.
 - Works with local files, stdin (`-`) and remote URLs (downloaded before processing). Compressed inputs: see `design.md`.
 - `--fix-mojibake` keeps working and runs after the declared decoding, as today after detection.

@@ -657,7 +657,7 @@ class TestStdinInput:
                 input_file="-",
                 output_file=None,
             )
-            assert result == 1
+            assert result == 2
 
     def test_stdin_with_output_file(self):
         """Stdin with -o flag writes to specified file."""

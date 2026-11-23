@@ -1,0 +1,144 @@
+"""Help, version, errors and exit codes as an agent sees them (no terminal)."""
+
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+REPO = Path(__file__).resolve().parents[1]
+TEST_DIR = REPO / "test"
+BOX_CHARS = set("╭╮╰╯│─")
+
+
+def run(*args: str, cwd: Path, stdin: bytes | None = None) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [sys.executable, "-m", "csvnorm", *args],
+        cwd=cwd, input=stdin, capture_output=True, check=False,
+    )
+
+
+class TestHelp:
+    def test_sections_and_no_escape_codes(self, tmp_path):
+        r = run("--help", cwd=tmp_path)
+        assert r.returncode == 0
+        text = r.stdout.decode()
+        assert "\x1b" not in text
+        for section in ("Start here:", "Output:", "Exit codes:", "Limits and side effects:"):
+            assert section in text, section
+        assert len(text.splitlines()) < 100
+
+    def test_help_mentions_where_to_find_encoding_names(self, tmp_path):
+        text = run("--help", cwd=tmp_path).stdout.decode()
+        assert "docs.python.org" in text
+
+    def test_start_here_commands_work(self, tmp_path):
+        shutil.copy(TEST_DIR / "utf8_basic.csv", tmp_path / "data.csv")
+        assert run("data.csv", "--check", cwd=tmp_path).returncode == 0
+        r = run("data.csv", cwd=tmp_path)
+        assert r.returncode == 0 and r.stdout
+        assert run("data.csv", "-o", "clean.csv", cwd=tmp_path).returncode == 0
+        assert (tmp_path / "clean.csv").exists()
+
+    def test_no_args_prints_help_to_stdout_exit_2(self, tmp_path):
+        r = run(cwd=tmp_path)
+        assert r.returncode == 2
+        assert "Start here:" in r.stdout.decode()
+
+
+class TestVersion:
+    def test_single_line_when_not_a_terminal(self, tmp_path):
+        r = run("--version", cwd=tmp_path)
+        assert r.returncode == 0
+        lines = r.stdout.decode().strip().splitlines()
+        assert len(lines) == 1
+        assert lines[0].startswith("csvnorm ")
+
+
+class TestExitCodes:
+    def test_clean_input_exits_0(self, tmp_path):
+        assert run(str(TEST_DIR / "utf8_basic.csv"), cwd=tmp_path).returncode == 0
+
+    def test_rejected_rows_exit_1_with_output(self, tmp_path):
+        r = run(str(TEST_DIR / "malformed_rows.csv"), "-o", "out.csv", cwd=tmp_path)
+        assert r.returncode == 1
+        assert (tmp_path / "out.csv").exists()
+
+    @pytest.mark.parametrize(
+        "args",
+        [
+            ("missing.csv",),
+            ("missing.csv", "-e", "no-such-codec"),
+            ("x.csv", "-s", "-1"),
+            ("x.csv", "--check", "-o", "out.csv"),
+        ],
+    )
+    def test_cannot_run_exits_2(self, tmp_path, args):
+        assert run(*args, cwd=tmp_path).returncode == 2
+
+    def test_undecodable_declared_encoding_exits_2(self, tmp_path):
+        (tmp_path / "bad.csv").write_bytes(b"a,b\n1,x\x81y\n")
+        r = run("bad.csv", "-e", "cp1252", "-o", "out.csv", cwd=tmp_path)
+        assert r.returncode == 2
+        assert not (tmp_path / "out.csv").exists()
+
+
+class TestPlainErrors:
+    def test_error_is_plain_text_on_stderr(self, tmp_path):
+        r = run("missing.csv", cwd=tmp_path)
+        err = r.stderr.decode()
+        assert not BOX_CHARS & set(err)
+        assert "\x1b" not in err
+        assert err.lstrip().startswith("Error:")
+        assert r.stdout == b""
+
+    def test_validation_report_is_plain_text(self, tmp_path):
+        r = run(str(TEST_DIR / "malformed_rows.csv"), cwd=tmp_path)
+        err = r.stderr.decode()
+        assert not BOX_CHARS & set(err)
+        assert "Rejected rows:" in err
+        assert "Details:" in err
+
+
+def test_unexpected_exception_exits_2(tmp_path, monkeypatch, capsys):
+    from csvnorm import cli
+
+    def boom(**kwargs):
+        raise RuntimeError("boom [/x] [bold]")
+
+    monkeypatch.setattr(cli, "process_csv", boom)
+    (tmp_path / "data.csv").write_text("a,b\n1,2\n")
+    monkeypatch.chdir(tmp_path)
+    assert cli.main(["data.csv"]) == 2
+    err = capsys.readouterr().err
+    assert "Error: unexpected failure: RuntimeError: boom [/x] [bold]" in err
+    assert "-V" in err
+
+
+def test_help_examples_run_in_sequence(tmp_path):
+    """Every local example in the help works, run one after the other."""
+    shutil.copy(TEST_DIR / "utf8_basic.csv", tmp_path / "data.csv")
+    text = run("--help", cwd=tmp_path).stdout.decode()
+    block = text.split("\nExamples:\n", 1)[1].split("\n\n", 1)[0]
+    commands = [line.strip().split("   ")[0] for line in block.splitlines()]
+    local = [c for c in commands if "https://" not in c]
+    assert len(local) >= 4
+    for command in local:
+        command = command.replace("csvnorm", f"{sys.executable} -m csvnorm")
+        r = subprocess.run(command, shell=True, cwd=tmp_path, capture_output=True, check=False)
+        assert r.returncode == 0, (command, r.stderr.decode())
+
+
+def test_reject_count_with_crlf_input(tmp_path):
+    """A rejected CRLF row is one record, even if csv_line holds a line break."""
+    data = "Città;Prezzo\r\nForlì;10€\r\nCantù;3€;extra\r\nAgrigento;2€\r\n".encode("cp1252")
+    (tmp_path / "v.csv").write_bytes(data)
+    r = run("v.csv", "-e", "cp1252", "-o", "out.csv", cwd=tmp_path)
+    assert r.returncode == 1
+    out = r.stdout.decode()
+    assert "Rejected rows:      1" in out or "Rejected rows: 1" in " ".join(out.split())
+    err = r.stderr.decode()
+    assert "Rejected rows: 1" in err
+    assert "Expected Number of Columns: 2 Found: 3" in err
+    assert '  • "' not in err

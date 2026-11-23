@@ -39,6 +39,15 @@ Or with pip:
 pip install csvnorm
 ```
 
+The package and the command are both called `csvnorm`. Check the installed version and read the help (both work offline):
+
+```bash
+csvnorm --version
+csvnorm --help
+```
+
+The help covers what csvnorm does and does not do, a first three-command path, the output, the exit codes and the limits. It describes the installed version; this README follows the `main` branch and can describe features not yet released.
+
 ## Purpose
 
 This tool prepares CSV files for **basic exploratory data analysis (EDA)**, not for complex transformations. It focuses on achieving a clean, standardized baseline format that allows you to quickly assess data quality and structure before designing more sophisticated ETL pipelines.
@@ -81,13 +90,14 @@ csvnorm -                    # read from stdin
 | `-f, --force` | Force overwrite of existing output file (when `-o` is specified) |
 | `-k, --keep-names` | Keep original column names (disable snake_case) |
 | `-d, --delimiter CHAR` | Set custom output delimiter (default: `,`) |
+| `-e, --encoding NAME` | Declare the input encoding (any Python codec name, e.g. `cp1252`, `latin-1`, `cp850`) and skip automatic detection; exit code 2 if the input cannot be decoded with it |
 | `-s, --skip-rows N` | Skip first N rows of input file (useful for metadata/comments) |
 | `--fix-mojibake [N]` | Fix mojibake using ftfy (optional sample size `N`; use `0` to force repair) |
 | `--strict` | Write no output (stdout or file) if any validation errors occur; an existing output file is left untouched, even with `--force`. Exit code is 1 on validation errors with or without `--strict` |
-| `--check` | Validate CSV without processing or normalizing (exit code 0=valid, 1=invalid) |
-| `--download-remote` | Download remote CSV locally before processing (needed for remote .zip/.gz) |
+| `--check` | Validate CSV without processing or normalizing (exit code 0 valid, 1 rows rejected, 2 could not run) |
+| `--download-remote` | Deprecated, no effect: URLs are always downloaded before processing |
 | `-V, --verbose` | Enable verbose output for debugging |
-| `-v, --version` | Show version number |
+| `-v, --version` | Show version number (one plain line when not on a terminal) |
 | `-h, --help` | Show help message |
 
 ### Examples
@@ -116,8 +126,8 @@ csvnorm data.csv > output.csv
 # Process remote CSV from URL
 csvnorm "https://raw.githubusercontent.com/aborruso/csvnorm/refs/heads/main/test/Trasporto%20Pubblico%20Locale%20Settore%20Pubblico%20Allargato%20-%20Indicatore%202000-2020%20Trasferimenti%20Correnti%20su%20Entrate%20Correnti.csv" -o output.csv
 
-# Process remote compressed CSV (download first, then handle gzip/zip locally)
-csvnorm "https://example.com/data.csv.gz" --download-remote -o output.csv
+# Process remote compressed CSV (downloaded first, then handled locally)
+csvnorm "https://example.com/data.csv.gz" -o output.csv
 
 # Custom delimiter
 csvnorm data.csv -d ';' -o output.csv
@@ -127,6 +137,9 @@ csvnorm data.csv --keep-names -o output.csv
 
 # Skip first 2 rows (metadata or comments)
 csvnorm data.csv --skip-rows 2 -o output.csv
+
+# Declare the input encoding instead of detecting it
+csvnorm data.csv -e cp1252 -o output.csv
 
 # Force overwrite with verbose output
 csvnorm data.csv -f -V -o processed.csv
@@ -174,7 +187,7 @@ csvnorm raw_data.csv --check || exit 1
 - Shows success table with statistics (rows, columns, file sizes)
 - Row endings are kept: CRLF input gives CRLF rows (newlines inside quoted cells stay as they are). Non-UTF-8 files keep their CR and CRLF too, also inside quoted cells, with the same output on every operating system
 - The output is written to a hidden `.{output_name}.csvnorm-partial` file next to it and renamed at the end, so an error never leaves a partial output and never touches an existing one
-- If the disk fills up, csvnorm stops with `No space left on device` and exit code 1; it warns before starting when free space looks too small
+- If the disk fills up, csvnorm stops with `No space left on device` and exit code 2; it warns before starting when free space looks too small
 - Supports absolute and relative paths
 - Any file extension is allowed (not limited to `.csv`)
 
@@ -184,13 +197,18 @@ csvnorm raw_data.csv --check || exit 1
 - Use `-o` to specify a different output path
 
 **Remote URLs:**
-- Encoding is handled automatically by DuckDB
-- If `--fix-mojibake` is enabled, the URL is downloaded to a temp file first
+- Always downloaded to a temporary file first (30 s network timeout), then processed like a local file: encoding detection or `-e`, `.zip` and `.gz` handling, `--fix-mojibake`
 
 **Encoding detection limits:**
 - Non-UTF-8 encodings are detected automatically with charset-normalizer, which can confuse single-byte encodings that share most characters (for example cp1252 with cp1250 or cp1258, or cp850 with cp1250). When scores tie, csvnorm prefers Western European encodings (cp1252).
 - Files larger than 50 MiB are not analysed as a whole: csvnorm checks for valid UTF-8 in one pass and, for other files, lets charset-normalizer examine a small sample that contains every non-ASCII byte value of the file, preferring Western European encodings. This takes seconds instead of minutes, but on such large files Turkish, Polish, Baltic or Hungarian text can be detected as Western European without any error. Files up to 50 MiB are detected as in previous versions.
-- Check accented and typographic characters (`à`, `ì`, `“ ”`, `€`) in the output of non-UTF-8 files. If they are wrong, convert the file to UTF-8 yourself before running csvnorm, for example `iconv -f cp1252 -t utf-8 data.csv > data_utf8.csv`.
+- Check accented and typographic characters (`à`, `ì`, `“ ”`, `€`) in the output of non-UTF-8 files. If they are wrong, declare the encoding with `-e` (see below).
+
+**Declaring the input encoding (`-e, --encoding NAME`):**
+- When you know the encoding of the file, `-e` skips detection and converts from that encoding. Use it when detection gets it wrong (for example `“Libro”` coming out as `ôLibroö`, or Turkish and Polish text in files above 50 MiB), or to save the detection time on large files.
+- Any Python codec name works: `cp1252`, `latin-1`, `cp850`, `cp1250`, `utf-8`. An unknown name stops csvnorm with exit code 2 before the file is read.
+- There is no fallback: if a byte cannot be decoded with the declared encoding, csvnorm stops with exit code 2 and reports the byte and its position in the file. With `-e utf-8` the file is only checked, not converted.
+- Works with local files, stdin, URLs, `.zip` and `.gz` inputs, and with `--check`. A `.gz` input is decompressed to a temporary file first, since DuckDB would read it as UTF-8.
 
 **Mojibake repair (`--fix-mojibake [N]`):**
 - Mojibake is garbled text produced by decoding bytes with the wrong character encoding (e.g., `CittÃ ` instead of `Città`).
@@ -252,16 +270,20 @@ The tool provides modern terminal output (shown only when using `-o` to write to
 
 | Code | Meaning |
 |------|---------|
-| 0 | Success, no validation errors |
-| 1 | Validation errors (with or without `--strict`; without it the accepted rows are still written), or a fatal error (file not found, download failure, etc.) |
-| 2 | Invalid command line (unknown option, missing argument) |
+| 0 | Clean: every row accepted |
+| 1 | Rows rejected (with or without `--strict`; without it the accepted rows are still written) |
+| 2 | Could not complete: invalid command line, file not found, download failure, undecodable declared encoding, disk full, unexpected error. No output is written |
+
+Same convention as `grep` and `diff`. Since 1.5.0 fatal errors exit with 2; before they exited with 1, like rejected rows.
+
+When stderr is not a terminal (pipes, files, agents), errors and the validation report are plain lines starting with `Error:`, `Warning:` or `! Validation Failed`, without boxes or colors.
 
 ## Requirements
 
 - Python 3.11+
 - Dependencies (automatically installed):
   - `charset-normalizer>=3.0.0` - Encoding detection
-  - `duckdb>=2.0.0` - CSV validation and normalization
+  - `duckdb>=2.0.0,<3` - CSV validation and normalization
   - `ftfy>=6.3.1` - Mojibake repair
   - `rich>=13.0.0` - Modern terminal output formatting
   - `rich-argparse>=1.0.0` - Enhanced CLI help formatting

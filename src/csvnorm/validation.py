@@ -1,5 +1,6 @@
 """CSV validation and normalization using DuckDB."""
 
+import csv
 import logging
 import re
 from pathlib import Path
@@ -471,19 +472,22 @@ def normalize_csv(
 
 
 def _count_lines(file_path: Path) -> int:
-    """Count lines in a file.
+    """Count CSV records in a reject file, header included.
+
+    Records, not physical lines: ``csv_line`` can hold a line break
+    (CRLF input), and a quoted field spanning two lines is one record.
 
     Args:
         file_path: Path to file.
 
     Returns:
-        Number of lines in file, or 0 if file doesn't exist.
+        Number of records including the header, or 0 if file doesn't exist.
     """
     if not file_path.exists():
         return 0
 
-    with open(file_path, "rb") as f:
-        return sum(1 for _ in f)
+    with open(file_path, encoding="utf-8", errors="replace", newline="") as f:
+        return sum(1 for _ in csv.reader(f))
 
 
 def _try_read_csv_with_config(
@@ -644,12 +648,11 @@ def _get_error_types(reject_file: Path) -> list[str]:
 
     error_types: set[str] = set()
     try:
-        with open(reject_file, "r") as f:
-            # Skip header
-            next(f, None)
-            for line in f:
+        with open(reject_file, encoding="utf-8", errors="replace", newline="") as f:
+            reader = csv.reader(f)
+            next(reader, None)  # header
+            for parts in reader:
                 # Error message is in the last column
-                parts = line.rstrip("\n").split(",")
                 if parts:
                     error_reason = parts[-1].strip()
                     if error_reason and error_reason != "error":

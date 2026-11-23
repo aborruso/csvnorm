@@ -156,7 +156,7 @@ class TestProcessCSV:
             input_file=str(zip_path),
             output_file=output_file,
         )
-        assert result == 1
+        assert result == 2
         mock_validate.assert_not_called()
         mock_normalize.assert_not_called()
 
@@ -173,7 +173,7 @@ class TestProcessCSV:
             input_file=str(zip_path),
             output_file=output_file,
         )
-        assert result == 1
+        assert result == 2
         mock_validate.assert_not_called()
         mock_normalize.assert_not_called()
 
@@ -226,7 +226,7 @@ class TestProcessCSV:
             input_file="/nonexistent/file.csv",
             output_file=output_file,
         )
-        assert result == 1
+        assert result == 2
 
     def test_force_overwrite(self, output_dir):
         """Test force overwrite behavior."""
@@ -242,7 +242,7 @@ class TestProcessCSV:
 
         # Second run without force should fail
         result = process_csv(input_file=str(input_file), output_file=output_file)
-        assert result == 1
+        assert result == 2
 
         # Third run with force should succeed
         result = process_csv(
@@ -269,7 +269,7 @@ class TestProcessCSV:
             input_file="https://example.com/nonexistent.csv",
             output_file=output_file,
         )
-        assert result == 1
+        assert result == 2
 
     @pytest.mark.network
     @pytest.mark.xfail(reason="Remote server may timeout", strict=False)
@@ -301,7 +301,7 @@ class TestRemoteURLErrors:
             input_file="ftp://example.com/data.csv",
             output_file=output_file,
         )
-        assert result == 1
+        assert result == 2
 
     @patch("csvnorm.core.download_url_to_file")
     def test_remote_download_failure(self, mock_download, output_dir):
@@ -312,7 +312,7 @@ class TestRemoteURLErrors:
             input_file="https://example.com/nope.csv",
             output_file=output_file,
         )
-        assert result == 1
+        assert result == 2
 
     @patch.object(core_module, "show_warning_panel")
     @patch("csvnorm.core.download_url_to_file")
@@ -445,7 +445,7 @@ class TestOutputWrittenAtTheEnd:
         with patch.object(core_module, "normalize_csv", side_effect=crash):
             result = process_csv(str(TEST_DIR / "utf8_basic.csv"), output_file, force=True)
 
-        assert result == 1
+        assert result == 2
         assert output_file.read_bytes() == self.PREVIOUS
         assert not list(tmp_path.glob(".*.csvnorm-partial"))
 
@@ -481,7 +481,7 @@ class TestDiskFull:
                 str(TEST_DIR / "latin1_semicolon.csv"), output_file, force=True
             )
 
-        assert result == 1
+        assert result == 2
         err = capsys.readouterr().err
         assert "Low disk space" in err
         assert "No space left on device" in err
@@ -500,7 +500,7 @@ class TestDiskFull:
                 str(TEST_DIR / "latin1_semicolon.csv"), output_file, force=True
             )
 
-        assert result == 1
+        assert result == 2
         assert "No space left on device" in capsys.readouterr().err
         self._assert_untouched(tmp_path, output_file)
 
@@ -516,7 +516,7 @@ class TestDiskFull:
                 str(TEST_DIR / "malformed_rows.csv"), output_file, force=True
             )
 
-        assert result == 1
+        assert result == 2
         err = capsys.readouterr().err
         assert "No space left on device" in err
         assert "Validation failed" not in err
@@ -534,7 +534,7 @@ class TestDiskFull:
                 str(TEST_DIR / "latin1_semicolon.csv"), output_file, force=True
             )
 
-        assert result == 1
+        assert result == 2
         assert "File error during encoding conversion" in capsys.readouterr().err
         self._assert_untouched(tmp_path, output_file)
 
@@ -547,7 +547,7 @@ class TestDiskFull:
                 str(TEST_DIR / "latin1_semicolon.csv"), output_file, force=True
             )
 
-        assert result == 1
+        assert result == 2
         err = capsys.readouterr().err
         assert "Encoding conversion failed" in err
         assert "1234" in err
@@ -561,7 +561,7 @@ class TestDiskWarningEdgeCases:
         result = process_csv(
             str(TEST_DIR / "utf8_basic.csv"), tmp_path / "nodir" / "out.csv"
         )
-        assert result == 1
+        assert result == 2
         assert "Traceback" not in capsys.readouterr().err
 
     def test_decode_error_names_the_source_encoding(self, tmp_path, capsys):
@@ -571,7 +571,7 @@ class TestDiskWarningEdgeCases:
             "csvnorm.encoding._detect_encoding_full", return_value="cp1252"
         ):
             result = process_csv(str(src), tmp_path / "out.csv")
-        assert result == 1
+        assert result == 2
         err = capsys.readouterr().err
         assert "cp1252 cannot decode byte 0x81 at file offset 6" in err
         assert "charmap" not in err
@@ -592,7 +592,7 @@ def test_disk_full_inside_convert_to_utf8(tmp_path, capsys, monkeypatch):
     monkeypatch.setattr(enc, "convert_to_utf8", full_disk)
     result = process_csv(str(TEST_DIR / "latin1_semicolon.csv"), output_file, force=True)
 
-    assert result == 1
+    assert result == 2
     err = capsys.readouterr().err
     assert "No space left on device" in err
     assert "File error" not in err
