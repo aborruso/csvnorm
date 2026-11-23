@@ -1,6 +1,8 @@
 """Core processing logic for csvnorm."""
 
+import codecs
 import errno
+import gzip
 import logging
 import os
 import shutil
@@ -17,7 +19,12 @@ import duckdb
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, TaskID
 
-from csvnorm.encoding import detect_and_convert, needs_conversion
+from csvnorm.encoding import (
+    check_decodes,
+    convert_to_utf8,
+    detect_and_convert,
+    needs_conversion,
+)
 from csvnorm.mojibake import repair_file
 from csvnorm.ui import (
     show_error_panel,
@@ -245,8 +252,18 @@ def _handle_local_encoding(
     progress: Progress,
     task: TaskID,
     temp_files: list[Path],
+    declared: Optional[str] = None,
 ) -> tuple[Union[str, Path], str]:
-    """Detect encoding and convert to UTF-8 if needed."""
+    """Detect encoding and convert to UTF-8 if needed.
+
+    With ``declared`` set, detection is skipped: the file is converted from
+    that encoding, or only checked when it is UTF-8 or ASCII.
+    """
+    if declared:
+        return _handle_declared_encoding(
+            file_input_path, temp_utf8_file, progress, task, temp_files, declared
+        )
+
     progress.update(task, description="[cyan]Detecting encoding...")
 
     def on_detected(encoding: str) -> None:
@@ -279,6 +296,42 @@ def _handle_local_encoding(
         )
 
     return working_file, encoding
+
+
+def _handle_declared_encoding(
+    file_input_path: Path,
+    temp_utf8_file: Path,
+    progress: Progress,
+    task: TaskID,
+    temp_files: list[Path],
+    declared: str,
+) -> tuple[Union[str, Path], str]:
+    """Convert from the declared encoding, with no fallback to detection."""
+    if not needs_conversion(codecs.lookup(declared).name):
+        progress.update(task, description=f"[cyan]Checking {declared} input...")
+        check_decodes(file_input_path, declared)
+        progress.update(
+            task, description=f"[green]✓[/green] Encoding: {declared} (declared)"
+        )
+        return file_input_path, declared
+
+    progress.update(
+        task, description=f"[cyan]Converting from {declared} to UTF-8 (declared)..."
+    )
+    convert_to_utf8(file_input_path, temp_utf8_file, declared)
+    temp_files.append(temp_utf8_file)
+    progress.update(
+        task, description=f"[green]✓[/green] Converted from {declared} (declared)"
+    )
+    return temp_utf8_file, declared
+
+
+def _gunzip_to_temp(gz_path: Path, temp_dir: Path) -> Path:
+    """Decompress a gzip file into ``temp_dir``, in chunks."""
+    output_path = temp_dir / (gz_path.stem or "input.csv")
+    with gzip.open(gz_path, "rb") as source, open(output_path, "wb") as target:
+        shutil.copyfileobj(source, target, 4 * 1024 * 1024)
+    return output_path
 
 
 def _handle_mojibake_if_needed(
@@ -515,6 +568,7 @@ def _prepare_working_file(
     progress: Progress,
     task: TaskID,
     temp_files: list[Path],
+    declared: Optional[str] = None,
 ) -> Optional[tuple[Union[str, Path], str, bool]]:
     """Resolve encoding and apply mojibake repair.
 
@@ -545,6 +599,7 @@ def _prepare_working_file(
     try:
         working_file, encoding = _handle_local_encoding(
             file_input_path, temp_utf8_file, progress, task, temp_files,
+            declared,
         )
     except (UnicodeDecodeError, LookupError) as e:
         progress.stop()
@@ -554,6 +609,11 @@ def _prepare_working_file(
             bad = e.object[e.start:e.start + 1].hex().upper()
             name = getattr(e, "source_encoding", e.encoding)
             detail = f"{name} cannot decode byte 0x{bad} at file offset {offset}"
+            if declared:
+                detail += (
+                    "\nCheck the declared encoding, or run without --encoding "
+                    "to detect it automatically."
+                )
         show_error_panel(f"Encoding conversion failed\n{detail}")
         return None
     except OSError as e:
@@ -815,8 +875,21 @@ def process_csv(
                     input_path = extracted_path
                     local_input_path = extracted_path
                     temp_files.append(extracted_path)
+                elif is_gzip_path(local_input_path) and encoding:
+                    # A declared encoding needs a local conversion: DuckDB
+                    # would read the gzip as UTF-8
+                    gunzipped = _gunzip_to_temp(local_input_path, temp_dir)
+                    temp_files.append(gunzipped)
+                    input_path = gunzipped
+                    local_input_path = gunzipped
                 elif is_gzip_path(local_input_path):
                     compressed_type = "gzip"
+            except (OSError, EOFError) as e:
+                if _is_disk_full(e):
+                    show_error_panel(DISK_FULL_MESSAGE)
+                else:
+                    show_error_panel(f"Cannot read compressed input\n{e}")
+                return 1
             except ValueError as e:
                 show_error_panel(str(e))
                 return 1
@@ -854,7 +927,7 @@ def process_csv(
             result = _prepare_working_file(
                 input_path, is_remote, compressed_type, compressed_input_path,
                 temp_utf8_file, temp_dir, fix_mojibake_sample, check_only,
-                progress, task, temp_files,
+                progress, task, temp_files, encoding,
             )
             if result is None:
                 return 1
