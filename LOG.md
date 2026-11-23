@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-23 (ci/test-workflow)
+
+- ci: `.github/workflows/tests.yml` runs pytest and mypy on every PR and push to `main` (Python 3.11-3.13, same steps as the `test` job in `publish-pypi.yml`, with `actions/checkout` and `actions/setup-python` on v7 for Node.js 24); before, tests ran in CI only on release tags
+
 ## 2026-11-23 (chore/remove-gemini-workflows)
 
 - ci: removed the 4 Gemini workflows (PR review, `@gemini-cli`, issue triage on event and hourly), all disabled manually since 2026-06-14; no automatic PR reviewer left, to make room for a single one. Secret `GEMINI_API_KEY` and `.gemini/` (local OpenSpec commands) kept
