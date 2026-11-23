@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-23 (ci/publish-node24)
+
+- ci: `publish-pypi.yml` on Node.js 24 actions (`checkout` v7, `setup-python` v7, `upload-artifact` v7, `download-artifact` v8); its `test` job now calls `tests.yml` (`workflow_call`) instead of repeating the steps; release tests no longer write coverage (the report was not used anywhere)
+
 ## 2026-11-23 (ci/test-workflow)
 
 - ci: `.github/workflows/tests.yml` runs pytest and mypy on every PR and push to `main` (Python 3.11-3.13, same steps as the `test` job in `publish-pypi.yml`, with `actions/checkout` and `actions/setup-python` on v7 for Node.js 24); before, tests ran in CI only on release tags
