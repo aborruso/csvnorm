@@ -163,7 +163,7 @@ FALLBACK_CONFIGS = [
 
 **Runtime** (in pyproject.toml):
 - `charset-normalizer>=3.0.0` - Encoding detection
-- `duckdb>=2.0.0` - CSV validation and normalization
+- `duckdb>=2.0.0,<3` - CSV validation and normalization
 - `ftfy>=6.3.1` - Mojibake repair
 - `rich>=13.0.0` - Terminal output formatting
 - `rich-argparse>=1.0.0` - Enhanced CLI help

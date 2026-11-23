@@ -261,7 +261,7 @@ The tool provides modern terminal output (shown only when using `-o` to write to
 - Python 3.11+
 - Dependencies (automatically installed):
   - `charset-normalizer>=3.0.0` - Encoding detection
-  - `duckdb>=2.0.0` - CSV validation and normalization
+  - `duckdb>=2.0.0,<3` - CSV validation and normalization
   - `ftfy>=6.3.1` - Mojibake repair
   - `rich>=13.0.0` - Modern terminal output formatting
   - `rich-argparse>=1.0.0` - Enhanced CLI help formatting
