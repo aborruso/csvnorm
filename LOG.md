@@ -4,6 +4,8 @@
 
 - feat: `-e/--encoding NAME` declares the input encoding and skips detection; any Python text codec, unknown or non-text names exit 1 before reading; no fallback: an undecodable byte exits 1 with codec, byte and file offset; `-e utf-8` checks the file without converting it; works with stdin, URLs, zip, gzip (decompressed to temp only with `-e`) and `--check`; summary shows `(declared)`. OpenSpec change `add-input-encoding-option`
 - feat: help readable by an agent (what it does and does not do, Start here, Output, Exit codes, Limits, Encoding names); `--version` one line off-terminal; plain `Error:` lines instead of boxes when stderr is not a terminal; remedies in error messages. BREAKING exit codes grep style: 0 clean, 1 rows rejected, 2 could not complete (fatal errors were 1); unexpected exceptions exit 2. OpenSpec change `agent-readable-cli`
+- fix: rejected rows counted as CSV records, not physical lines: with CRLF input `csv_line` holds a line break and one rejected row was reported as 2, with a bogus `"` error type (found by the agent test). Error types read with the csv module
+- test: fresh agent (`claude -p --bare --strict-mcp-config --disable-slash-commands`, Claude Code 2.1.330, csvnorm 1.5.0 non-editable from the checkout, WSL2) in an empty dir, only `--help`: normalized a 4-row cp1252 file, noticed detection gave cp1257 (`Forlģ`), reran with `-e cp1252`, read exit codes 1 and 2 correctly, reported the `.invalid` URL failure without inventing results; it found the reject count bug above
 
 ## 2026-11-22 (v1.4.0, perf/large-files)
 

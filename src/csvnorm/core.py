@@ -486,10 +486,11 @@ def _normalize_and_refresh_errors(
 
     has_validation_errors = reject_count > 1
     if used_fallback and used_fallback != fallback_config:
-        reject_count = sum(1 for _ in open(reject_file, "rb")) if reject_file.exists() else 0
+        from csvnorm.validation import _count_lines, _get_error_types
+
+        reject_count = _count_lines(reject_file)
         has_validation_errors = reject_count > 1
         if has_validation_errors:
-            from csvnorm.validation import _get_error_types
 
             error_types = _get_error_types(reject_file)
 

@@ -128,3 +128,17 @@ def test_help_examples_run_in_sequence(tmp_path):
         command = command.replace("csvnorm", f"{sys.executable} -m csvnorm")
         r = subprocess.run(command, shell=True, cwd=tmp_path, capture_output=True, check=False)
         assert r.returncode == 0, (command, r.stderr.decode())
+
+
+def test_reject_count_with_crlf_input(tmp_path):
+    """A rejected CRLF row is one record, even if csv_line holds a line break."""
+    data = "Città;Prezzo\r\nForlì;10€\r\nCantù;3€;extra\r\nAgrigento;2€\r\n".encode("cp1252")
+    (tmp_path / "v.csv").write_bytes(data)
+    r = run("v.csv", "-e", "cp1252", "-o", "out.csv", cwd=tmp_path)
+    assert r.returncode == 1
+    out = r.stdout.decode()
+    assert "Rejected rows:      1" in out or "Rejected rows: 1" in " ".join(out.split())
+    err = r.stderr.decode()
+    assert "Rejected rows: 1" in err
+    assert "Expected Number of Columns: 2 Found: 3" in err
+    assert '  • "' not in err
