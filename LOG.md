@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-23 (chore/remove-gemini-workflows)
+
+- ci: removed the 4 Gemini workflows (PR review, `@gemini-cli`, issue triage on event and hourly), all disabled manually since 2026-06-14; no automatic PR reviewer left, to make room for a single one. Secret `GEMINI_API_KEY` and `.gemini/` (local OpenSpec commands) kept
+
 ## 2026-11-23 (feat/encoding-option)
 
 - feat: `-e/--encoding NAME` declares the input encoding and skips detection; any Python text codec, unknown or non-text names exit 1 before reading; no fallback: an undecodable byte exits 1 with codec, byte and file offset; `-e utf-8` checks the file without converting it; works with stdin, URLs, zip, gzip (decompressed to temp only with `-e`) and `--check`; summary shows `(declared)`. OpenSpec change `add-input-encoding-option`
