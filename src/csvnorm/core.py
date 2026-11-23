@@ -727,6 +727,7 @@ def process_csv(
     download_remote: bool = False,
     strict: bool = False,
     check_only: bool = False,
+    encoding: Optional[str] = None,
 ) -> int:
     """Main CSV processing pipeline.
 
@@ -741,6 +742,7 @@ def process_csv(
         fix_mojibake_sample: Sample size for mojibake detection, None to disable.
         strict: If True, exit with error code 1 if validation errors occur.
         check_only: If True, only validate CSV without processing or normalizing.
+        encoding: Declared input encoding (Python codec name); skips detection.
 
     Returns:
         Exit code: 0 for success, 1 for error.

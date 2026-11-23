@@ -1,6 +1,7 @@
 """Command-line interface for csvnorm."""
 
 import argparse
+import codecs
 import sys
 from pathlib import Path
 from typing import Optional
@@ -104,6 +105,17 @@ def create_parser() -> argparse.ArgumentParser:
         "--delimiter",
         default=",",
         help="Set custom output field delimiter (default: comma). Example: -d ';'",
+    )
+
+    parser.add_argument(
+        "-e",
+        "--encoding",
+        metavar="NAME",
+        help=(
+            "Declare the input encoding (any Python codec name, e.g. cp1252, "
+            "latin-1, cp850) and skip automatic detection. If the input cannot "
+            "be decoded with it, csvnorm stops with exit code 1. Example: -e cp1252"
+        ),
     )
 
     parser.add_argument(
@@ -229,6 +241,19 @@ def main(argv: Optional[list[str]] = None) -> int:
     setup_logger(args.verbose)
 
     # Validate skip_rows
+    if args.encoding is not None:
+        try:
+            info = codecs.lookup(args.encoding)
+            if not getattr(info, "_is_text_encoding", True):
+                raise LookupError(args.encoding)
+        except LookupError:
+            err_console.print(
+                f"[red]Error:[/red] Unknown encoding: {args.encoding}\n"
+                "Use a Python codec name, for example cp1252, latin-1 or cp850.",
+                style="red",
+            )
+            return 1
+
     if args.skip_rows < 0:
         err_console.print("[red]Error:[/red] --skip-rows must be non-negative", style="red")
         return 1
@@ -294,6 +319,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     fix_mojibake_sample = args.fix_mojibake
     return process_csv(
         input_file=args.input_file,
+        encoding=args.encoding,
         output_file=args.output_file,
         force=args.force,
         keep_names=args.keep_names,
