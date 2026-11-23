@@ -34,7 +34,7 @@ The system SHALL validate that URLs use HTTP or HTTPS protocols and reject other
 #### Scenario: Invalid protocol
 
 - **WHEN** user provides `ftp://example.com/data.csv` or `file:///path/to/file`
-- **THEN** system shows error message and exits with code 1
+- **THEN** system shows error message and exits with code 2
 
 ### Requirement: Skip encoding operations for remote URLs
 
@@ -80,7 +80,7 @@ The system SHALL configure DuckDB with a 30-second HTTP timeout for remote CSV r
 - **WHEN** remote CSV doesn't respond within 30 seconds
 - **THEN** DuckDB raises timeout error
 - **AND** system shows error panel with timeout message
-- **AND** exits with code 1
+- **AND** exits with code 2
 
 ### Requirement: Public URLs only
 
@@ -144,12 +144,12 @@ The system SHALL accept zip archives that contain exactly one CSV entry and proc
 #### Scenario: Zip file with multiple CSVs
 - **WHEN** user runs `csvnorm ./data.zip` and the zip contains more than one `.csv`
 - **THEN** the system fails with a clear error listing the CSV entries
-- **AND** exits with code 1
+- **AND** exits with code 2
 
 #### Scenario: Zip file with no CSVs
 - **WHEN** user runs `csvnorm ./data.zip` and the zip contains no `.csv`
 - **THEN** the system fails with a clear error
-- **AND** exits with code 1
+- **AND** exits with code 2
 
 ### Requirement: Auto-install and load DuckDB zipfs extension for zip inputs
 The system SHALL automatically install and load DuckDB's `zipfs` extension when a zip input is detected.
@@ -186,7 +186,7 @@ The system SHALL provide a `--check` flag that validates the CSV file without pr
 - **WHEN** user runs `csvnorm https://example.com/data.csv --check`
 - **THEN** system validates the remote CSV
 - **AND** outputs validation status to stderr
-- **AND** exits with appropriate code (0=valid, 1=invalid)
+- **AND** exits with code 0 if valid, 1 if rows are rejected, 2 if the check could not run
 
 #### Scenario: Check mode skips normalization
 
@@ -200,8 +200,8 @@ The system SHALL provide a `--check` flag that validates the CSV file without pr
 #### Scenario: Check mode incompatible with output options
 
 - **WHEN** user runs `csvnorm data.csv --check -o output.csv`
-- **THEN** system shows error message: "--check cannot be used with -o (output file)"
-- **AND** exits with code 1
+- **THEN** system shows error message: "--check writes nothing, so it cannot be used with -o; drop one of them"
+- **AND** exits with code 2
 
 #### Scenario: Check mode incompatible with strict mode
 
@@ -241,5 +241,5 @@ The system SHALL accept `-` as the `input_file` argument to read CSV data from s
 
 - **WHEN** user runs `csvnorm -` without piping data (stdin is a terminal)
 - **THEN** the system shows an error message
-- **AND** exits with code 1
+- **AND** exits with code 2
 

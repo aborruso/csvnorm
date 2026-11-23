@@ -44,7 +44,7 @@ The system SHALL display statistics about the processed file in the success summ
 
 ### Requirement: Display error summary when validation fails
 
-The system SHALL display a validation error summary panel to stderr BEFORE writing output data, ensuring visibility even in piped scenarios.
+The system SHALL display a validation error summary to stderr BEFORE writing output data, ensuring visibility even in piped scenarios. On a terminal it is a panel with a yellow border; otherwise it is plain lines.
 
 #### Scenario: Validation errors in file mode
 
@@ -54,10 +54,10 @@ The system SHALL display a validation error summary panel to stderr BEFORE writi
   - Number of rejected rows
   - Up to 3 sample error types/reasons from reject file
   - Path to reject_errors.csv file
-  - Yellow border for visibility
+  - Yellow border on a terminal, plain lines otherwise
 - **AND** normalization proceeds and writes to output file
 - **AND** success summary table is displayed afterward
-- **AND** system exits with code 0
+- **AND** system exits with code 1
 
 #### Scenario: Validation errors in stdout mode
 
@@ -66,7 +66,7 @@ The system SHALL display a validation error summary panel to stderr BEFORE writi
 - **AND** error panel is displayed to stderr BEFORE any output data
 - **AND** normalization proceeds and writes to stdout
 - **AND** brief success summary is shown to stderr afterward
-- **AND** system exits with code 0 (unless `--strict` enabled)
+- **AND** system exits with code 1 (with `--strict` nothing is written, still exit code 1)
 
 #### Scenario: Validation errors with strict mode
 
