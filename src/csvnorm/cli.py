@@ -107,14 +107,15 @@ Encoding names (-e):
   any Python text codec or alias: cp1252, latin-1, cp850, cp1250, cp1254, utf-8
   full list: https://docs.python.org/3/library/codecs.html#standard-encodings
   offline:   python3 -c "import encodings.aliases as a; print(sorted(set(a.aliases.values())))"
+             (also lists non-text codecs such as base64_codec, which -e rejects)
 
 Examples:
-  csvnorm data.csv -e cp1252 -o out.csv        declared input encoding
-  csvnorm data.csv -s 2 -o out.csv             skip 2 metadata rows before the header
-  csvnorm data.csv -d ';' -k -o out.csv        ';' output, original header names
-  csvnorm data.csv --strict -o out.csv         no output if any row is rejected
-  cat data.csv | csvnorm - > out.csv           stdin to stdout
-  csvnorm https://example.com/data.csv.gz -o out.csv
+  csvnorm data.csv -e cp1252 -o utf8.csv       declared input encoding
+  csvnorm data.csv -s 2 -o no_meta.csv         skip 2 metadata rows before the header
+  csvnorm data.csv -d ';' -k -o semi.csv       ';' output, original header names
+  csvnorm data.csv --strict -o strict.csv      no output if any row is rejected
+  cat data.csv | csvnorm - > stdin.csv         stdin to stdout
+  csvnorm https://raw.githubusercontent.com/aborruso/csvnorm/main/test/utf8_basic.csv
 
 Docs: https://github.com/aborruso/csvnorm#readme
 """
@@ -297,9 +298,8 @@ def main(argv: Optional[list[str]] = None) -> int:
 
         if auto_output.resolve() == input_path.resolve():
             err_console.print(
-                f"[yellow]Warning:[/yellow] filename is already in snake_case ({input_path.name}). "
-                "Use -o to specify a different output path.",
-                style="yellow",
+                f"[red]Error:[/red] filename is already in snake_case ({input_path.name}), "
+                "so -O would overwrite the input. Use -o to choose the output path.",
             )
             return EXIT_ERROR
 
@@ -348,7 +348,9 @@ def main(argv: Optional[list[str]] = None) -> int:
             err_console.print_exception()
         err_console.print(
             f"Error: unexpected failure: {type(e).__name__}: {e}\n"
-            "Run again with -V for the full traceback."
+            "Run again with -V for the full traceback.",
+            markup=False,
+            highlight=False,
         )
         return EXIT_ERROR
 

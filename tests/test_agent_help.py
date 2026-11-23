@@ -99,3 +99,32 @@ class TestPlainErrors:
         assert not BOX_CHARS & set(err)
         assert "Rejected rows:" in err
         assert "Details:" in err
+
+
+def test_unexpected_exception_exits_2(tmp_path, monkeypatch, capsys):
+    from csvnorm import cli
+
+    def boom(**kwargs):
+        raise RuntimeError("boom [/x] [bold]")
+
+    monkeypatch.setattr(cli, "process_csv", boom)
+    (tmp_path / "data.csv").write_text("a,b\n1,2\n")
+    monkeypatch.chdir(tmp_path)
+    assert cli.main(["data.csv"]) == 2
+    err = capsys.readouterr().err
+    assert "Error: unexpected failure: RuntimeError: boom [/x] [bold]" in err
+    assert "-V" in err
+
+
+def test_help_examples_run_in_sequence(tmp_path):
+    """Every local example in the help works, run one after the other."""
+    shutil.copy(TEST_DIR / "utf8_basic.csv", tmp_path / "data.csv")
+    text = run("--help", cwd=tmp_path).stdout.decode()
+    block = text.split("\nExamples:\n", 1)[1].split("\n\n", 1)[0]
+    commands = [line.strip().split("   ")[0] for line in block.splitlines()]
+    local = [c for c in commands if "https://" not in c]
+    assert len(local) >= 4
+    for command in local:
+        command = command.replace("csvnorm", f"{sys.executable} -m csvnorm")
+        r = subprocess.run(command, shell=True, cwd=tmp_path, capture_output=True, check=False)
+        assert r.returncode == 0, (command, r.stderr.decode())
