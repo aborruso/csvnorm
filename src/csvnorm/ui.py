@@ -15,6 +15,21 @@ console = Console()
 err_console = Console(stderr=True)
 
 
+def _print_boxed(
+    target: Console, text: str, style: str, title: Optional[str] = None
+) -> None:
+    """Print ``text`` in a panel on a terminal, as plain lines otherwise.
+
+    Pipes, files and agents get no box-drawing characters.
+    """
+    if target.is_terminal:
+        target.print(Panel(text, border_style=style, title=title))
+        return
+    if title:
+        target.print(title)
+    target.print(text, soft_wrap=True)
+
+
 def show_error_panel(message: str, title: str = "Error") -> None:
     """Display an error panel with red border.
 
@@ -22,7 +37,7 @@ def show_error_panel(message: str, title: str = "Error") -> None:
         message: Error message to display.
         title: Panel title (default: "Error").
     """
-    err_console.print(Panel(f"[bold red]{title}:[/bold red] {message}", border_style="red"))
+    _print_boxed(err_console, f"[bold red]{title}:[/bold red] {message}", "red")
 
 
 def show_warning_panel(message: str, title: str = "Warning") -> None:
@@ -32,9 +47,7 @@ def show_warning_panel(message: str, title: str = "Warning") -> None:
         message: Warning message to display.
         title: Panel title (default: "Warning").
     """
-    err_console.print(
-        Panel(f"[bold yellow]{title}:[/bold yellow] {message}", border_style="yellow")
-    )
+    _print_boxed(err_console, f"[bold yellow]{title}:[/bold yellow] {message}", "yellow")
 
 
 def show_success_table(
@@ -145,10 +158,7 @@ def show_validation_error_panel(
     error_lines.append("")
     error_lines.append(f"Details: [cyan]{reject_file}[/cyan]")
 
-    target_console.print(
-        Panel(
-            "\n".join(error_lines),
-            border_style="yellow",
-            title="[yellow]![/yellow] Validation Failed",
-        )
+    _print_boxed(
+        target_console, "\n".join(error_lines), "yellow",
+        title="[yellow]![/yellow] Validation Failed",
     )

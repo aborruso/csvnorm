@@ -18,9 +18,9 @@ def run(*args: str, cwd: Path, stdin: bytes | None = None) -> subprocess.Complet
 
 
 class TestOptionParsing:
-    def test_unknown_encoding_exits_1_before_reading_input(self, tmp_path):
+    def test_unknown_encoding_exits_2_before_reading_input(self, tmp_path):
         r = run("does-not-exist.csv", "-e", "no-such-codec", cwd=tmp_path)
-        assert r.returncode == 1
+        assert r.returncode == 2
         err = r.stderr.decode()
         assert "no-such-codec" in err
         assert "Unknown encoding" in err
@@ -29,7 +29,7 @@ class TestOptionParsing:
     def test_non_text_codecs_are_rejected(self, tmp_path):
         for name in ("base64", "rot13"):
             r = run(str(TEST_DIR / "utf8_basic.csv"), "-e", name, cwd=tmp_path)
-            assert r.returncode == 1, name
+            assert r.returncode == 2, name
             assert "Unknown encoding" in r.stderr.decode()
 
     def test_aliases_are_accepted(self, tmp_path):
@@ -105,7 +105,7 @@ class TestDeclaredEncoding:
         bad = tmp_path / "bad.csv"
         bad.write_bytes(b"id,nome\n1,x\x81y\n")
         r = run(str(bad), "--check", "-e", "cp1252", cwd=tmp_path)
-        assert r.returncode == 1
+        assert r.returncode == 2
 
     def test_undecodable_byte_stops_without_fallback(self, tmp_path):
         src = tmp_path / "bad.csv"
@@ -113,7 +113,7 @@ class TestDeclaredEncoding:
         src.write_bytes(data)
         out = _out(tmp_path)
         r = run(str(src), "-e", "cp1252", "-o", str(out), cwd=tmp_path)
-        assert r.returncode == 1
+        assert r.returncode == 2
         err = r.stderr.decode()
         assert "cp1252" in err
         assert "0x81" in err
@@ -126,7 +126,7 @@ class TestDeclaredEncoding:
         src.write_bytes("id,nome\n1,Forlì\n".encode("cp1252"))
         out = _out(tmp_path)
         r = run(str(src), "-e", "utf-8", "-o", str(out), cwd=tmp_path)
-        assert r.returncode == 1
+        assert r.returncode == 2
         assert "utf-8" in r.stderr.decode().lower()
         assert not out.exists()
 

@@ -50,6 +50,12 @@ from csvnorm.validation import normalize_csv, validate_csv
 logger = logging.getLogger("csvnorm")
 console = Console()
 
+# Exit codes, grep style: 0 clean, 1 rows rejected (output still written
+# unless --strict), 2 csvnorm could not complete (usage or fatal error)
+EXIT_OK = 0
+EXIT_INVALID = 1
+EXIT_ERROR = 2
+
 DISK_FULL_MESSAGE = (
     "No space left on device\n\n"
     "Free some space on the output disk or on the temp disk "
@@ -135,11 +141,15 @@ def _resolve_input_path(
 
     file_path = Path(input_file)
     if not file_path.exists():
-        show_error_panel(f"Input file not found\n{file_path}")
+        show_error_panel(
+            f"Input file not found\n{file_path}\n\n"
+            f"Check the path (relative paths start from {Path.cwd()}); "
+            "use - to read from stdin."
+        )
         raise FileNotFoundError(str(file_path))
 
     if not file_path.is_file():
-        show_error_panel(f"Not a file\n{file_path}")
+        show_error_panel(f"Not a file\n{file_path}\n\nPass the path of a CSV file, not a directory.")
         raise IsADirectoryError(str(file_path))
 
     if output_file is not None:
@@ -184,10 +194,9 @@ def _setup_output_paths(
     temp_utf8_file = temp_dir / f"{output_file.stem}_utf8.csv"
 
     if output_file.exists() and not force:
-        show_warning_panel(
-            f"Output file already exists\n\n"
-            f"{output_file}\n\n"
-            f"Use [bold]--force[/bold] to overwrite."
+        show_error_panel(
+            f"Output file already exists\n{output_file}\n\n"
+            "Use --force to overwrite it, or choose another path with -o."
         )
         raise FileExistsError(str(output_file))
 
@@ -221,7 +230,10 @@ def _download_remote_if_needed(
         download_path = temp_dir / f"remote_download{suffix}"
         download_url_to_file(input_file, download_path)
     except (OSError, urllib.error.URLError) as e:
-        show_error_panel(f"Failed to download remote file\n{e}")
+        show_error_panel(
+            f"Failed to download remote file\n{e}\n\n"
+            "Check the URL and the network, or download the file and pass the local path."
+        )
         raise
 
     temp_files.append(download_path)
@@ -520,7 +532,7 @@ def _emit_stdout_output(
         )
 
     # Return exit code 1 if validation errors occurred (warning already shown before output)
-    return 1 if has_validation_errors else 0
+    return EXIT_INVALID if has_validation_errors else EXIT_OK
 
 
 def _cleanup_temp_artifacts(
@@ -684,14 +696,14 @@ def _handle_post_validation(
             stderr_console.print(f"Details: {reject_file}", soft_wrap=True)
         else:
             stderr_console.print("[green]✓ Valid CSV[/green]")
-        return 1 if has_validation_errors else 0
+        return EXIT_INVALID if has_validation_errors else EXIT_OK
 
     if has_validation_errors and (use_stdout or strict):
         progress.stop()
         stderr_console = Console(stderr=True)
         show_validation_error_panel(reject_count, error_types, reject_file, stderr_console)
         if strict:
-            return 1
+            return EXIT_INVALID
         progress.start()
     elif has_validation_errors:
         progress.stop()
@@ -774,7 +786,7 @@ def _compute_and_show_output(
 
     if has_validation_errors:
         show_validation_error_panel(reject_count, error_types, reject_file)
-        return 1
+        return EXIT_INVALID
 
     return 0
 
@@ -816,13 +828,13 @@ def process_csv(
 
     if fix_mojibake_sample is not None and fix_mojibake_sample < 0:
         show_error_panel("--fix-mojibake must be non-negative (use 0 to force repair)")
-        return 1
+        return EXIT_ERROR
 
     # Handle stdin input (csvnorm -)
     if input_file == "-":
         if sys.stdin.isatty():
             show_error_panel("No input data on stdin\n\nUsage: cat data.csv | csvnorm -")
-            return 1
+            return EXIT_ERROR
         stdin_data = sys.stdin.buffer.read()
         stdin_temp_dir = Path(tempfile.mkdtemp(prefix="csvnorm_stdin_"))
         stdin_temp_file = stdin_temp_dir / "stdin_input.csv"
@@ -833,13 +845,13 @@ def process_csv(
         try:
             input_path, is_remote = _resolve_input_path(input_file, output_file)
         except (ValueError, FileNotFoundError, IsADirectoryError):
-            return 1
+            return EXIT_ERROR
 
     try:
         validate_delimiter(delimiter)
     except ValueError as e:
         show_error_panel(str(e))
-        return 1
+        return EXIT_ERROR
 
     # Setup paths
     temp_dir = Path(tempfile.mkdtemp(prefix="csvnorm_"))
@@ -849,7 +861,7 @@ def process_csv(
             output_file, force, temp_dir
         )
     except FileExistsError:
-        return 1
+        return EXIT_ERROR
 
     temp_files: list[Path] = [temp_dir]
     if stdin_temp_file is not None:
@@ -868,7 +880,7 @@ def process_csv(
                 input_file, input_path, is_remote, download_remote, temp_dir, temp_files,
             )
         except (OSError, urllib.error.URLError):
-            return 1
+            return EXIT_ERROR
 
         # Handle compressed input
         compressed_input_path = input_path
@@ -894,10 +906,10 @@ def process_csv(
                     show_error_panel(DISK_FULL_MESSAGE)
                 else:
                     show_error_panel(f"Cannot read compressed input\n{e}")
-                return 1
+                return EXIT_ERROR
             except ValueError as e:
                 show_error_panel(str(e))
-                return 1
+                return EXIT_ERROR
 
     # Detect CRLF before any processing so file output can preserve it
     input_has_crlf = (
@@ -935,7 +947,7 @@ def process_csv(
                 progress, task, temp_files, encoding,
             )
             if result is None:
-                return 1
+                return EXIT_ERROR
             working_file, encoding, mojibake_repaired = result
 
             # Step 3: Validate CSV
@@ -947,7 +959,7 @@ def process_csv(
                     )
                 )
             except duckdb.Error:
-                return 1
+                return EXIT_ERROR
 
             has_validation_errors = reject_count > 1
             exit_code = _handle_post_validation(
@@ -994,14 +1006,14 @@ def process_csv(
                     )
                 else:
                     show_error_panel(f"Normalization failed\n{error_msg}")
-                return 1
+                return EXIT_ERROR
 
             if strict and has_validation_errors:
                 progress.stop()
                 show_validation_error_panel(
                     reject_count, error_types, reject_file, Console(stderr=True)
                 )
-                return 1
+                return EXIT_INVALID
 
             if normalized_file != actual_output_file:
                 # Atomic: same directory, so never a partial or overwritten output
